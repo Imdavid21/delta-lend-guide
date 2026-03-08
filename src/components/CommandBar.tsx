@@ -379,7 +379,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             )}
 
             {/* Empty state — quick actions */}
-            {results.length === 0 && !value.trim() && (
+            {results.length === 0 && !value.trim() && !quickActionsDismissed && (
               <Box sx={{ p: 1.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
                   <Typography variant="caption" color="text.disabled" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
