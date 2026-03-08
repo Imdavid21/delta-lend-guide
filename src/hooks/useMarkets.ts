@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import type { Market } from "@/lib/marketTypes";
+import type { Market, Vault, PendleMarket } from "@/lib/marketTypes";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -15,10 +15,28 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
+const opts = { refreshInterval: 120_000, revalidateOnFocus: false };
+
 export function useMarkets() {
   return useSWR<Market[]>(
-    `${SUPABASE_URL}/functions/v1/markets`,
+    `${SUPABASE_URL}/functions/v1/markets?type=lending`,
     fetcher,
-    { refreshInterval: 120000, revalidateOnFocus: false }
+    opts,
+  );
+}
+
+export function useVaults() {
+  return useSWR<Vault[]>(
+    `${SUPABASE_URL}/functions/v1/markets?type=vaults`,
+    fetcher,
+    opts,
+  );
+}
+
+export function usePendle() {
+  return useSWR<PendleMarket[]>(
+    `${SUPABASE_URL}/functions/v1/markets?type=pendle`,
+    fetcher,
+    opts,
   );
 }
