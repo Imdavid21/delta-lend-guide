@@ -118,6 +118,17 @@ async function dispatchTool(name: string, input: any): Promise<string> {
     // Batch operations
     case "get_batch_calldata":
       return JSON.stringify(await deltaPost("/actions/allocate/multi-op", input));
+    // Collateral & E-mode management
+    case "enable_collateral":
+      return JSON.stringify(await deltaGet("/actions/lending/enable-collateral", { ...input, simulate: true }));
+    case "disable_collateral":
+      return JSON.stringify(await deltaGet("/actions/lending/disable-collateral", { ...input, simulate: true }));
+    case "switch_emode":
+      return JSON.stringify(await deltaGet("/actions/lending/switch-emode", { ...input, simulate: true }));
+    case "list_emode_categories":
+      return JSON.stringify(await deltaGet("/data/lending/emode-categories", input));
+    case "repay_with_atoken":
+      return JSON.stringify(await deltaGet("/actions/lending/repay-with-atoken", { ...input, simulate: true }));
     default:
       return JSON.stringify({ error: "Unknown tool" });
   }
@@ -133,6 +144,10 @@ const ACTION_TOOLS = new Set([
   "get_collateral_swap_calldata",
   "get_debt_swap_calldata",
   "get_batch_calldata",
+  "enable_collateral",
+  "disable_collateral",
+  "switch_emode",
+  "repay_with_atoken",
 ]);
 
 function extractAction(toolName: string, rawJson: string, input: any) {
@@ -487,7 +502,7 @@ const TOOLS: any[] = [
     type: "function",
     function: {
       name: "get_batch_calldata",
-      description: "Batch multiple lending operations into a single atomic transaction via deltaCompose. POST body with array of ops.",
+      description: "Batch multiple lending operations into a single atomic transaction via deltaCompose.",
       parameters: {
         type: "object",
         properties: {
@@ -508,6 +523,87 @@ const TOOLS: any[] = [
           },
         },
         required: ["chainId", "operator", "operations"],
+      },
+    },
+  },
+  // ── Collateral management ──
+  {
+    type: "function",
+    function: {
+      name: "enable_collateral",
+      description: "Enable a deposited asset as collateral for borrowing (Aave V2/V3).",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Market UID of the deposited asset" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["marketUid", "operator"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "disable_collateral",
+      description: "Disable a deposited asset as collateral (Aave V2/V3). Reduces liquidation risk but lowers borrow capacity.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Market UID of the deposited asset" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["marketUid", "operator"],
+      },
+    },
+  },
+  // ── E-Mode ──
+  {
+    type: "function",
+    function: {
+      name: "list_emode_categories",
+      description: "List available E-Mode categories for an Aave V3 market. Returns category IDs, names, and parameters (LTV, liquidation threshold).",
+      parameters: {
+        type: "object",
+        properties: {
+          chainId: { type: "string" },
+          lender: { type: "string", description: "e.g. 'AAVE_V3'" },
+        },
+        required: ["chainId", "lender"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "switch_emode",
+      description: "Switch E-Mode category on Aave V3. Category 0 = disable E-Mode. Higher categories give better LTV for correlated assets.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Any Aave V3 market UID on the target chain" },
+          categoryId: { type: "number", description: "E-Mode category ID (0 to disable)" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["marketUid", "categoryId", "operator"],
+      },
+    },
+  },
+  // ── Repay with aToken ──
+  {
+    type: "function",
+    function: {
+      name: "repay_with_atoken",
+      description: "Repay debt using collateral aToken directly (Aave V2/V3). Avoids needing to withdraw + swap first.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Market UID of the debt to repay" },
+          amount: { type: "string", description: "Amount in base units. Use max uint for full repay." },
+          operator: { type: "string", description: "Wallet address" },
+          lendingMode: { type: "string", enum: ["0", "1", "2"], description: "0=none 1=stable 2=variable" },
+        },
+        required: ["marketUid", "amount", "operator"],
       },
     },
   },
@@ -561,6 +657,15 @@ LEVERAGED OPERATIONS (Loop Tools):
 - get_debt_swap_calldata: Change debt without affecting collateral. marketUidIn=old debt, marketUidOut=new debt.
   Supports interest rate mode switching via irModeIn/irModeOut.
 - get_batch_calldata: Combine multiple deposit/withdraw/borrow/repay in one atomic tx via deltaCompose.
+
+COLLATERAL & E-MODE MANAGEMENT:
+- enable_collateral / disable_collateral: Toggle whether a deposited asset is used as collateral. Only for Aave V2/V3.
+  Use find_market first to get the marketUid. Disabling collateral reduces liquidation risk but lowers borrow capacity.
+- list_emode_categories: Query available E-Mode categories on Aave V3. Call before switch_emode.
+- switch_emode: Switch E-Mode on Aave V3. Category 0 = disable. Higher categories (e.g. 1=stablecoins, 2=ETH correlated)
+  give better LTV/liquidation thresholds for correlated asset pairs.
+- repay_with_atoken: Repay debt using the collateral aToken directly (Aave only). Useful when the user wants to
+  repay without withdrawing and swapping. The collateral balance decreases by the repaid amount.
 
 All leveraged operations use flash loans internally (free from Morpho Blue) and execute through the deltaCompose(bytes) entry point — a single contract call that encodes all sub-operations atomically.
 
