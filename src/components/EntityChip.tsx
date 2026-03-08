@@ -39,11 +39,17 @@ function Row({ l, v }: { l: string; v: ReactNode }) {
   );
 }
 
-export default function EntityChip({ kind, value, label }: Props) {
+export default function EntityChip({ kind, value, label, onClick }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const open = Boolean(anchor);
 
-  const handleClick = (e: MouseEvent<HTMLElement>) => setAnchor(e.currentTarget);
+  const handleClick = (e: MouseEvent<HTMLElement>) => {
+    if (onClick) {
+      onClick();
+      return;
+    }
+    setAnchor(e.currentTarget);
+  };
   const handleClose = () => setAnchor(null);
 
   let rows: { l: string; v: string }[] = [];
