@@ -52,10 +52,14 @@ async function fetchJSON(url: string, headers: Record<string, string> = {}, time
   try {
     const res = await fetch(url, { headers, signal: controller.signal });
     clearTimeout(timer);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`fetchJSON ${res.status} for ${url}`);
+      return null;
+    }
     return res.json();
-  } catch {
+  } catch (e) {
     clearTimeout(timer);
+    console.log(`fetchJSON error for ${url}: ${(e as Error).message}`);
     return null;
   }
 }
