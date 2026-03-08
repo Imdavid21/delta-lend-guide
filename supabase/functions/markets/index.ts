@@ -79,13 +79,17 @@ Deno.serve(async (req) => {
         const lenderKey = pool.lenderKey ?? pool.lender ?? "";
         const isMorphoVault = lenderKey.startsWith("MORPHO_BLUE");
 
-        // Asset symbol from nested underlyingInfo
-        const asset = pool.underlyingInfo?.asset?.assetGroup
+        // Asset symbol from nested underlyingInfo — prefer assetGroup, then symbol
+        let asset = pool.underlyingInfo?.asset?.assetGroup
           ?? pool.underlyingInfo?.asset?.symbol
           ?? pool.assetGroup
           ?? pool.tokenSymbol
           ?? pool.symbol
           ?? "";
+        // Clean up currencyId format like "Ripple USD::RLUSD" → "RLUSD"
+        if (asset.includes("::")) {
+          asset = asset.split("::").pop() ?? asset;
+        }
 
         // Pool/vault name from API
         const poolName = pool.name ?? "";
