@@ -386,7 +386,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                   {QUICK_ACTIONS.map((a) => (
                     <ListItemButton
                       key={a.label}
-                      onClick={() => { onSend(a.prompt); setValue(""); setFocused(false); }}
+                      onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
                       sx={{ py: 0.5, px: 1, borderRadius: 1.5 }}
                     >
                       <ListItemIcon sx={{ minWidth: 28 }}>
