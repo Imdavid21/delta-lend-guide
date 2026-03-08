@@ -235,7 +235,10 @@ async function fetchPendle() {
     return [];
   }
 
-  const items: any[] = Array.isArray(raw) ? raw : (raw.results ?? raw.data ?? []);
+  const isArr = Array.isArray(raw);
+  const keys = !isArr ? Object.keys(raw).slice(0, 5) : [];
+  console.log(`Pendle raw: isArray=${isArr}, keys=${JSON.stringify(keys)}, type=${typeof raw}`);
+  const items: any[] = isArr ? raw : (raw.results ?? raw.data ?? raw.markets ?? []);
   console.log(`Pendle: ${items.length} raw markets fetched`);
 
   const now = Date.now();
