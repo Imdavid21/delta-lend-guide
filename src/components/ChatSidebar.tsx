@@ -1,10 +1,9 @@
 import { useState } from "react";
 import {
-  Box, List, ListItemButton, ListItemText, IconButton, Typography, Divider, Tooltip, Badge,
+  Box, List, ListItemButton, ListItemText, IconButton, Typography, Divider, Tooltip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import type { Chat } from "../hooks/useChats";
 
