@@ -36,6 +36,7 @@ const SlideUp = forwardRef(function SlideUp(
 });
 
 export default function AppShell({ mode, onToggle }: Props) {
+  const [chatInput, setChatInput] = useState("");
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
     useChats();
   const [loading, setLoading] = useState(false);
