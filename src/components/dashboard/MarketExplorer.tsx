@@ -38,7 +38,6 @@ export default function MarketExplorer() {
         <Tab label="Vaults" value="vaults" />
         <Tab label="Fixed Yield" value="fixed" />
         <Tab label="Looping" value="looping" />
-        <Tab label="Compare" value="compare" />
       </Tabs>
       <Box>
         {tab === "lending" && <LendingTable />}
