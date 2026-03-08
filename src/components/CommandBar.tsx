@@ -189,7 +189,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
     return items.slice(0, 8);
   }, [value, markets, vaults, pendle, onNavigate, recentQueries, onNewChat]);
 
-  const showDropdown = focused && (results.length > 0 || (value.trim() === "" && !loading));
+  const showDropdown = focused && (results.length > 0 || (value.trim() === "" && !loading && !quickActionsDismissed));
 
   const handleSubmit = useCallback((e?: React.FormEvent) => {
     e?.preventDefault();
