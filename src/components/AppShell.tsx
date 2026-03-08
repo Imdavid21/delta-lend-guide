@@ -155,29 +155,33 @@ export default function AppShell({ mode, onToggle }: Props) {
                 bgcolor: "background.default",
               }}
             >
-              <input
+              <Box
+                component="input"
                 name="chatInput"
                 placeholder="Ask about yields, rates, or execute DeFi actions…"
                 disabled={loading}
                 autoComplete="off"
                 className="clean-input"
-                style={{
+                sx={{
                   flex: 1,
-                  border: "1px solid",
-                  borderColor: "inherit",
-                  borderRadius: 12,
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: "12px",
                   padding: "8px 14px",
                   fontSize: 13,
+                  color: "text.primary",
+                  "&::placeholder": { color: "text.secondary", opacity: 1 },
                 }}
               />
-              <button
+              <Box
+                component="button"
                 type="submit"
                 disabled={loading}
-                style={{
-                  background: mode === "dark" ? "#fafafa" : "#0a0a0a",
-                  color: mode === "dark" ? "#0a0a0a" : "#fafafa",
+                sx={{
+                  bgcolor: "text.primary",
+                  color: "background.default",
                   border: "none",
-                  borderRadius: 16,
+                  borderRadius: "16px",
                   padding: "8px 20px",
                   fontSize: 13,
                   fontWeight: 700,
@@ -185,10 +189,11 @@ export default function AppShell({ mode, onToggle }: Props) {
                   opacity: loading ? 0.5 : 1,
                   fontFamily: "inherit",
                   transition: "all 200ms ease",
+                  "&:hover": { opacity: 0.85 },
                 }}
               >
                 {loading ? "…" : "Send"}
-              </button>
+              </Box>
             </Box>
           </Box>
         </Box>

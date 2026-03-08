@@ -36,12 +36,12 @@ const mdComponents: Components = {
     </Box>
   ),
   th: ({ children, ...props }) => (
-    <th style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "4px 8px", textAlign: "left", fontSize: 12 }} {...props}>
+    <th style={{ borderBottom: "1px solid var(--md-border)", padding: "4px 8px", textAlign: "left", fontSize: 12 }} {...props}>
       {children}
     </th>
   ),
   td: ({ children, ...props }) => (
-    <td style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "4px 8px", fontSize: 12 }} {...props}>
+    <td style={{ borderBottom: "1px solid var(--md-border)", padding: "4px 8px", fontSize: 12 }} {...props}>
       {children}
     </td>
   ),

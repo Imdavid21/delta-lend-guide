@@ -43,10 +43,15 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
         }}
       >
         <Box sx={{ mb: 3 }}>
-          <img
+          <Box
+            component="img"
             src={klyroLogo}
             alt="Klyro"
-            style={{ width: 56, height: 56, filter: "invert(0)" }}
+            sx={{
+              width: 56,
+              height: 56,
+              filter: (t) => t.palette.mode === "dark" ? "none" : "invert(1)",
+            }}
           />
         </Box>
         <Typography variant="h5" fontWeight={800} gutterBottom sx={{ letterSpacing: "-0.02em" }}>
