@@ -1,6 +1,7 @@
 import { useState, useMemo, createContext, useContext, useCallback } from "react";
-import { Box, IconButton, Tooltip, Fab, Dialog, Slide } from "@mui/material";
+import { Box, IconButton, Tooltip, Fab, Dialog, Slide, InputBase } from "@mui/material";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
 import AppHeader from "./AppHeader";
 import CommandBar from "./CommandBar";
