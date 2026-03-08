@@ -246,6 +246,9 @@ async function fetchPendle() {
     const sample = items[0];
     console.log(`Pendle sample keys: ${Object.keys(sample).join(", ")}`);
     console.log(`Pendle sample liquidity: ${JSON.stringify(sample.liquidity)}, totalLiquidity: ${sample.totalLiquidity}, tvl: ${sample.tvl}`);
+    console.log(`Pendle sample details: ${JSON.stringify(sample.details ?? {})}`);
+    console.log(`Pendle sample pt: ${JSON.stringify(sample.pt ?? {})}`);
+    console.log(`Pendle sample underlyingAsset: ${JSON.stringify(sample.underlyingAsset ?? {})}`);
     console.log(`Pendle sample: name=${sample.name}, impliedApy=${sample.impliedApy}, expiry=${sample.expiry}`);
   }
 
