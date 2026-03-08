@@ -1,14 +1,25 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { Box } from "@mui/material";
+import ChatSidebar from "../components/ChatSidebar";
+import ChatArea from "../components/ChatArea";
+import { useChats } from "../hooks/useChats";
 
-const Index = () => {
+export default function Index() {
+  const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage } = useChats();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <Box sx={{ display: "flex", height: "calc(100vh - 48px)" }}>
+      <ChatSidebar
+        chats={chats}
+        activeChatId={activeChatId}
+        onSelect={setActiveChatId}
+        onNew={createChat}
+      />
+      <ChatArea
+        chat={activeChat}
+        chatId={activeChatId}
+        onSend={addMessage}
+        onCreateChat={createChat}
+      />
+    </Box>
   );
-};
-
-export default Index;
+}
