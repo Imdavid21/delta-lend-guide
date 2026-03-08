@@ -828,7 +828,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
       messages.push({ role: "tool", tool_call_id: tc.id, content: result });
     }
     response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       max_completion_tokens: 4096,
       tools: TOOLS,
       messages,
