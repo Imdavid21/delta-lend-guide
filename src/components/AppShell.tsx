@@ -1,6 +1,7 @@
 import { useState, useMemo, createContext, useContext, useCallback } from "react";
-import { Box, IconButton, Tooltip, Fab, Dialog, Slide } from "@mui/material";
+import { Box, IconButton, Tooltip, Fab, Dialog, Slide, InputBase } from "@mui/material";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
 import AppHeader from "./AppHeader";
 import CommandBar from "./CommandBar";
@@ -35,6 +36,7 @@ const SlideUp = forwardRef(function SlideUp(
 });
 
 export default function AppShell({ mode, onToggle }: Props) {
+  const [chatInput, setChatInput] = useState("");
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
     useChats();
   const [loading, setLoading] = useState(false);
@@ -212,6 +214,51 @@ export default function AppShell({ mode, onToggle }: Props) {
               loading={loading}
               onSuggestion={(s) => sendMessage(s)}
             />
+          </Box>
+
+          {/* Chat input */}
+          <Box
+            component="form"
+            onSubmit={(e: React.FormEvent) => {
+              e.preventDefault();
+              if (chatInput.trim()) {
+                sendMessage(chatInput.trim());
+                setChatInput("");
+              }
+            }}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 2,
+              py: 1.5,
+              borderTop: 1,
+              borderColor: "divider",
+              flexShrink: 0,
+            }}
+          >
+            <InputBase
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Ask anything..."
+              fullWidth
+              autoFocus
+              sx={{
+                fontSize: 14,
+                px: 1.5,
+                py: 0.75,
+                borderRadius: 2,
+                bgcolor: "action.hover",
+              }}
+            />
+            <IconButton
+              type="submit"
+              size="small"
+              disabled={!chatInput.trim() || loading}
+              sx={{ color: "text.primary" }}
+            >
+              <SendIcon fontSize="small" />
+            </IconButton>
           </Box>
         </Dialog>
 
