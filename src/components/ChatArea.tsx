@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  Box, Typography, Paper, TextField, IconButton, Chip, Grid,
+  Box, Typography, Paper, TextField, IconButton, Chip,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import BoltIcon from "@mui/icons-material/Bolt";
