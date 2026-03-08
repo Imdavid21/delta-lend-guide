@@ -1,5 +1,6 @@
-import { useRef, useEffect } from "react";
-import { Box, Typography, Paper, Chip } from "@mui/material";
+import { useRef, useEffect, useState } from "react";
+import { Box, Typography, Paper, Chip, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import MessageBubble from "./MessageBubble";
 import klyroLogo from "@/assets/klyro-logo.png";
 import type { Chat } from "../hooks/useChats";
@@ -21,6 +22,7 @@ interface Props {
 
 export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [dismissed, setDismissed] = useState(false);
   const messages = chat?.messages ?? [];
   const isEmpty = messages.length === 0;
 
@@ -28,7 +30,7 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, loading]);
 
-  if (isEmpty) {
+  if (isEmpty && !dismissed) {
     return (
       <Box
         sx={{
@@ -60,27 +62,39 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Ask about lending markets, vault yields, fixed rates, or execute DeFi actions.
         </Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, width: "100%" }}>
-          {SUGGESTIONS.map((s) => (
-            <Chip
-              key={s}
-              label={s}
-              variant="outlined"
-              onClick={() => onSuggestion(s)}
-              sx={{
-                height: "auto",
-                py: 1,
-                borderRadius: 3,
-                borderColor: "divider",
-                "& .MuiChip-label": { whiteSpace: "normal", fontSize: 12, textAlign: "center", width: "100%" },
-                transition: "all 200ms ease",
-                "&:hover": {
-                  borderColor: "text.primary",
-                  bgcolor: "action.hover",
-                },
-              }}
-            />
-          ))}
+
+        {/* Quick Actions */}
+        <Box sx={{ width: "100%" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, px: 0.5 }}>
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Quick Actions
+            </Typography>
+            <IconButton size="small" onClick={() => setDismissed(true)} sx={{ color: "text.disabled", p: 0.3 }}>
+              <CloseIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+            {SUGGESTIONS.map((s) => (
+              <Chip
+                key={s}
+                label={s}
+                variant="outlined"
+                onClick={() => onSuggestion(s)}
+                sx={{
+                  height: "auto",
+                  py: 1,
+                  borderRadius: 3,
+                  borderColor: "divider",
+                  "& .MuiChip-label": { whiteSpace: "normal", fontSize: 12, textAlign: "center", width: "100%" },
+                  transition: "all 200ms ease",
+                  "&:hover": {
+                    borderColor: "text.primary",
+                    bgcolor: "action.hover",
+                  },
+                }}
+              />
+            ))}
+          </Box>
         </Box>
       </Box>
     );
