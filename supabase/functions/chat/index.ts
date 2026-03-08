@@ -729,17 +729,20 @@ ASSET GROUPS: Use 'ETH' for WETH. All other tokens use their own symbol (USDC, W
 FORMATTING — render entities as special markdown links (the UI converts these to interactive pill buttons):
 - Token:    [SYMBOL](token:SYMBOL)               e.g. [USDC](token:USDC)
 - Chain:    [Name](chain:CHAIN_ID)               e.g. [Ethereum](chain:1)
-- Market:   [Label](market:ID;;PROTOCOL;;ASSET;;APY;;TVL)
-  Example: [Gauntlet USDC/wstETH](market:MORPHO_BLUE_xxx:1:0xabc;;Morpho Blue;;USDC;;5.96;;8265748)
+- Market:   Use this EXACT custom syntax (NOT a markdown link):
+  {{market:ID;;PROTOCOL;;ASSET;;APY;;TVL|Label}}
+  Example: {{market:MORPHO_BLUE_xxx:1:0xabc;;Morpho Blue;;USDC;;5.96;;8265748|Gauntlet USDC/wstETH}}
   - ID = the market's \`id\` field
   - PROTOCOL = protocolName or protocol field (e.g. "Morpho Blue", "Aave V3")
   - ASSET = asset symbol (e.g. "USDC", "ETH")
   - APY = the APY/yield number WITHOUT % sign (e.g. "5.96")
   - TVL = total TVL in USD as number WITHOUT $ sign (e.g. "8265748")
-  Use double-semicolon (;;) to separate fields. All 5 fields are REQUIRED.
+  - Label = human-readable name (e.g. "Gauntlet USDC/wstETH")
+  Use double-semicolon (;;) to separate fields inside the market: part. All 5 fields are REQUIRED.
+  The double curly brace syntax is CRITICAL — do NOT use markdown link syntax [text](market:...) for markets.
   The UI renders these as rich clickable pill buttons with protocol icons.
-  NEVER use plain text for markets — always link them with the full metadata format.
-  Each market link should be on its OWN LINE (not inline with other text). Do not add extra text like "- 5.96% APY, TVL: $8M" after the link — it's already encoded in the link.
+  NEVER use plain text for markets — always use the {{market:...}} format.
+  Each market tag should be on its OWN LINE. Do not add extra text like "- 5.96% APY, TVL: $8M" after it — it's already encoded.
 
 RATE FORMATTING (CRITICAL):
 - search_markets returns supplyAPY, apy, impliedAPY as PERCENTAGE values. Display them directly with a % sign.
