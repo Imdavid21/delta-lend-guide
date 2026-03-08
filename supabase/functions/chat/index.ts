@@ -26,7 +26,10 @@ async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
   const headers: Record<string, string> = {};
   if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
   const res = await fetch(url.toString(), { headers });
-  if (!res.ok) throw new Error(`1delta ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`1delta ${res.status}: ${body}`);
+  }
   return res.json();
 }
 
