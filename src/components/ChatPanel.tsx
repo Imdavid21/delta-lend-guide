@@ -1,16 +1,16 @@
 import { useRef, useEffect } from "react";
 import { Box, Typography, Paper, Chip } from "@mui/material";
-import BoltIcon from "@mui/icons-material/Bolt";
 import MessageBubble from "./MessageBubble";
+import klyroLogo from "@/assets/klyro-logo.png";
 import type { Chat } from "../hooks/useChats";
 
 const SUGGESTIONS = [
-  "📈 Best USDC lending rates on Ethereum",
-  "💰 Compare ETH supply APY across protocols",
-  "🔍 Show Morpho Blue vault yields",
-  "⚡ What Pendle fixed yields are available?",
-  "📊 Top 5 markets by TVL",
-  "💼 Show my positions",
+  "Best USDC lending rates on Ethereum",
+  "Compare ETH supply APY across protocols",
+  "Show Morpho Blue vault yields",
+  "What Pendle fixed yields are available?",
+  "Top 5 markets by TVL",
+  "Show my positions",
 ];
 
 interface Props {
@@ -42,21 +42,14 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
           px: 2,
         }}
       >
-        <Box
-          sx={{
-            width: 56,
-            height: 56,
-            borderRadius: 2,
-            background: "linear-gradient(135deg, #5865F2 0%, #2dd4bf 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            mb: 2,
-          }}
-        >
-          <BoltIcon sx={{ fontSize: 32, color: "#fff" }} />
+        <Box sx={{ mb: 3 }}>
+          <img
+            src={klyroLogo}
+            alt="Klyro"
+            style={{ width: 56, height: 56, filter: "invert(0)" }}
+          />
         </Box>
-        <Typography variant="h5" fontWeight={700} gutterBottom>
+        <Typography variant="h5" fontWeight={800} gutterBottom sx={{ letterSpacing: "-0.02em" }}>
           How can I help?
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -72,9 +65,14 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
               sx={{
                 height: "auto",
                 py: 1,
+                borderRadius: 3,
+                borderColor: "divider",
                 "& .MuiChip-label": { whiteSpace: "normal", fontSize: 12 },
                 transition: "all 200ms ease",
-                "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" },
+                "&:hover": {
+                  borderColor: "text.primary",
+                  bgcolor: "action.hover",
+                },
               }}
             />
           ))}
@@ -90,7 +88,7 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
       ))}
       {loading && (
         <Box sx={{ display: "flex", alignItems: "flex-start", mb: 1.5 }}>
-          <Paper elevation={0} sx={{ px: 2, py: 1.5, borderRadius: 2.5 }}>
+          <Paper elevation={0} sx={{ px: 2, py: 1.5, borderRadius: 3, border: 1, borderColor: "divider" }}>
             <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
               {[0, 1, 2].map((i) => (
                 <Box

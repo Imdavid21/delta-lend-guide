@@ -49,11 +49,11 @@ export default function LendingTable() {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h6">Lending Markets</Typography>
+        <Typography variant="h6" fontWeight={800}>Lending Markets</Typography>
         <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load markets</Typography>}
-      <TableContainer sx={{ bgcolor: "background.paper", borderRadius: 2 }}>
+      <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -84,31 +84,33 @@ export default function LendingTable() {
               : rows.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>
-                      <Typography fontWeight={600} fontSize={13} fontFamily="monospace">{m.asset}</Typography>
+                      <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.asset}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip label={m.protocolName} size="small" variant="outlined" sx={{ fontSize: 11, height: 22 }} />
+                      <Chip label={m.protocolName} size="small" variant="outlined" sx={{ fontSize: 11, height: 22, borderColor: "divider" }} />
                     </TableCell>
                     <TableCell align="right">
                       <Typography
                         fontSize={13}
-                        fontFamily="monospace"
-                        fontWeight={600}
-                        sx={{ color: m.supplyAPY > 5 ? "success.main" : "text.primary" }}
+                        fontWeight={700}
+                        sx={{
+                          fontVariantNumeric: "tabular-nums",
+                          color: m.supplyAPY > 5 ? "#22c55e" : "text.primary",
+                        }}
                       >
                         {formatPercent(m.supplyAPY)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography fontSize={13} fontFamily="monospace">
+                      <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>
                         {formatPercent(m.borrowAPR)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography fontSize={13} fontFamily="monospace">{formatUSD(m.totalSupplyUSD)}</Typography>
+                      <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{formatUSD(m.totalSupplyUSD)}</Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography fontSize={13} fontFamily="monospace">{formatPercent(m.utilizationRate)}</Typography>
+                      <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{formatPercent(m.utilizationRate)}</Typography>
                     </TableCell>
                     <TableCell align="right">
                       <MarketActionButton

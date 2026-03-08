@@ -2,6 +2,7 @@ import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Button } from "@
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import WalletButton from "./WalletButton";
+import klyroLogo from "@/assets/klyro-logo.png";
 import type { TabId } from "./AppShell";
 
 const tabs: { id: TabId; label: string }[] = [
@@ -21,22 +22,23 @@ interface Props {
 
 export default function AppHeader({ activeTab, onTabChange, mode, onToggle }: Props) {
   return (
-    <AppBar position="static" color="default" elevation={0} sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
+    <AppBar
+      position="sticky"
+      color="default"
+      elevation={0}
+      sx={{ zIndex: (t) => t.zIndex.drawer + 1, backdropFilter: "blur(12px)", bgcolor: "background.default" }}
+    >
       <Toolbar variant="dense" sx={{ gap: 0.5, minHeight: 48 }}>
-        <Typography
-          variant="subtitle1"
-          fontWeight={800}
-          sx={{
-            mr: 3,
-            background: "linear-gradient(135deg, #5865F2 0%, #2dd4bf 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            letterSpacing: "-0.02em",
-            fontSize: "1.1rem",
-          }}
-        >
-          Klyro
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 3, cursor: "pointer" }} onClick={() => onTabChange("overview")}>
+          <img src={klyroLogo} alt="Klyro" style={{ width: 24, height: 24, filter: mode === "dark" ? "none" : "invert(1)" }} />
+          <Typography
+            variant="subtitle1"
+            fontWeight={800}
+            sx={{ letterSpacing: "-0.03em", fontSize: "1.1rem" }}
+          >
+            Klyro
+          </Typography>
+        </Box>
         {tabs.map((t) => (
           <Button
             key={t.id}
@@ -45,9 +47,9 @@ export default function AppHeader({ activeTab, onTabChange, mode, onToggle }: Pr
             sx={{
               textTransform: "none",
               fontWeight: activeTab === t.id ? 700 : 500,
-              color: activeTab === t.id ? "primary.main" : "text.secondary",
+              color: activeTab === t.id ? "text.primary" : "text.secondary",
               borderBottom: activeTab === t.id ? "2px solid" : "2px solid transparent",
-              borderColor: activeTab === t.id ? "primary.main" : "transparent",
+              borderColor: activeTab === t.id ? "text.primary" : "transparent",
               borderRadius: 0,
               px: 1.5,
               py: 0.75,

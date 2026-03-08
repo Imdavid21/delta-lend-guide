@@ -14,7 +14,7 @@ type Mode = "light" | "dark";
 function getInitialMode(): Mode {
   const stored = localStorage.getItem("theme-mode");
   if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "dark";
 }
 
 export default function App() {
@@ -25,7 +25,13 @@ export default function App() {
     const next = mode === "dark" ? "light" : "dark";
     setMode(next);
     localStorage.setItem("theme-mode", next);
+    document.documentElement.classList.toggle("dark", next === "dark");
   };
+
+  // Sync class on mount
+  useMemo(() => {
+    document.documentElement.classList.toggle("dark", mode === "dark");
+  }, [mode]);
 
   return (
     <WagmiProvider config={config}>

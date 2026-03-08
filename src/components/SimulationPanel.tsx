@@ -1,5 +1,5 @@
 import {
-  Table, TableBody, TableCell, TableContainer, TableRow, Alert, Typography,
+  Table, TableBody, TableCell, TableContainer, TableRow, Alert, Typography, Box,
 } from "@mui/material";
 
 interface Props {
@@ -23,27 +23,27 @@ export default function SimulationPanel({ quote }: Props) {
   const showWarning = !isNaN(postHF) && postHF < 1.5;
 
   return (
-    <>
+    <Box sx={{ mt: 1 }}>
       {showWarning && (
-        <Alert severity="warning" sx={{ mb: 1 }}>
+        <Alert severity="warning" sx={{ mb: 1, borderRadius: 2 }}>
           Post-transaction health factor is {postHF.toFixed(2)} — liquidation risk!
         </Alert>
       )}
-      <TableContainer>
-        <Typography variant="subtitle2" sx={{ px: 2, pt: 1 }}>Simulation</Typography>
+      <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 2 }}>
+        <Typography variant="subtitle2" sx={{ px: 2, pt: 1, fontWeight: 700 }}>Simulation</Typography>
         <Table size="small">
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.label}>
                 <TableCell sx={{ color: "text.secondary", fontSize: 12 }}>{r.label}</TableCell>
-                <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{r.before ?? "—"}</TableCell>
-                <TableCell sx={{ fontSize: 12 }}>→</TableCell>
-                <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{r.after ?? "—"}</TableCell>
+                <TableCell sx={{ fontVariantNumeric: "tabular-nums", fontSize: 12 }}>{r.before ?? "—"}</TableCell>
+                <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>→</TableCell>
+                <TableCell sx={{ fontVariantNumeric: "tabular-nums", fontSize: 12, fontWeight: 600 }}>{r.after ?? "—"}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
-    </>
+    </Box>
   );
 }
