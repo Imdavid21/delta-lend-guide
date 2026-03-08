@@ -72,7 +72,7 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
                 py: 1,
                 borderRadius: 3,
                 borderColor: "divider",
-                "& .MuiChip-label": { whiteSpace: "normal", fontSize: 12 },
+                "& .MuiChip-label": { whiteSpace: "normal", fontSize: 12, textAlign: "center", width: "100%" },
                 transition: "all 200ms ease",
                 "&:hover": {
                   borderColor: "text.primary",
