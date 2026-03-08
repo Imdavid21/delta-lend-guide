@@ -36,7 +36,7 @@ const QUICK_ACTIONS: { label: string; prompt: string }[] = [
   { label: "Show my positions", prompt: "Show my positions" },
 ];
 
-export default function CommandBar({ loading, onSend, onNavigate }: Props) {
+export default function CommandBar({ loading, onSend, onNavigate, onNewChat, chatHistory }: Props) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
