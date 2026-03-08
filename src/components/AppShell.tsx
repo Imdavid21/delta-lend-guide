@@ -155,19 +155,22 @@ export default function AppShell({ mode, onToggle }: Props) {
                 bgcolor: "background.default",
               }}
             >
-              <input
+              <Box
+                component="input"
                 name="chatInput"
                 placeholder="Ask about yields, rates, or execute DeFi actions…"
                 disabled={loading}
                 autoComplete="off"
                 className="clean-input"
-                style={{
+                sx={{
                   flex: 1,
-                  border: "1px solid",
-                  borderColor: "inherit",
-                  borderRadius: 12,
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: "12px",
                   padding: "8px 14px",
                   fontSize: 13,
+                  color: "text.primary",
+                  "&::placeholder": { color: "text.secondary", opacity: 1 },
                 }}
               />
               <button
