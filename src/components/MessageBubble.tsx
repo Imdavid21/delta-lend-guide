@@ -83,7 +83,7 @@ function useMdComponents(): Components {
   };
 }
 
-export default function MessageBubble({ message }: Props) {
+export default function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   const mdComponents = useMdComponents();
 
