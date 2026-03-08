@@ -353,7 +353,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                       secondaryTypographyProps={{ fontSize: 10, color: "text.disabled" }}
                     />
                     <Chip
-                      label={r.type === "nav" ? "Page" : r.type === "market" ? "Lending" : r.type === "vault" ? "Vault" : "Fixed"}
+                      label={r.type === "nav" ? "Page" : r.type === "market" ? "Lending" : r.type === "vault" ? "Vault" : r.type === "history" ? "History" : "Fixed"}
                       size="small"
                       sx={{ fontSize: 9, height: 18, bgcolor: "action.hover", color: "text.secondary" }}
                     />
