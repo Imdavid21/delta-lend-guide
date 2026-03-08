@@ -693,7 +693,7 @@ TOOL-USE STRATEGY:
 6. For action tools: get token decimals first via get_token_info, then amount = tokens × 10^decimals as integer string.
 7. For leveraged positions: you need TWO marketUids — marketUidIn (debt side) and marketUidOut (collateral side).
 8. Use get_lending_metadata when user asks about protocol configs, risk parameters, supported assets.
-9. **When showing opportunities, ALWAYS format each one as a clickable market link using the market's id field.** Use format: [Market Name](market:MARKET_ID) where MARKET_ID is the exact \`id\` field from search_markets results. This makes the link clickable in the UI so the user can take action directly.
+9. **When showing opportunities, ALWAYS format each one as a clickable market card using the full metadata format.** Use format: [Market Name](market:ID|PROTOCOL|ASSET|APY|TVL). Each market MUST be on its own line. Do NOT add extra text after the link — all data is encoded in the link.
 
 ID-BASED MARKET MAPPING (CRITICAL):
 - Every market from search_markets has an \`id\` field. This is the unique identifier across all market types.
