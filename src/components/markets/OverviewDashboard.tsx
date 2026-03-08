@@ -25,29 +25,41 @@ function StatCard({
 }) {
   return (
     <Paper
+      variant="outlined"
       onClick={onClick}
       sx={{
         p: 2.5,
         cursor: onClick ? "pointer" : "default",
         transition: "all 200ms ease",
+        borderRadius: 3,
+        borderColor: "divider",
         "&:hover": onClick
-          ? { transform: "translateY(-2px)", boxShadow: 3 }
+          ? { transform: "translateY(-2px)", borderColor: "text.primary" }
           : undefined,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-        <Box sx={{ color: "primary.main" }}>{icon}</Box>
-        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <Box sx={{ color: "text.secondary" }}>{icon}</Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          fontWeight={600}
+          sx={{ textTransform: "uppercase", letterSpacing: "0.05em" }}
+        >
           {title}
         </Typography>
       </Box>
       {value === null ? (
         <Skeleton width={80} height={32} />
       ) : (
-        <Typography variant="h5" fontWeight={700}>{value}</Typography>
+        <Typography variant="h5" fontWeight={800} sx={{ fontVariantNumeric: "tabular-nums" }}>
+          {value}
+        </Typography>
       )}
       {sub && (
-        <Typography variant="caption" color="text.secondary">{sub}</Typography>
+        <Typography variant="caption" color="text.secondary">
+          {sub}
+        </Typography>
       )}
     </Paper>
   );
@@ -58,21 +70,13 @@ export default function OverviewDashboard({ onNavigate }: Props) {
   const { data: vaults } = useVaults();
   const { data: pendle } = usePendle();
 
-  const bestLendingAPY = lending?.length
-    ? Math.max(...lending.map((m) => m.supplyAPY))
-    : null;
+  const bestLendingAPY = lending?.length ? Math.max(...lending.map((m) => m.supplyAPY)) : null;
   const bestLendingAsset = lending?.length
     ? lending.reduce((a, b) => (a.supplyAPY > b.supplyAPY ? a : b))
     : null;
-  const bestVaultAPY = vaults?.length
-    ? Math.max(...vaults.map((v) => v.apy))
-    : null;
-  const bestVault = vaults?.length
-    ? vaults.reduce((a, b) => (a.apy > b.apy ? a : b))
-    : null;
-  const bestFixedAPY = pendle?.length
-    ? Math.max(...pendle.map((m) => m.impliedAPY))
-    : null;
+  const bestVaultAPY = vaults?.length ? Math.max(...vaults.map((v) => v.apy)) : null;
+  const bestVault = vaults?.length ? vaults.reduce((a, b) => (a.apy > b.apy ? a : b)) : null;
+  const bestFixedAPY = pendle?.length ? Math.max(...pendle.map((m) => m.impliedAPY)) : null;
 
   const totalLendingTVL = lending?.reduce((s, m) => s + m.totalSupplyUSD, 0) ?? null;
   const totalVaultsTVL = vaults?.reduce((s, v) => s + v.tvl, 0) ?? null;
@@ -80,7 +84,7 @@ export default function OverviewDashboard({ onNavigate }: Props) {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={700}>
+        <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: "-0.02em" }}>
           Ethereum Yield Overview
         </Typography>
         <Typography variant="body2" color="text.secondary">

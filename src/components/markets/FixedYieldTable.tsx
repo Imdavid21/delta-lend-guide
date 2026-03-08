@@ -48,13 +48,13 @@ export default function FixedYieldTable() {
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Box>
-          <Typography variant="h6">Fixed Yield</Typography>
+          <Typography variant="h6" fontWeight={800}>Fixed Yield</Typography>
           <Typography variant="caption" color="text.secondary">Pendle markets on Ethereum</Typography>
         </Box>
         <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load Pendle markets</Typography>}
-      <TableContainer sx={{ bgcolor: "background.paper", borderRadius: 2 }}>
+      <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -86,14 +86,16 @@ export default function FixedYieldTable() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography fontWeight={600} fontSize={13} fontFamily="monospace">{m.asset}</Typography>
+                      <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.asset}</Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography
                         fontSize={13}
-                        fontFamily="monospace"
-                        fontWeight={600}
-                        sx={{ color: m.impliedAPY > 5 ? "success.main" : "text.primary" }}
+                        fontWeight={700}
+                        sx={{
+                          fontVariantNumeric: "tabular-nums",
+                          color: m.impliedAPY > 5 ? "#22c55e" : "text.primary",
+                        }}
                       >
                         {formatPercent(m.impliedAPY)}
                       </Typography>
@@ -103,12 +105,13 @@ export default function FixedYieldTable() {
                         <Chip
                           label={`${m.daysToMaturity}d`}
                           size="small"
+                          variant="outlined"
                           sx={{
                             fontSize: 11,
                             height: 22,
-                            bgcolor: m.daysToMaturity < 30 ? "warning.main" : "action.selected",
-                            color: m.daysToMaturity < 30 ? "#fff" : "text.primary",
                             fontWeight: 600,
+                            borderColor: m.daysToMaturity < 30 ? "#f59e0b" : "divider",
+                            color: m.daysToMaturity < 30 ? "#f59e0b" : "text.primary",
                           }}
                         />
                       ) : (
@@ -116,7 +119,7 @@ export default function FixedYieldTable() {
                       )}
                     </TableCell>
                     <TableCell align="right">
-                      <Typography fontSize={13} fontFamily="monospace">{formatUSD(m.tvl)}</Typography>
+                      <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{formatUSD(m.tvl)}</Typography>
                     </TableCell>
                   </TableRow>
                 ))}

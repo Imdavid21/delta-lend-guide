@@ -13,10 +13,13 @@ export default function WalletButton() {
       <Chip
         label={short}
         onDelete={() => disconnect()}
+        variant="outlined"
         sx={{
           "& .MuiChip-deleteIcon": { color: "inherit" },
           fontFamily: "monospace",
-          fontSize: 13,
+          fontSize: 12,
+          borderColor: "divider",
+          fontWeight: 600,
         }}
         icon={
           <span
@@ -39,6 +42,7 @@ export default function WalletButton() {
       variant="outlined"
       size="small"
       onClick={() => connect({ connector: injected() })}
+      sx={{ fontWeight: 700, borderRadius: 4, px: 2 }}
     >
       Connect Wallet
     </Button>

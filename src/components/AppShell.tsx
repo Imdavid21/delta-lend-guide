@@ -27,7 +27,6 @@ export default function AppShell({ mode, onToggle }: Props) {
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
     useChats();
   const [loading, setLoading] = useState(false);
-  const submitRef = useRef<((text: string) => void) | null>(null);
 
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -83,7 +82,6 @@ export default function AppShell({ mode, onToggle }: Props) {
     (prompt: string) => {
       setTab("chat");
       const cid = createChat();
-      // Small delay so tab switches first
       setTimeout(() => sendMessage(prompt, cid), 100);
     },
     [createChat, sendMessage],
@@ -134,7 +132,7 @@ export default function AppShell({ mode, onToggle }: Props) {
             <Box sx={{ flex: 1, overflow: "auto", p: tab === "chat" ? 0 : 2.5 }}>
               {content}
             </Box>
-            {/* Bottom chat input — always visible */}
+            {/* Bottom chat input */}
             <Box
               component="form"
               onSubmit={(e: React.FormEvent) => {
@@ -154,7 +152,7 @@ export default function AppShell({ mode, onToggle }: Props) {
                 gap: 1,
                 borderTop: 1,
                 borderColor: "divider",
-                bgcolor: "background.paper",
+                bgcolor: "background.default",
               }}
             >
               <input
@@ -162,33 +160,31 @@ export default function AppShell({ mode, onToggle }: Props) {
                 placeholder="Ask about yields, rates, or execute DeFi actions…"
                 disabled={loading}
                 autoComplete="off"
+                className="clean-input"
                 style={{
                   flex: 1,
-                  background: "transparent",
                   border: "1px solid",
                   borderColor: "inherit",
-                  borderRadius: 6,
-                  padding: "8px 12px",
+                  borderRadius: 12,
+                  padding: "8px 14px",
                   fontSize: 13,
-                  color: "inherit",
-                  outline: "none",
-                  fontFamily: "inherit",
                 }}
               />
               <button
                 type="submit"
                 disabled={loading}
                 style={{
-                  background: "#5865F2",
-                  color: "#fff",
+                  background: mode === "dark" ? "#fafafa" : "#0a0a0a",
+                  color: mode === "dark" ? "#0a0a0a" : "#fafafa",
                   border: "none",
-                  borderRadius: 6,
-                  padding: "8px 16px",
+                  borderRadius: 16,
+                  padding: "8px 20px",
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: loading ? "not-allowed" : "pointer",
                   opacity: loading ? 0.5 : 1,
                   fontFamily: "inherit",
+                  transition: "all 200ms ease",
                 }}
               >
                 {loading ? "…" : "Send"}

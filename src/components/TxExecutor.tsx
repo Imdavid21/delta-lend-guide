@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
-  Card, CardHeader, CardContent, CardActions, List, ListItem,
-  ListItemIcon, ListItemText, Button, Typography, Collapse, IconButton, Box,
+  Box, List, ListItem, ListItemIcon, ListItemText, Button, Typography, Collapse, IconButton,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -58,20 +57,20 @@ export default function TxExecutor({ transactions, quote }: Props) {
   const statusIcon = (s: StepStatus) => {
     switch (s) {
       case "pending": return <CircularProgress size={20} />;
-      case "success": return <CheckCircleIcon color="success" />;
+      case "success": return <CheckCircleIcon sx={{ color: "#22c55e" }} />;
       case "error": return <CancelIcon color="error" />;
       default: return <RadioButtonUncheckedIcon sx={{ color: "text.disabled" }} />;
     }
   };
 
   return (
-    <Card variant="outlined" sx={{ mt: 1, maxWidth: 600 }}>
-      <CardHeader
-        title={`${transactions.length} transaction(s) to execute`}
-        titleTypographyProps={{ variant: "subtitle1", color: "primary" }}
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ pt: 1 }}>
+    <Box sx={{ mt: 1, maxWidth: 600, border: 1, borderColor: "divider", borderRadius: 3, overflow: "hidden" }}>
+      <Box sx={{ px: 2, pt: 1.5, pb: 0 }}>
+        <Typography variant="subtitle2" fontWeight={700}>
+          {transactions.length} transaction(s) to execute
+        </Typography>
+      </Box>
+      <Box sx={{ px: 1, pt: 0.5 }}>
         {quote && <SimulationPanel quote={quote} />}
         <List dense disablePadding>
           {transactions.map((step, i) => (
@@ -86,9 +85,10 @@ export default function TxExecutor({ transactions, quote }: Props) {
                 <ListItemIcon sx={{ minWidth: 36 }}>{statusIcon(statuses[i])}</ListItemIcon>
                 <ListItemText
                   primary={step.description.charAt(0).toUpperCase() + step.description.slice(1)}
+                  primaryTypographyProps={{ fontSize: 13, fontWeight: 500 }}
                   secondary={
                     hashes[i] ? (
-                      <Typography variant="caption" sx={{ color: "success.main", fontFamily: "monospace" }}>
+                      <Typography variant="caption" sx={{ color: "#22c55e", fontFamily: "monospace" }}>
                         {hashes[i]}
                       </Typography>
                     ) : errors[i] ? (
@@ -110,18 +110,23 @@ export default function TxExecutor({ transactions, quote }: Props) {
             </Box>
           ))}
         </List>
-      </CardContent>
-      <CardActions>
+      </Box>
+      <Box sx={{ p: 1.5 }}>
         <Button
           fullWidth
           variant="contained"
           disabled={allDone || statuses.some((s) => s === "pending")}
           onClick={execute}
-          color={allDone ? "success" : hasError ? "warning" : "primary"}
+          sx={{
+            borderRadius: 3,
+            fontWeight: 700,
+            py: 1,
+            ...(allDone && { bgcolor: "#22c55e", "&:hover": { bgcolor: "#16a34a" } }),
+          }}
         >
           {allDone ? "All Transactions Completed" : hasError ? "Retry" : "Execute Transactions"}
         </Button>
-      </CardActions>
-    </Card>
+      </Box>
+    </Box>
   );
 }

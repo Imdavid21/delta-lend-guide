@@ -10,12 +10,6 @@ import MarketActionButton from "./MarketActionButton";
 
 type SortKey = "asset" | "protocol" | "apy" | "tvl" | "name";
 
-const SOURCE_COLORS: Record<string, string> = {
-  morpho: "#5865F2",
-  yearn: "#006ae3",
-  euler: "#e5484d",
-};
-
 export default function VaultsTable() {
   const { data, isLoading, error } = useVaults();
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
@@ -54,11 +48,11 @@ export default function VaultsTable() {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h6">Vaults</Typography>
+        <Typography variant="h6" fontWeight={800}>Vaults</Typography>
         <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load vaults</Typography>}
-      <TableContainer sx={{ bgcolor: "background.paper", borderRadius: 2 }}>
+      <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -92,33 +86,30 @@ export default function VaultsTable() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography fontWeight={600} fontSize={13} fontFamily="monospace">{v.asset}</Typography>
+                      <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{v.asset}</Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
                         label={v.protocol}
                         size="small"
-                        sx={{
-                          fontSize: 11,
-                          height: 22,
-                          bgcolor: `${SOURCE_COLORS[v.source] ?? "#5865F2"}18`,
-                          color: SOURCE_COLORS[v.source] ?? "#5865F2",
-                          fontWeight: 600,
-                        }}
+                        variant="outlined"
+                        sx={{ fontSize: 11, height: 22, borderColor: "divider", fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell align="right">
                       <Typography
                         fontSize={13}
-                        fontFamily="monospace"
-                        fontWeight={600}
-                        sx={{ color: v.apy > 5 ? "success.main" : "text.primary" }}
+                        fontWeight={700}
+                        sx={{
+                          fontVariantNumeric: "tabular-nums",
+                          color: v.apy > 5 ? "#22c55e" : "text.primary",
+                        }}
                       >
                         {formatPercent(v.apy)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography fontSize={13} fontFamily="monospace">{formatUSD(v.tvl)}</Typography>
+                      <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{formatUSD(v.tvl)}</Typography>
                     </TableCell>
                     <TableCell align="right">
                       <MarketActionButton

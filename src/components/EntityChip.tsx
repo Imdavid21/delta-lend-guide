@@ -1,8 +1,5 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { Chip, Popover, Box, Typography, Button } from "@mui/material";
-import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
-import LinkIcon from "@mui/icons-material/Link";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 
 const CHAIN_NAMES: Record<string, string> = {
   "1": "Ethereum", "10": "OP Mainnet", "56": "BNB Chain", "100": "Gnosis",
@@ -16,12 +13,14 @@ const LENDER_NAMES: Record<string, string> = {
   AAVE_V2: "Aave V2", AAVE_V3: "Aave V3", COMPOUND_V2: "Compound V2",
   COMPOUND_V3: "Compound V3", LENDLE: "Lendle", AURELIUS: "Aurelius",
   MENDI: "Mendi Finance", MOONWELL: "Moonwell", SILO: "Silo Finance", RADIANT_V2: "Radiant V2",
+  MORPHO_BLUE: "Morpho Blue",
 };
 
 const LENDER_SLUGS: Record<string, string> = {
   AAVE_V2: "aave-v2", AAVE_V3: "aave-v3", COMPOUND_V2: "compound",
   COMPOUND_V3: "compound-v3", LENDLE: "lendle", AURELIUS: "aurelius",
   MENDI: "mendi-finance", MOONWELL: "moonwell", SILO: "silo-finance", RADIANT_V2: "radiant-v2",
+  MORPHO_BLUE: "morpho-blue",
 };
 
 interface Props {
@@ -45,9 +44,6 @@ export default function EntityChip({ kind, value, label }: Props) {
 
   const handleClick = (e: MouseEvent<HTMLElement>) => setAnchor(e.currentTarget);
   const handleClose = () => setAnchor(null);
-
-  const icon = kind === "token" ? <MonetizationOnIcon /> : kind === "chain" ? <LinkIcon /> : <AccountBalanceIcon />;
-  const color = kind === "token" ? "info" : kind === "chain" ? "warning" : "secondary";
 
   let rows: { l: string; v: string }[] = [];
   let link = "";
@@ -79,12 +75,19 @@ export default function EntityChip({ kind, value, label }: Props) {
   return (
     <>
       <Chip
-        icon={icon}
         label={label}
-        color={color}
         size="small"
+        variant="outlined"
         onClick={handleClick}
-        sx={{ cursor: "pointer", mx: 0.3, my: 0.2 }}
+        sx={{
+          cursor: "pointer",
+          mx: 0.3,
+          my: 0.2,
+          borderColor: "divider",
+          fontWeight: 600,
+          fontSize: 11,
+          "&:hover": { borderColor: "text.primary" },
+        }}
       />
       <Popover
         open={open}
@@ -96,7 +99,7 @@ export default function EntityChip({ kind, value, label }: Props) {
           {rows.map((r) => (
             <Row key={r.l} l={r.l} v={r.v} />
           ))}
-          <Button size="small" href={link} target="_blank" sx={{ mt: 1 }}>
+          <Button size="small" href={link} target="_blank" sx={{ mt: 1, fontWeight: 600 }}>
             {linkLabel}
           </Button>
         </Box>

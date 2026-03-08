@@ -16,15 +16,17 @@ export default function MarketActionButton({ label, prompt }: Props) {
       onClick={() => submitAction(prompt)}
       sx={{
         fontSize: 11,
-        fontWeight: 600,
+        fontWeight: 700,
         py: 0.3,
         px: 1.5,
         minWidth: 0,
-        borderColor: "primary.main",
-        color: "primary.main",
+        borderRadius: 3,
+        borderColor: "divider",
+        color: "text.primary",
         "&:hover": {
-          bgcolor: "primary.main",
-          color: "#fff",
+          bgcolor: "text.primary",
+          color: "background.default",
+          borderColor: "text.primary",
         },
         transition: "all 200ms ease",
       }}

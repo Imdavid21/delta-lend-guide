@@ -35,6 +35,7 @@ export default function ChatSidebar({ chats, activeChatId, onSelect, onNew, onDe
           boxSizing: "border-box",
           position: "relative",
           height: "100%",
+          bgcolor: "background.default",
         },
       }}
     >
@@ -47,10 +48,14 @@ export default function ChatSidebar({ chats, activeChatId, onSelect, onNew, onDe
           pb: 1,
         }}
       >
-        <Typography variant="caption" fontWeight={700} sx={{ textTransform: "uppercase", letterSpacing: "0.08em", color: "text.secondary" }}>
+        <Typography
+          variant="caption"
+          fontWeight={700}
+          sx={{ textTransform: "uppercase", letterSpacing: "0.08em", color: "text.secondary" }}
+        >
           Chats
         </Typography>
-        <IconButton size="small" onClick={onNew} sx={{ color: "text.secondary" }}>
+        <IconButton size="small" onClick={onNew} sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}>
           <AddIcon fontSize="small" />
         </IconButton>
       </Box>
@@ -67,7 +72,7 @@ export default function ChatSidebar({ chats, activeChatId, onSelect, onNew, onDe
                 onClick={() => onSelect(chat.id)}
                 sx={{
                   borderLeft: active ? "2px solid" : "2px solid transparent",
-                  borderColor: active ? "primary.main" : "transparent",
+                  borderColor: active ? "text.primary" : "transparent",
                   py: 0.75,
                   px: 1.5,
                   transition: "all 150ms ease",

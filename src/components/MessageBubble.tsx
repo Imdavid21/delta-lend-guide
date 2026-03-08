@@ -23,7 +23,7 @@ const mdComponents: Components = {
       return <EntityChip kind="market" value={href.replace("market:", "")} label={text} />;
     }
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>
+      <a href={href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>
         {children}
       </a>
     );
@@ -36,12 +36,12 @@ const mdComponents: Components = {
     </Box>
   ),
   th: ({ children, ...props }) => (
-    <th style={{ borderBottom: "1px solid rgba(255,255,255,0.2)", padding: "4px 8px", textAlign: "left", fontSize: 12 }} {...props}>
+    <th style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "4px 8px", textAlign: "left", fontSize: 12 }} {...props}>
       {children}
     </th>
   ),
   td: ({ children, ...props }) => (
-    <td style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "4px 8px", fontSize: 12 }} {...props}>
+    <td style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "4px 8px", fontSize: 12 }} {...props}>
       {children}
     </td>
   ),
@@ -58,10 +58,12 @@ export default function MessageBubble({ message }: Props) {
           px: 2,
           py: 1.2,
           maxWidth: 600,
-          borderRadius: 2.5,
+          borderRadius: 3,
+          border: 1,
+          borderColor: isUser ? "text.primary" : "divider",
           ...(isUser
-            ? { bgcolor: "primary.main", color: "primary.contrastText" }
-            : { bgcolor: "background.paper" }),
+            ? { bgcolor: "text.primary", color: "background.default" }
+            : { bgcolor: "background.default" }),
           "& p": { m: 0 },
           "& p + p": { mt: 1 },
           "& ul, & ol": { pl: 2, my: 0.5 },
