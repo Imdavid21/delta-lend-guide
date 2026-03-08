@@ -502,7 +502,7 @@ const TOOLS: any[] = [
     type: "function",
     function: {
       name: "get_batch_calldata",
-      description: "Batch multiple lending operations into a single atomic transaction via deltaCompose. POST body with array of ops.",
+      description: "Batch multiple lending operations into a single atomic transaction via deltaCompose.",
       parameters: {
         type: "object",
         properties: {
@@ -523,6 +523,87 @@ const TOOLS: any[] = [
           },
         },
         required: ["chainId", "operator", "operations"],
+      },
+    },
+  },
+  // ── Collateral management ──
+  {
+    type: "function",
+    function: {
+      name: "enable_collateral",
+      description: "Enable a deposited asset as collateral for borrowing (Aave V2/V3).",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Market UID of the deposited asset" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["marketUid", "operator"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "disable_collateral",
+      description: "Disable a deposited asset as collateral (Aave V2/V3). Reduces liquidation risk but lowers borrow capacity.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Market UID of the deposited asset" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["marketUid", "operator"],
+      },
+    },
+  },
+  // ── E-Mode ──
+  {
+    type: "function",
+    function: {
+      name: "list_emode_categories",
+      description: "List available E-Mode categories for an Aave V3 market. Returns category IDs, names, and parameters (LTV, liquidation threshold).",
+      parameters: {
+        type: "object",
+        properties: {
+          chainId: { type: "string" },
+          lender: { type: "string", description: "e.g. 'AAVE_V3'" },
+        },
+        required: ["chainId", "lender"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "switch_emode",
+      description: "Switch E-Mode category on Aave V3. Category 0 = disable E-Mode. Higher categories give better LTV for correlated assets.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Any Aave V3 market UID on the target chain" },
+          categoryId: { type: "number", description: "E-Mode category ID (0 to disable)" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["marketUid", "categoryId", "operator"],
+      },
+    },
+  },
+  // ── Repay with aToken ──
+  {
+    type: "function",
+    function: {
+      name: "repay_with_atoken",
+      description: "Repay debt using collateral aToken directly (Aave V2/V3). Avoids needing to withdraw + swap first.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUid: { type: "string", description: "Market UID of the debt to repay" },
+          amount: { type: "string", description: "Amount in base units. Use max uint for full repay." },
+          operator: { type: "string", description: "Wallet address" },
+          lendingMode: { type: "string", enum: ["0", "1", "2"], description: "0=none 1=stable 2=variable" },
+        },
+        required: ["marketUid", "amount", "operator"],
       },
     },
   },
