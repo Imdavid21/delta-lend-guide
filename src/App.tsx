@@ -1,27 +1,50 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { useState, useMemo } from "react";
+import { ThemeProvider, CssBaseline, Box } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from "wagmi";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { getTheme } from "./theme";
+import { config } from "./config/wagmi";
+import AppHeader from "./components/AppHeader";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+type Mode = "light" | "dark";
 
-export default App;
+function getInitialMode(): Mode {
+  const stored = localStorage.getItem("theme-mode");
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+export default function App() {
+  const [mode, setMode] = useState<Mode>(getInitialMode);
+  const theme = useMemo(() => getTheme(mode), [mode]);
+
+  const toggle = () => {
+    const next = mode === "dark" ? "light" : "dark";
+    setMode(next);
+    localStorage.setItem("theme-mode", next);
+  };
+
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <BrowserRouter>
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+              <AppHeader mode={mode} onToggle={toggle} />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Box>
+          </BrowserRouter>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
