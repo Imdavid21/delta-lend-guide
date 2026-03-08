@@ -24,12 +24,13 @@ function useMdComponents(): Components {
         return <EntityChip kind="chain" value={href.replace("chain:", "")} label={text} />;
       }
       if (href?.startsWith("market:")) {
+        const marketId = href.replace("market:", "");
         return (
           <EntityChip
             kind="market"
-            value={href.replace("market:", "")}
+            value={marketId}
             label={text}
-            onClick={() => submitAction(`Tell me more about ${text} and help me deposit`)}
+            onClick={() => submitAction(`Tell me more about ${text} and help me deposit (market id: ${marketId})`)}
           />
         );
       }

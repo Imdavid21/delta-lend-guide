@@ -105,10 +105,15 @@ async function fetchLending(hdrs: Record<string, string>) {
     .filter(Boolean);
 }
 
-/* ── Morpho vault names from GraphQL API ── */
+/* ── Morpho vault + curator metadata from GraphQL API ── */
 
-async function fetchMorphoVaultNames(): Promise<Map<string, string>> {
-  const nameMap = new Map<string, string>();
+interface MorphoMeta {
+  name: string;
+  curator?: string;
+}
+
+async function fetchMorphoMetadata(): Promise<Map<string, MorphoMeta>> {
+  const metaMap = new Map<string, MorphoMeta>();
   try {
     const query = `{
       markets(first: 500, where: { chainId_in: [1], whitelisted: true }) {
@@ -116,15 +121,25 @@ async function fetchMorphoVaultNames(): Promise<Map<string, string>> {
           uniqueKey
           loanAsset { symbol }
           collateralAsset { symbol }
-          morphoBlue { chain { id } }
         }
       }
-      vaultV2s(first: 200, where: { chainId_in: [1] }) {
+      vaults(first: 200, where: { chainId_in: [1] }) {
         items {
           address
           name
           symbol
           asset { symbol }
+          curator {
+            name
+            image
+          }
+          metadata {
+            description
+            image
+          }
+          state {
+            totalAssetsUsd
+          }
         }
       }
     }`;
@@ -134,7 +149,7 @@ async function fetchMorphoVaultNames(): Promise<Map<string, string>> {
       body: JSON.stringify({ query }),
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return nameMap;
+    if (!res.ok) return metaMap;
     const json = await res.json();
 
     // Map market uniqueKeys to descriptive names
@@ -142,52 +157,65 @@ async function fetchMorphoVaultNames(): Promise<Map<string, string>> {
       const loan = m.loanAsset?.symbol ?? "";
       const coll = m.collateralAsset?.symbol ?? "";
       if (m.uniqueKey) {
-        nameMap.set(m.uniqueKey.toLowerCase(), `${loan}/${coll}`);
+        metaMap.set(m.uniqueKey.toLowerCase(), { name: `${loan}/${coll}` });
       }
     }
 
-    // Map vault addresses to vault names
-    for (const v of json?.data?.vaultV2s?.items ?? []) {
-      if (v.address && v.name) {
-        nameMap.set(v.address.toLowerCase(), v.name);
+    // Map vault addresses to vault names + curator
+    for (const v of json?.data?.vaults?.items ?? []) {
+      if (v.address) {
+        const curatorName = v.curator?.name ?? undefined;
+        metaMap.set(v.address.toLowerCase(), {
+          name: v.name ?? v.symbol ?? "",
+          curator: curatorName,
+        });
       }
     }
   } catch (e) {
     console.log(`Morpho GraphQL error: ${(e as Error).message}`);
   }
-  return nameMap;
+  return metaMap;
 }
 
-function morphoVaultDisplayName(pool: any, asset: string, morphoNames: Map<string, string>): string {
-  // Try by marketUid — extract the unique key hex from the lender key
+function morphoVaultDisplayName(pool: any, asset: string, morphoMeta: Map<string, MorphoMeta>): { name: string; curator?: string } {
   const lk = pool.lenderKey ?? "";
   const hexMatch = lk.match(/MORPHO_BLUE_([A-F0-9]+)/i);
+
+  // Try to match vault by address from the GraphQL data
+  // Also check if any vault metadata has a curator
+  let curator: string | undefined;
+
   if (hexMatch) {
     const uk = "0x" + hexMatch[1].toLowerCase();
-    const graphqlName = morphoNames.get(uk);
-    if (graphqlName) return `Morpho ${graphqlName}`;
+    const meta = morphoMeta.get(uk);
+    if (meta) {
+      curator = meta.curator;
+      const displayName = curator
+        ? `${curator} ${meta.name}`
+        : `Morpho ${meta.name}`;
+      return { name: displayName, curator };
+    }
   }
 
-  // Try pool name if it's descriptive enough (not just "Loan X" / "Collateral X")
+  // Try pool name if descriptive
   const rawName = pool.name ?? "";
   if (rawName && !rawName.startsWith("Loan ") && !rawName.startsWith("Collateral ")) {
-    return rawName;
+    return { name: rawName, curator };
   }
 
-  // Fallback: "Morpho Blue <asset> (supply|collateral)"
+  // Fallback
   const isLoan = rawName.startsWith("Loan ");
-  return `Morpho Blue ${asset} ${isLoan ? "Supply" : "Collateral"}`;
+  return { name: `Morpho Blue ${asset} ${isLoan ? "Supply" : "Collateral"}`, curator };
 }
 
 async function fetchVaults(hdrs: Record<string, string>) {
-  const [items1delta, morphoNames] = await Promise.all([
+  const [items1delta, morphoMeta] = await Promise.all([
     fetch1DeltaPools(hdrs),
-    fetchMorphoVaultNames(),
+    fetchMorphoMetadata(),
   ]);
 
   const vaults: any[] = [];
 
-  // Morpho Blue + Euler vaults from 1delta
   for (const pool of items1delta) {
     const lk = pool.lenderKey ?? "";
     const isMorpho = lk.startsWith("MORPHO_BLUE");
@@ -199,24 +227,30 @@ async function fetchVaults(hdrs: Record<string, string>) {
     const asset = extractAsset(pool);
     const protocol = isMorpho ? "Morpho Blue" : "Euler";
     const source = isMorpho ? "morpho" : "euler";
-    const name = isMorpho
-      ? morphoVaultDisplayName(pool, asset, morphoNames)
-      : (pool.name || `Euler ${asset}`);
+
+    let name: string;
+    let curator: string | undefined;
+
+    if (isMorpho) {
+      const result = morphoVaultDisplayName(pool, asset, morphoMeta);
+      name = result.name;
+      curator = result.curator;
+    } else {
+      name = pool.name || `Euler ${asset}`;
+    }
 
     vaults.push({
       id: pool.marketUid ?? `${source}:1:${asset}`,
+      marketUid: pool.marketUid ?? "",
       name,
       protocol,
       asset,
       apy: parseFloat(pool.depositRate) || 0,
       tvl,
       source,
+      ...(curator && { curator }),
     });
   }
-
-  // NOTE: Yearn vaults are intentionally excluded from the API response for now.
-  // The fetching code is preserved below for future re-enablement.
-  // if (yearnRaw && Array.isArray(yearnRaw)) { ... }
 
   return vaults;
 }
@@ -240,20 +274,18 @@ async function fetchPendle() {
   const now = Date.now();
   const results = items
     .filter((m: any) => {
-      // Filter: must have details, liquidity >= 10k, not expired
       const details = m.details;
       if (!details) return false;
       const liq = details.liquidity ?? details.totalTvl ?? 0;
       if (liq < 10000) return false;
       const expiry = m.expiry ? new Date(m.expiry).getTime() : 0;
-      if (expiry <= now) return false; // Skip expired
+      if (expiry <= now) return false;
       return true;
     })
     .map((m: any) => {
       const details = m.details ?? {};
       const expiry = m.expiry ? new Date(m.expiry).getTime() : 0;
       const daysToMaturity = expiry > now ? Math.ceil((expiry - now) / 86400000) : 0;
-      // Extract asset symbol from market name (e.g. "PT sUSDe 26DEC2024" → "sUSDe")
       const nameParts = (m.name ?? "").split(" ");
       const asset = nameParts.length > 1 ? nameParts.slice(0, -1).join(" ") : m.name ?? "";
       return {
@@ -294,7 +326,6 @@ Deno.serve(async (req) => {
         data = await fetchLending(hdrs);
     }
 
-    // Deduplicate by id
     const seen = new Set<string>();
     const unique = data.filter((m: any) => {
       if (seen.has(m.id)) return false;

@@ -84,9 +84,16 @@ export default function VaultsTable() {
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <ProtocolIcon name={v.protocol} size={16} />
-                        <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 240 }} noWrap>
-                          {v.name}
-                        </Typography>
+                        <Box>
+                          <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 240 }} noWrap>
+                            {v.name}
+                          </Typography>
+                          {v.curator && (
+                            <Typography fontSize={11} color="text.secondary" noWrap>
+                              {v.curator}
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
@@ -121,7 +128,7 @@ export default function VaultsTable() {
                     <TableCell align="right">
                       <MarketActionButton
                         label="Deposit"
-                        prompt={`Deposit into ${v.protocol} vault "${v.name}" for ${v.asset}`}
+                        prompt={`Deposit into ${v.protocol} vault "${v.name}" for ${v.asset} (id: ${v.id}${v.marketUid ? `, marketUid: ${v.marketUid}` : ''})`}
                       />
                     </TableCell>
                   </TableRow>
