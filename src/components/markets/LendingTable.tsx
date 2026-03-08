@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { useMarkets } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import AssetFilter from "./AssetFilter";
 import MarketActionButton from "./MarketActionButton";
 
