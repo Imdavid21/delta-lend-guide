@@ -806,7 +806,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   let collectedQuote: any;
 
   let response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     max_completion_tokens: 4096,
     tools: TOOLS,
     messages,
