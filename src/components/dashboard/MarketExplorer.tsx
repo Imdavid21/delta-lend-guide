@@ -3,10 +3,10 @@ import { Box, Tabs, Tab } from "@mui/material";
 import LendingTable from "../markets/LendingTable";
 import VaultsTable from "../markets/VaultsTable";
 import FixedYieldTable from "../markets/FixedYieldTable";
-import ProtocolCompare from "./ProtocolCompare";
-import AssetCompare from "./AssetCompare";
+import Compare from "./Compare";
+import LoopingStrategies from "./LoopingStrategies";
 
-type MarketTab = "lending" | "vaults" | "fixed" | "protocol-compare" | "asset-compare";
+type MarketTab = "lending" | "vaults" | "fixed" | "looping" | "compare";
 
 export default function MarketExplorer() {
   const [tab, setTab] = useState<MarketTab>("lending");
@@ -37,15 +37,15 @@ export default function MarketExplorer() {
         <Tab label="Lending" value="lending" />
         <Tab label="Vaults" value="vaults" />
         <Tab label="Fixed Yield" value="fixed" />
-        <Tab label="Protocol Comparison" value="protocol-compare" />
-        <Tab label="Asset Comparison" value="asset-compare" />
+        <Tab label="Looping" value="looping" />
+        <Tab label="Compare" value="compare" />
       </Tabs>
       <Box>
         {tab === "lending" && <LendingTable />}
         {tab === "vaults" && <VaultsTable />}
         {tab === "fixed" && <FixedYieldTable />}
-        {tab === "protocol-compare" && <ProtocolCompare />}
-        {tab === "asset-compare" && <AssetCompare />}
+        {tab === "looping" && <LoopingStrategies />}
+        {tab === "compare" && <Compare />}
       </Box>
     </Box>
   );
