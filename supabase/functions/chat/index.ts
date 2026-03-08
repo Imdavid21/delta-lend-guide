@@ -82,6 +82,7 @@ function slimPools(raw: any, minTvlUsd = 10000) {
 /* ───── tool dispatch ───── */
 
 async function dispatchTool(name: string, input: any): Promise<string> {
+  try {
   switch (name) {
     case "search_markets": {
       const types: ("lending" | "vaults" | "pendle")[] = input.types ?? ["lending", "vaults", "pendle"];
