@@ -643,9 +643,11 @@ Use these for EVERY token, chain, and protocol mention — never plain text.
 
 RATE FORMATTING (CRITICAL):
 - API returns rates as raw decimals: depositRate=0.0196 means 1.96% APR. ALWAYS multiply by 100 before displaying.
-- Example: depositRate=0.0573 → display as "5.73% APR". depositRate=0.00001961 → display as "0.001961% APR".
+- Example: depositRate=0.0573 → "5.73% APR". depositRate=0.15 → "15% APR". NEVER show raw decimals with a % sign.
 - variableBorrowRate follows the same convention — multiply by 100.
+- When asked for "best" or "top" rates: sort DESCENDING by depositRate. Best = HIGHEST rates. Exclude near-zero rates.
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
+- Prefer Aave V3, Compound V3, Morpho Blue, Spark over deprecated V2 protocols unless user asks specifically.
 
 LEVERAGED OPERATIONS (Loop Tools):
 - get_leverage_calldata: Open a leveraged position. Flash loan → borrow → swap → deposit, all atomic.
