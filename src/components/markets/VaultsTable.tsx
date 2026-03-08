@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import AssetFilter from "./AssetFilter";
 import MarketActionButton from "./MarketActionButton";
 
@@ -81,12 +82,18 @@ export default function VaultsTable() {
               : rows.map((v) => (
                   <TableRow key={v.id}>
                     <TableCell>
-                      <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 260 }} noWrap>
-                        {v.name}
-                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <ProtocolIcon name={v.protocol} size={16} />
+                        <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 240 }} noWrap>
+                          {v.name}
+                        </Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{v.asset}</Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <AssetIcon symbol={v.asset} size={18} />
+                        <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{v.asset}</Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Chip

@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { useMarkets } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import AssetFilter from "./AssetFilter";
 import MarketActionButton from "./MarketActionButton";
 
@@ -84,10 +85,16 @@ export default function LendingTable() {
               : rows.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>
-                      <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.asset}</Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <AssetIcon symbol={m.asset} size={20} />
+                        <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.asset}</Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      <Chip label={m.protocolName} size="small" variant="outlined" sx={{ fontSize: 11, height: 22, borderColor: "divider" }} />
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <ProtocolIcon name={m.protocolName} size={16} />
+                        <Chip label={m.protocolName} size="small" variant="outlined" sx={{ fontSize: 11, height: 22, borderColor: "divider" }} />
+                      </Box>
                     </TableCell>
                     <TableCell align="right">
                       <Typography

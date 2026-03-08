@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import AssetFilter from "./AssetFilter";
 
 type SortKey = "asset" | "impliedAPY" | "tvl" | "daysToMaturity" | "name";
@@ -81,12 +82,18 @@ export default function FixedYieldTable() {
               : rows.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>
-                      <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 300 }} noWrap>
-                        {m.name}
-                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <ProtocolIcon name="Pendle" size={16} />
+                        <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 280 }} noWrap>
+                          {m.name}
+                        </Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.asset}</Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <AssetIcon symbol={m.asset} size={18} />
+                        <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.asset}</Typography>
+                      </Box>
                     </TableCell>
                     <TableCell align="right">
                       <Typography
