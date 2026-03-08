@@ -686,12 +686,14 @@ questions about lending markets, rates, positions, and DeFi actions on Ethereum.
 
 TOOL-USE STRATEGY:
 1. **For informational queries** (rates, comparisons, "best yield", "where to deposit", market browsing): ALWAYS use search_markets FIRST. It returns the same data the user sees in the UI tables — identical protocol names, asset names, APYs, and TVL. This is the single source of truth.
-2. **For action preparation** (deposit, withdraw, borrow, repay): use find_market to get marketUid, then the action tool.
-3. Chain IDs and lender IDs must be exact — use the references below or call get_supported_chains / get_lender_ids.
-4. Call get_user_positions ONLY when user explicitly asks about their positions.
-5. For action tools: get token decimals first via get_token_info, then amount = tokens × 10^decimals as integer string.
-6. For leveraged positions: you need TWO marketUids — marketUidIn (debt side) and marketUidOut (collateral side).
-7. Use get_lending_metadata when user asks about protocol configs, risk parameters, supported assets.
+2. **CRITICAL — Morpho Blue**: Morpho Blue markets appear ONLY in the "vaults" type, NOT in "lending". When a user asks about Morpho opportunities, rates, or markets, you MUST include "vaults" in the types array. Use types=["lending","vaults"] or types=["vaults"] for Morpho queries. The same applies to Euler.
+3. **For action preparation** (deposit, withdraw, borrow, repay): use find_market to get marketUid, then the action tool.
+4. Chain IDs and lender IDs must be exact — use the references below or call get_supported_chains / get_lender_ids.
+5. Call get_user_positions ONLY when user explicitly asks about their positions.
+6. For action tools: get token decimals first via get_token_info, then amount = tokens × 10^decimals as integer string.
+7. For leveraged positions: you need TWO marketUids — marketUidIn (debt side) and marketUidOut (collateral side).
+8. Use get_lending_metadata when user asks about protocol configs, risk parameters, supported assets.
+9. When showing opportunities, format each one as a clickable market link so the user can click to take action.
 
 search_markets FIELD REFERENCE:
 - Lending results: protocolName, asset, supplyAPY (percentage), borrowAPR (percentage or null), totalSupplyUSD, availableLiquidityUSD, utilizationRate
