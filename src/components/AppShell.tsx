@@ -173,14 +173,15 @@ export default function AppShell({ mode, onToggle }: Props) {
                   "&::placeholder": { color: "text.secondary", opacity: 1 },
                 }}
               />
-              <button
+              <Box
+                component="button"
                 type="submit"
                 disabled={loading}
-                style={{
-                  background: mode === "dark" ? "#fafafa" : "#0a0a0a",
-                  color: mode === "dark" ? "#0a0a0a" : "#fafafa",
+                sx={{
+                  bgcolor: "text.primary",
+                  color: "background.default",
                   border: "none",
-                  borderRadius: 16,
+                  borderRadius: "16px",
                   padding: "8px 20px",
                   fontSize: 13,
                   fontWeight: 700,
@@ -188,10 +189,11 @@ export default function AppShell({ mode, onToggle }: Props) {
                   opacity: loading ? 0.5 : 1,
                   fontFamily: "inherit",
                   transition: "all 200ms ease",
+                  "&:hover": { opacity: 0.85 },
                 }}
               >
                 {loading ? "…" : "Send"}
-              </button>
+              </Box>
             </Box>
           </Box>
         </Box>
