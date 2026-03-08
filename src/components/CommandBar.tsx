@@ -62,11 +62,47 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Extract unique recent user messages for autocomplete
+  const recentQueries = useMemo(() => {
+    const seen = new Set<string>();
+    const queries: string[] = [];
+    for (const chat of chatHistory) {
+      for (let i = chat.messages.length - 1; i >= 0; i--) {
+        const m = chat.messages[i];
+        if (m.role === "user") {
+          const normalized = m.content.trim().toLowerCase();
+          if (!seen.has(normalized)) {
+            seen.add(normalized);
+            queries.push(m.content.trim());
+          }
+        }
+        if (queries.length >= 20) break;
+      }
+      if (queries.length >= 20) break;
+    }
+    return queries;
+  }, [chatHistory]);
+
   const results = useMemo<SearchResult[]>(() => {
     const q = value.toLowerCase().trim();
     if (!q) return [];
 
     const items: SearchResult[] = [];
+
+    // Chat history autocomplete
+    const matchingHistory = recentQueries
+      .filter((msg) => msg.toLowerCase().includes(q))
+      .slice(0, 3);
+    for (const msg of matchingHistory) {
+      items.push({
+        id: `history:${msg}`,
+        type: "history",
+        label: msg,
+        sub: "Recent",
+        icon: <HistoryIcon sx={{ fontSize: 16, color: "text.disabled" }} />,
+        action: () => { onNewChat(msg); setValue(""); setFocused(false); },
+      });
+    }
 
     // Nav results
     const navItems: { tab: TabId; label: string; keywords: string[] }[] = [
@@ -149,7 +185,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
     }
 
     return items.slice(0, 8);
-  }, [value, markets, vaults, pendle, onNavigate]);
+  }, [value, markets, vaults, pendle, onNavigate, recentQueries, onNewChat]);
 
   const showDropdown = focused && (results.length > 0 || (value.trim() === "" && !loading));
 
