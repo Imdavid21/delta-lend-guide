@@ -8,15 +8,57 @@ import { useShell } from "./AppShell";
 import type { ChatMessage } from "../hooks/useChats";
 import type { Components } from "react-markdown";
 
-/** Parse market href: "market:ID~PROTOCOL~ASSET~APY~TVL" */
-function parseMarketHref(href: string): { id: string; protocol: string; asset: string; apy: string; tvl: string } | null {
-  const raw = href.replace("market:", "");
-  const parts = raw.split(";;");
-  if (parts.length >= 5) {
-    return { id: parts[0], protocol: parts[1], asset: parts[2], apy: parts[3], tvl: parts[4] };
+/** Parse {{market:ID;;PROTOCOL;;ASSET;;APY;;TVL|Label}} segments */
+interface MarketSegment {
+  type: "market";
+  id: string;
+  protocol: string;
+  asset: string;
+  apy: string;
+  tvl: string;
+  label: string;
+}
+
+interface TextSegment {
+  type: "text";
+  value: string;
+}
+
+type ContentSegment = MarketSegment | TextSegment;
+
+const MARKET_RE = /\{\{market:([^}]+)\|([^}]+)\}\}/g;
+
+function parseContent(content: string): ContentSegment[] {
+  const segments: ContentSegment[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  MARKET_RE.lastIndex = 0;
+  while ((match = MARKET_RE.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: "text", value: content.slice(lastIndex, match.index) });
+    }
+    const parts = match[1].split(";;");
+    if (parts.length >= 5) {
+      segments.push({
+        type: "market",
+        id: parts[0],
+        protocol: parts[1],
+        asset: parts[2],
+        apy: parts[3],
+        tvl: parts[4],
+        label: match[2],
+      });
+    } else {
+      // Fallback: render as text
+      segments.push({ type: "text", value: match[0] });
+    }
+    lastIndex = match.index + match[0].length;
   }
-  // Fallback: old format without metadata
-  return null;
+  if (lastIndex < content.length) {
+    segments.push({ type: "text", value: content.slice(lastIndex) });
+  }
+  return segments;
 }
 
 function useMdComponents(): Components {
@@ -32,21 +74,6 @@ function useMdComponents(): Components {
         return <EntityChip kind="chain" value={href.replace("chain:", "")} label={text} />;
       }
       if (href?.startsWith("market:")) {
-        const meta = parseMarketHref(href);
-        if (meta) {
-          return (
-            <MarketCard
-              label={text}
-              marketId={meta.id}
-              protocol={meta.protocol}
-              asset={meta.asset}
-              apy={meta.apy}
-              tvl={meta.tvl}
-              onClick={() => submitAction(`Tell me more about ${text} and help me deposit (market id: ${meta.id})`)}
-            />
-          );
-        }
-        // Fallback for old format without metadata
         const marketId = href.replace("market:", "");
         return (
           <EntityChip
@@ -86,6 +113,9 @@ function useMdComponents(): Components {
 export default function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   const mdComponents = useMdComponents();
+  const { submitAction } = useShell();
+
+  const segments = isUser ? null : parseContent(message.content);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", mb: 1.5 }}>
@@ -112,9 +142,24 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
         {isUser ? (
           <Typography variant="body2">{message.content}</Typography>
         ) : (
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-            {message.content}
-          </ReactMarkdown>
+          segments!.map((seg, i) =>
+            seg.type === "market" ? (
+              <MarketCard
+                key={i}
+                label={seg.label}
+                marketId={seg.id}
+                protocol={seg.protocol}
+                asset={seg.asset}
+                apy={seg.apy}
+                tvl={seg.tvl}
+                onClick={() => submitAction(`Tell me more about ${seg.label} and help me deposit (market id: ${seg.id})`)}
+              />
+            ) : (
+              <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={mdComponents}>
+                {seg.value}
+              </ReactMarkdown>
+            )
+          )
         )}
       </Paper>
       {!isUser && message.transactions && message.transactions.length > 0 && (
