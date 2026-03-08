@@ -33,35 +33,6 @@ const LENDER_NAMES: Record<string, string> = {
   "MENDI": "Mendi Finance", "SILO": "Silo Finance",
 };
 
-function transformPool(pool: any) {
-  const parts = (pool.marketUid ?? "").split(":");
-  const chainId = String(pool.chainId ?? parts[1] ?? "");
-  const lender = String(pool.lender ?? parts[0] ?? "");
-  const asset = pool.assetGroup ?? pool.symbol ?? pool.underlying?.symbol ?? parts[2] ?? "";
-  const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-  const util = parseFloat(pool.utilization) || 0;
-  const depositRate = parseFloat(pool.depositRate) || 0;
-  const borrowRate = pool.variableBorrowRate != null ? parseFloat(pool.variableBorrowRate) || 0 : null;
-  // API returns rates already as percentages (e.g. 1.75 = 1.75%), no need to multiply by 100
-
-  return {
-    id: pool.marketUid ?? `${lender}:${chainId}:${asset}`,
-    marketUid: pool.marketUid,
-    chainId,
-    chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
-    protocol: lender,
-    protocolName: LENDER_NAMES[lender] || lender,
-    asset,
-    supplyAPY: depositRate,
-    supplyAPYWithIncentives: depositRate,
-    borrowAPR: borrowRate,
-    totalSupplyUSD: tvl,
-    availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
-    utilizationRate: util * 100,
-    updatedAt: Date.now(),
-  };
-}
-
 async function fetchChainPools(chainId: string, hdrs: Record<string, string>): Promise<any[]> {
   const url = new URL(BASE + "/data/lending/pools");
   url.searchParams.set("chainId", chainId);
@@ -85,21 +56,84 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const reqUrl = new URL(req.url);
+
+  // Debug endpoint to inspect raw API data
+  if (reqUrl.searchParams.get("debug") === "1") {
+    const hdrs: Record<string, string> = {};
+    if (API_KEY) hdrs["x-api-key"] = API_KEY;
+    const items = await fetchChainPools("42161", hdrs);
+    // Return first 3 items with ALL fields
+    return new Response(JSON.stringify(items.slice(0, 3), null, 2), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const hdrs: Record<string, string> = {};
     if (API_KEY) hdrs["x-api-key"] = API_KEY;
-
-    console.log("Fetching markets for chains:", CHAIN_IDS.join(","));
 
     const results = await Promise.all(
       CHAIN_IDS.map((cid) => fetchChainPools(cid, hdrs))
     );
 
     const allItems = results.flat();
-    console.log("Total raw items:", allItems.length);
+
+    // Build token address→symbol lookup from the data itself
+    const tokenSymbols = new Map<string, string>();
+    for (const pool of allItems) {
+      const addr = (pool.underlying?.address ?? "").toLowerCase();
+      const sym = pool.assetGroup ?? pool.tokenSymbol ?? pool.underlying?.symbol ?? pool.symbol;
+      if (addr && sym && !sym.startsWith("0x")) {
+        tokenSymbols.set(addr, sym);
+      }
+    }
 
     const markets = allItems
-      .map(transformPool)
+      .map((pool: any) => {
+        const parts = (pool.marketUid ?? "").split(":");
+        const chainId = String(pool.chainId ?? parts[1] ?? "");
+        const lender = String(pool.lender ?? parts[0] ?? "");
+
+        // Resolve asset symbol: prefer assetGroup, then token fields, then lookup by address
+        let asset = pool.assetGroup ?? pool.tokenSymbol ?? pool.underlying?.symbol ?? pool.symbol ?? "";
+        if (!asset || asset.startsWith("0x")) {
+          const addrFromUid = parts[2] ?? "";
+          asset = tokenSymbols.get(addrFromUid.toLowerCase()) ?? addrFromUid;
+        }
+        // If still an address, try to shorten it
+        if (asset.startsWith("0x") && asset.length > 10) {
+          asset = asset.slice(0, 6) + "…" + asset.slice(-4);
+        }
+
+        const tvl = parseFloat(pool.totalDepositsUsd) || 0;
+        const util = parseFloat(pool.utilization) || 0;
+        const depositRate = parseFloat(pool.depositRate) || 0;
+        const borrowRate = pool.variableBorrowRate != null ? parseFloat(pool.variableBorrowRate) || 0 : null;
+
+        // Determine if Morpho Blue vault - use vault name if available
+        const isMorphoVault = lender.startsWith("MORPHO_BLUE");
+        const vaultName = pool.name ?? pool.vaultName ?? pool.description ?? "";
+        const protocolBase = isMorphoVault ? "MORPHO_BLUE" : lender;
+
+        return {
+          id: pool.marketUid ?? `${lender}:${chainId}:${asset}`,
+          marketUid: pool.marketUid,
+          chainId,
+          chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
+          protocol: protocolBase,
+          protocolName: isMorphoVault ? "Morpho Blue" : (LENDER_NAMES[lender] || lender),
+          vaultName: isMorphoVault ? vaultName : "",
+          asset,
+          supplyAPY: depositRate,
+          supplyAPYWithIncentives: depositRate,
+          borrowAPR: borrowRate,
+          totalSupplyUSD: tvl,
+          availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
+          utilizationRate: util * 100,
+          updatedAt: Date.now(),
+        };
+      })
       .filter((m) => m.totalSupplyUSD >= 10000);
 
     // Deduplicate
@@ -109,8 +143,6 @@ Deno.serve(async (req) => {
       seen.add(m.id);
       return true;
     });
-
-    console.log("Returning", unique.length, "markets");
 
     return new Response(JSON.stringify(unique), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
