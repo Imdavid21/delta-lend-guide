@@ -81,6 +81,7 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       );
     case "get_lending_markets": {
       const { minTvlUsd, ...rest } = input;
+      if (!rest.count) rest.count = 100;
       return JSON.stringify(slimPools(await deltaGet("/data/lending/pools", rest), minTvlUsd ?? 10000));
     }
     case "get_lending_latest":
