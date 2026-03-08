@@ -1,10 +1,9 @@
 import { useState } from "react";
 import {
-  Box, List, ListItemButton, ListItemText, IconButton, Typography, Divider, Tooltip, Badge,
+  Box, List, ListItemButton, ListItemText, IconButton, Typography, Divider, Tooltip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import type { Chat } from "../hooks/useChats";
 
@@ -33,48 +32,40 @@ export default function ChatSidebar({ chats, activeChatId, onSelect, onNew, onDe
     <>
       {/* Collapsed: single subtle icon tab on the left edge */}
       {!open && (
-        <Box
-          sx={{
-            width: 36,
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            pt: 1.5,
-            gap: 0.5,
-            borderRight: 1,
-            borderColor: "divider",
-          }}
-        >
-          <Tooltip title="Chat history" placement="right">
-            <IconButton
-              size="small"
-              onClick={() => setOpen(true)}
-              sx={{
-                color: "text.disabled",
-                transition: "all 200ms ease",
-                "&:hover": { color: "text.primary" },
-              }}
-            >
-              <Badge
-                badgeContent={chats.length || undefined}
-                color="default"
-                max={9}
+        <Tooltip title="Chat history" placement="right">
+          <Box
+            onClick={() => setOpen(true)}
+            sx={{
+              width: 28,
+              flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              pt: 2,
+              gap: 0.75,
+              cursor: "pointer",
+              borderRight: 1,
+              borderColor: "divider",
+              opacity: 0.4,
+              transition: "opacity 200ms ease",
+              "&:hover": { opacity: 1 },
+            }}
+          >
+            {/* Dots representing chats — up to 5 */}
+            {Array.from({ length: Math.min(Math.max(chats.length, 1), 5) }).map((_, i) => (
+              <Box
+                key={i}
                 sx={{
-                  "& .MuiBadge-badge": {
-                    fontSize: 9,
-                    height: 14,
-                    minWidth: 14,
-                    bgcolor: "text.disabled",
-                    color: "background.default",
-                  },
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  bgcolor: i === 0 && chats.length > 0 ? "text.secondary" : "text.disabled",
+                  transition: "all 200ms ease",
                 }}
-              >
-                <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-        </Box>
+              />
+            ))}
+          </Box>
+        </Tooltip>
       )}
 
       {/* Expanded panel — slides over content */}
