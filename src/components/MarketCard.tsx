@@ -1,6 +1,5 @@
 import { Box, ButtonBase, Typography } from "@mui/material";
 import { AssetIcon, ProtocolIcon } from "./icons/MarketIcons";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 interface MarketCardProps {
   label: string;
@@ -15,8 +14,8 @@ interface MarketCardProps {
 function formatTVL(raw: string): string {
   const n = parseFloat(raw);
   if (isNaN(n)) return raw;
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
   return `$${n.toFixed(0)}`;
 }
@@ -26,88 +25,77 @@ export default function MarketCard({ label, marketId, protocol, asset, apy, tvl,
     <ButtonBase
       onClick={onClick}
       sx={{
-        display: "flex",
+        display: "inline-flex",
         alignItems: "center",
-        gap: 1.5,
-        width: "100%",
+        gap: 1,
         px: 1.5,
-        py: 1,
-        my: 0.5,
-        borderRadius: 2,
-        border: 1,
-        borderColor: "divider",
-        bgcolor: "background.default",
+        py: 0.75,
+        my: 0.4,
+        mr: 0.5,
+        borderRadius: "999px",
+        bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
         textAlign: "left",
         transition: "all 150ms ease",
         "&:hover": {
-          borderColor: "text.secondary",
-          bgcolor: "action.hover",
+          bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.1)",
         },
       }}
     >
-      {/* Protocol + Asset icons stacked */}
-      <Box sx={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
-        <Box sx={{ position: "absolute", top: 0, left: 0 }}>
-          <AssetIcon symbol={asset} size={24} />
-        </Box>
-        <Box sx={{ position: "absolute", bottom: -2, right: -4 }}>
-          <ProtocolIcon name={protocol} size={16} />
-        </Box>
-      </Box>
+      {/* Green status dot */}
+      <Box
+        sx={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          bgcolor: "#22c55e",
+          flexShrink: 0,
+          boxShadow: "0 0 6px rgba(34,197,94,0.5)",
+        }}
+      />
 
-      {/* Name + Protocol row */}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 700,
-            fontSize: 12,
-            lineHeight: 1.3,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 10 }}>
-          {protocol}
-        </Typography>
-      </Box>
+      {/* Protocol icon */}
+      <ProtocolIcon name={protocol} size={16} />
 
-      {/* APY */}
-      <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 800,
-            fontSize: 13,
-            color: "#22c55e",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {apy}%
-        </Typography>
-        <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 9 }}>
-          APY
-        </Typography>
-      </Box>
+      {/* Label */}
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 600,
+          fontSize: 12,
+          whiteSpace: "nowrap",
+          lineHeight: 1,
+        }}
+      >
+        {label}
+      </Typography>
+
+      {/* APY badge */}
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 700,
+          fontSize: 11,
+          color: "#22c55e",
+          fontVariantNumeric: "tabular-nums",
+          lineHeight: 1,
+        }}
+      >
+        {apy}%
+      </Typography>
 
       {/* TVL */}
-      <Box sx={{ textAlign: "right", flexShrink: 0, minWidth: 52 }}>
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 600, fontSize: 11, fontVariantNumeric: "tabular-nums" }}
-        >
-          {formatTVL(tvl)}
-        </Typography>
-        <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 9 }}>
-          TVL
-        </Typography>
-      </Box>
-
-      {/* Action arrow */}
-      <OpenInNewIcon sx={{ fontSize: 14, color: "text.disabled", flexShrink: 0 }} />
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 500,
+          fontSize: 10,
+          color: "text.secondary",
+          fontVariantNumeric: "tabular-nums",
+          lineHeight: 1,
+        }}
+      >
+        {formatTVL(tvl)}
+      </Typography>
     </ButtonBase>
   );
 }
