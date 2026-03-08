@@ -139,7 +139,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             label: `${m.asset} on ${m.protocolName}`,
             sub: `Supply ${formatPercent(m.supplyAPY)}`,
             icon: <AssetIcon symbol={m.asset} size={18} />,
-            action: () => { onNavigate("lending"); setValue(""); setFocused(false); },
+            action: () => { onSend(`Tell me about ${m.asset} on ${m.protocolName}`); setValue(""); setFocused(false); },
           });
         }
         if (items.length >= 8) break;
