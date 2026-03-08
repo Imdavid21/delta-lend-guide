@@ -5,7 +5,7 @@ const API_KEY = Deno.env.get("ONEDELTA_API_KEY") || "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
@@ -30,17 +30,44 @@ const LENDER_NAMES: Record<string, string> = {
   "MENDI": "Mendi Finance", "SILO": "Silo Finance",
 };
 
-async function fetchWithRetry(url: string, headers: Record<string, string>, retries = 3): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    const res = await fetch(url, { headers });
-    if (res.ok) return res;
-    if (res.status >= 500 && i < retries - 1) {
-      await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
-      continue;
-    }
-    throw new Error(`1delta API ${res.status}`);
-  }
-  throw new Error("1delta API unreachable");
+function transformPools(items: any[]) {
+  const markets = items
+    .map((pool: any) => {
+      const parts = (pool.marketUid ?? "").split(":");
+      const chainId = String(pool.chainId ?? parts[1] ?? "");
+      const lender = String(pool.lender ?? parts[0] ?? "");
+      const asset = pool.assetGroup ?? pool.symbol ?? pool.underlying?.symbol ?? parts[2] ?? "";
+      const tvl = parseFloat(pool.totalDepositsUsd) || 0;
+      const util = parseFloat(pool.utilization) || 0;
+      const depositRate = parseFloat(pool.depositRate) || 0;
+      const borrowRate = pool.variableBorrowRate != null ? parseFloat(pool.variableBorrowRate) || 0 : null;
+
+      return {
+        id: pool.marketUid ?? `${lender}:${chainId}:${asset}`,
+        marketUid: pool.marketUid,
+        chainId,
+        chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
+        protocol: lender,
+        protocolName: LENDER_NAMES[lender] || lender,
+        asset,
+        supplyAPY: depositRate * 100,
+        supplyAPYWithIncentives: depositRate * 100,
+        borrowAPR: borrowRate !== null ? borrowRate * 100 : null,
+        totalSupplyUSD: tvl,
+        availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
+        utilizationRate: util * 100,
+        updatedAt: Date.now(),
+      };
+    })
+    .filter((m: any) => m.totalSupplyUSD >= 10000);
+
+  // Deduplicate
+  const seen = new Set<string>();
+  return markets.filter((m: any) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
 }
 
 Deno.serve(async (req) => {
@@ -49,76 +76,31 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const headers: Record<string, string> = {};
-    if (API_KEY) headers["x-api-key"] = API_KEY;
+    const hdrs: Record<string, string> = {};
+    if (API_KEY) hdrs["x-api-key"] = API_KEY;
 
-    // Fetch in smaller batches to avoid 502 from the upstream API
-    const allItems: any[] = [];
-    for (const count of [50, 50, 50, 50, 50, 50]) {
+    // Try progressively smaller counts — the 1delta API can 502 on large requests
+    let items: any[] = [];
+    for (const count of [200, 100, 50, 20, 10]) {
       const url = new URL(BASE + "/data/lending/pools");
       url.searchParams.set("count", String(count));
-      url.searchParams.set("count", String(count));
-      url.searchParams.set("offset", String(allItems.length));
       try {
-        const res = await fetchWithRetry(url.toString(), headers);
+        const res = await fetch(url.toString(), { headers: hdrs });
+        if (!res.ok) {
+          await res.text(); // consume body
+          continue;
+        }
         const raw = await res.json();
-        const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
-        allItems.push(...items);
-        if (items.length < count) break; // no more data
+        items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+        if (items.length > 0) break;
       } catch {
-        break; // use what we have
+        continue;
       }
     }
 
-    if (allItems.length === 0) {
-      // Single small request as ultimate fallback
-      const url = new URL(BASE + "/data/lending/pools");
-      url.searchParams.set("count", "50");
-      const res = await fetchWithRetry(url.toString(), headers);
-      const raw = await res.json();
-      const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
-      allItems.push(...items);
-    }
+    const markets = transformPools(items);
 
-    const markets = allItems
-      .map((pool: any) => {
-        const parts = (pool.marketUid ?? "").split(":");
-        const chainId = String(pool.chainId ?? parts[1] ?? "");
-        const lender = String(pool.lender ?? parts[0] ?? "");
-        const asset = pool.assetGroup ?? pool.symbol ?? pool.underlying?.symbol ?? parts[2] ?? "";
-        const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-        const util = parseFloat(pool.utilization) || 0;
-        const depositRate = parseFloat(pool.depositRate) || 0;
-        const borrowRate = pool.variableBorrowRate != null ? parseFloat(pool.variableBorrowRate) || 0 : null;
-
-        return {
-          id: pool.marketUid ?? `${lender}:${chainId}:${asset}`,
-          marketUid: pool.marketUid,
-          chainId,
-          chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
-          protocol: lender,
-          protocolName: LENDER_NAMES[lender] || lender,
-          asset,
-          supplyAPY: depositRate * 100,
-          supplyAPYWithIncentives: depositRate * 100,
-          borrowAPR: borrowRate !== null ? borrowRate * 100 : null,
-          totalSupplyUSD: tvl,
-          availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
-          utilizationRate: util * 100,
-          updatedAt: Date.now(),
-        };
-      })
-      .filter((m: any) => m.totalSupplyUSD >= 10000);
-
-    // Deduplicate by id
-    const seen = new Set<string>();
-    const unique = markets.filter((m: any) => {
-      if (seen.has(m.id)) return false;
-      seen.add(m.id);
-      return true;
-    });
-
-    return new Response(JSON.stringify(unique), {
+    return new Response(JSON.stringify(markets), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
