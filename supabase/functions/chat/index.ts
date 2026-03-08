@@ -80,6 +80,30 @@ function slimPools(raw: any, minTvlUsd = 10000) {
 
 async function dispatchTool(name: string, input: any): Promise<string> {
   switch (name) {
+    case "search_markets": {
+      const types: ("lending" | "vaults" | "pendle")[] = input.types ?? ["lending", "vaults", "pendle"];
+      const results = await Promise.all(types.map(fetchMarketsEndpoint));
+      const allItems: any[] = [];
+      types.forEach((t, i) => {
+        for (const item of results[i]) {
+          allItems.push({ ...item, _type: t });
+        }
+      });
+      // Filter by query terms
+      const q = (input.query ?? "").toLowerCase();
+      const filtered = q
+        ? allItems.filter((m) => {
+            const searchable = [
+              m.asset, m.protocolName, m.protocol, m.name, m.poolName,
+            ].filter(Boolean).join(" ").toLowerCase();
+            return q.split(/\s+/).every((term: string) => searchable.includes(term));
+          })
+        : allItems;
+      // Sort: lending by supplyAPY desc, vaults by apy desc, pendle by impliedAPY desc
+      filtered.sort((a, b) => (b.supplyAPY ?? b.apy ?? b.impliedAPY ?? 0) - (a.supplyAPY ?? a.apy ?? a.impliedAPY ?? 0));
+      const top = filtered.slice(0, input.limit ?? 20);
+      return JSON.stringify({ count: filtered.length, markets: top });
+    }
     case "find_market":
       return JSON.stringify(
         slimPools(
