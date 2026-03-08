@@ -227,7 +227,31 @@ function extractAction(toolName: string, rawJson: string, input: any) {
 /* ───── tool definitions ───── */
 
 const TOOLS: any[] = [
-  // ── Data tools ──
+  // ── Unified search (single source of truth — same data as UI tables) ──
+  {
+    type: "function",
+    function: {
+      name: "search_markets",
+      description:
+        "Search across ALL market types (lending, vaults, fixed-yield) using the same data the UI displays. Use for informational queries: comparing rates, finding best yields, answering questions about markets. Results include protocolName, asset, supplyAPY/apy/impliedAPY, TVL, etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search term: asset name, protocol name, or keyword e.g. 'USDC', 'Aave', 'ETH Morpho'",
+          },
+          types: {
+            type: "array",
+            items: { type: "string", enum: ["lending", "vaults", "pendle"] },
+            description: "Which market types to search. Default: all three.",
+          },
+          limit: { type: "number", description: "Max results to return, default 20" },
+        },
+      },
+    },
+  },
+  // ── Data tools (for action preparation — need marketUid) ──
   {
     type: "function",
     function: {
