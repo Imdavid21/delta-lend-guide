@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
           chainId,
           chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
           protocol: isMorphoVault ? "MORPHO_BLUE" : lenderKey,
-          protocolName: resolveLenderName(lenderKey),
+          protocolName: resolveLenderName(lenderKey, poolName),
           poolName,
           vaultName: isMorphoVault ? poolName : "",
           asset,
