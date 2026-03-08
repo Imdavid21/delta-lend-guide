@@ -54,8 +54,9 @@ Deno.serve(async (req) => {
 
     // Fetch in smaller batches to avoid 502 from the upstream API
     const allItems: any[] = [];
-    for (const count of [100, 100, 100]) {
+    for (const count of [50, 50, 50, 50, 50, 50]) {
       const url = new URL(BASE + "/data/lending/pools");
+      url.searchParams.set("count", String(count));
       url.searchParams.set("count", String(count));
       url.searchParams.set("offset", String(allItems.length));
       try {
