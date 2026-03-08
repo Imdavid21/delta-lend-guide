@@ -40,6 +40,7 @@ const QUICK_ACTIONS: { label: string; prompt: string }[] = [
 export default function CommandBar({ loading, onSend, onNavigate, onNewChat, chatHistory }: Props) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
+  const [quickActionsDismissed, setQuickActionsDismissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
 
