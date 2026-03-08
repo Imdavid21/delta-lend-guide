@@ -79,18 +79,23 @@ export default function VaultsTable() {
                     <TableCell><Skeleton width={50} /></TableCell>
                   </TableRow>
                 ))
-              : rows.map((v) => (
+              : rows.map((v) => {
+                  // Use curator name as primary display if available
+                  const displayName = v.curator 
+                    ? `${v.curator} ${v.asset}`
+                    : v.name;
+                  return (
                   <TableRow key={v.id}>
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <ProtocolIcon name={v.protocol} size={16} />
                         <Box>
                           <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 240 }} noWrap>
-                            {v.name}
+                            {displayName}
                           </Typography>
-                          {v.curator && (
-                            <Typography fontSize={11} color="text.secondary" noWrap>
-                              {v.curator}
+                          {v.curator && v.name !== displayName && (
+                            <Typography fontSize={10} color="text.secondary" noWrap>
+                              {v.name}
                             </Typography>
                           )}
                         </Box>
