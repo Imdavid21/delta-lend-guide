@@ -726,11 +726,19 @@ AAVE_V2, AAVE_V3, COMPOUND_V2, COMPOUND_V3, LENDLE, AURELIUS, MENDI, MOONWELL, S
 
 ASSET GROUPS: Use 'ETH' for WETH. All other tokens use their own symbol (USDC, WBTC, wstETH, etc.).
 
-FORMATTING — render entities as special markdown links (the UI converts these to interactive chips):
+FORMATTING — render entities as special markdown links (the UI converts these to interactive chips/cards):
 - Token:    [SYMBOL](token:SYMBOL)               e.g. [USDC](token:USDC)
 - Chain:    [Name](chain:CHAIN_ID)               e.g. [Ethereum](chain:1)
-- Market:   [Name](market:MARKET_ID)             e.g. [Gauntlet USDC/wstETH](market:MORPHO_BLUE_xxx:1:0xabc)
-Use the market's \`id\` field as MARKET_ID. This makes every market mention clickable. NEVER use plain text for markets — always link them.
+- Market:   [Label](market:ID|PROTOCOL|ASSET|APY|TVL)
+  Example: [Gauntlet USDC/wstETH](market:MORPHO_BLUE_xxx:1:0xabc|Morpho Blue|USDC|5.96|8265748)
+  - ID = the market's \`id\` field
+  - PROTOCOL = protocolName or protocol field (e.g. "Morpho Blue", "Aave V3")
+  - ASSET = asset symbol (e.g. "USDC", "ETH")
+  - APY = the APY/yield number WITHOUT % sign (e.g. "5.96")
+  - TVL = total TVL in USD as number WITHOUT $ sign (e.g. "8265748")
+  All 5 pipe-separated fields are REQUIRED. The UI renders these as rich clickable cards with icons.
+  NEVER use plain text for markets — always link them with the full metadata format.
+  Each market link should be on its OWN LINE (not inline with other text). Do not add extra text like "- 5.96% APY, TVL: $8M" after the link — it's already encoded in the link.
 
 RATE FORMATTING (CRITICAL):
 - search_markets returns supplyAPY, apy, impliedAPY as PERCENTAGE values. Display them directly with a % sign.
