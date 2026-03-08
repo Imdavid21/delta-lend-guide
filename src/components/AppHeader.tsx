@@ -1,6 +1,8 @@
-import { AppBar, Toolbar, Typography, Box, IconButton, Divider } from "@mui/material";
+import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Button } from "@mui/material";
+import { Link } from "react-router-dom";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
 import WalletButton from "./WalletButton";
 
 interface Props {
@@ -18,6 +20,16 @@ export default function AppHeader({ mode, onToggle }: Props) {
             AI-powered lending assistant by 1delta
           </Typography>
         </Box>
+        <Button
+          component={Link}
+          to="/markets"
+          size="small"
+          startIcon={<ShowChartIcon />}
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        >
+          View Markets
+        </Button>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <WalletButton />
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <IconButton size="small" onClick={onToggle}>

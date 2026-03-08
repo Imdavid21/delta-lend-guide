@@ -8,6 +8,11 @@ import { config } from "./config/wagmi";
 import AppHeader from "./components/AppHeader";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import MarketsLayout from "./components/markets/MarketsLayout";
+import MarketsHome from "./pages/MarketsHome";
+import VariableMarkets from "./pages/VariableMarkets";
+import VaultsPage from "./pages/VaultsPage";
+import FixedMarketsPage from "./pages/FixedMarketsPage";
 
 const queryClient = new QueryClient();
 
@@ -35,13 +40,24 @@ export default function App() {
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <BrowserRouter>
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-              <AppHeader mode={mode} onToggle={toggle} />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Box>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+                    <AppHeader mode={mode} onToggle={toggle} />
+                    <Index />
+                  </Box>
+                }
+              />
+              <Route path="/markets" element={<MarketsLayout />}>
+                <Route index element={<MarketsHome />} />
+                <Route path="variable" element={<VariableMarkets />} />
+                <Route path="vaults" element={<VaultsPage />} />
+                <Route path="fixed" element={<FixedMarketsPage />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </BrowserRouter>
         </ThemeProvider>
       </QueryClientProvider>
