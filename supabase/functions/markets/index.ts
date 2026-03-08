@@ -30,25 +30,56 @@ const LENDER_NAMES: Record<string, string> = {
   "MENDI": "Mendi Finance", "SILO": "Silo Finance",
 };
 
+async function fetchWithRetry(url: string, headers: Record<string, string>, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    const res = await fetch(url, { headers });
+    if (res.ok) return res;
+    if (res.status >= 500 && i < retries - 1) {
+      await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+      continue;
+    }
+    throw new Error(`1delta API ${res.status}`);
+  }
+  throw new Error("1delta API unreachable");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const url = new URL(BASE + "/data/lending/pools");
-    url.searchParams.set("count", "500");
-
     const headers: Record<string, string> = {};
     if (API_KEY) headers["x-api-key"] = API_KEY;
 
-    const res = await fetch(url.toString(), { headers });
-    if (!res.ok) throw new Error(`1delta API ${res.status}`);
-    const raw = await res.json();
+    // Fetch in smaller batches to avoid 502 from the upstream API
+    const allItems: any[] = [];
+    for (const count of [100, 100, 100]) {
+      const url = new URL(BASE + "/data/lending/pools");
+      url.searchParams.set("count", String(count));
+      url.searchParams.set("offset", String(allItems.length));
+      try {
+        const res = await fetchWithRetry(url.toString(), headers);
+        const raw = await res.json();
+        const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+        allItems.push(...items);
+        if (items.length < count) break; // no more data
+      } catch {
+        break; // use what we have
+      }
+    }
 
-    const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+    if (allItems.length === 0) {
+      // Single small request as ultimate fallback
+      const url = new URL(BASE + "/data/lending/pools");
+      url.searchParams.set("count", "50");
+      const res = await fetchWithRetry(url.toString(), headers);
+      const raw = await res.json();
+      const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+      allItems.push(...items);
+    }
 
-    const markets = items
+    const markets = allItems
       .map((pool: any) => {
         const parts = (pool.marketUid ?? "").split(":");
         const chainId = String(pool.chainId ?? parts[1] ?? "");
@@ -78,7 +109,15 @@ Deno.serve(async (req) => {
       })
       .filter((m: any) => m.totalSupplyUSD >= 10000);
 
-    return new Response(JSON.stringify(markets), {
+    // Deduplicate by id
+    const seen = new Set<string>();
+    const unique = markets.filter((m: any) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+
+    return new Response(JSON.stringify(unique), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
