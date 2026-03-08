@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
-import { Box, Typography, Paper, Chip } from "@mui/material";
+import { Box, Typography, Paper, Chip, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import MessageBubble from "./MessageBubble";
 import klyroLogo from "@/assets/klyro-logo.png";
 import type { Chat } from "../hooks/useChats";
