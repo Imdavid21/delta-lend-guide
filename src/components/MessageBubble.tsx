@@ -2,13 +2,21 @@ import { Box, Paper, Typography } from "@mui/material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import EntityChip from "./EntityChip";
+import MarketCard from "./MarketCard";
 import TxExecutor from "./TxExecutor";
 import { useShell } from "./AppShell";
 import type { ChatMessage } from "../hooks/useChats";
 import type { Components } from "react-markdown";
 
-interface Props {
-  message: ChatMessage;
+/** Parse market href: "market:ID|PROTOCOL|ASSET|APY|TVL" */
+function parseMarketHref(href: string): { id: string; protocol: string; asset: string; apy: string; tvl: string } | null {
+  const raw = href.replace("market:", "");
+  const parts = raw.split("|");
+  if (parts.length >= 5) {
+    return { id: parts[0], protocol: parts[1], asset: parts[2], apy: parts[3], tvl: parts[4] };
+  }
+  // Fallback: old format without metadata
+  return null;
 }
 
 function useMdComponents(): Components {
@@ -24,6 +32,21 @@ function useMdComponents(): Components {
         return <EntityChip kind="chain" value={href.replace("chain:", "")} label={text} />;
       }
       if (href?.startsWith("market:")) {
+        const meta = parseMarketHref(href);
+        if (meta) {
+          return (
+            <MarketCard
+              label={text}
+              marketId={meta.id}
+              protocol={meta.protocol}
+              asset={meta.asset}
+              apy={meta.apy}
+              tvl={meta.tvl}
+              onClick={() => submitAction(`Tell me more about ${text} and help me deposit (market id: ${meta.id})`)}
+            />
+          );
+        }
+        // Fallback for old format without metadata
         const marketId = href.replace("market:", "");
         return (
           <EntityChip
