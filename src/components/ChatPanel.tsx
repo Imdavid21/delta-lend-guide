@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Box, Typography, Paper, Chip } from "@mui/material";
 import MessageBubble from "./MessageBubble";
 import klyroLogo from "@/assets/klyro-logo.png";
