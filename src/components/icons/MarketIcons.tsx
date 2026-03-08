@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import aaveIcon from "@/assets/protocols/aave.png";
 
 /**
  * Protocol icon slugs for DeFiLlama icons CDN.
