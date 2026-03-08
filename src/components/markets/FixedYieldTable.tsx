@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import AssetFilter from "./AssetFilter";
 
 type SortKey = "asset" | "impliedAPY" | "tvl" | "daysToMaturity" | "name";
