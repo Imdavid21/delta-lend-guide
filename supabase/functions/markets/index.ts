@@ -32,19 +32,19 @@ const LENDER_NAMES: Record<string, string> = {
   "MENDI": "Mendi Finance", "SILO": "Silo Finance",
 };
 
-function resolveLenderName(lenderKey: string, poolName: string): string {
+function resolveLenderName(lenderKey: string): string {
   if (LENDER_NAMES[lenderKey]) return LENDER_NAMES[lenderKey];
   if (lenderKey.startsWith("MORPHO_BLUE")) return "Morpho Blue";
   if (lenderKey.startsWith("COMPOUND_V3")) return "Compound V3";
   if (lenderKey.startsWith("AAVE_V3")) return "Aave V3";
   if (lenderKey.startsWith("AAVE_V2")) return "Aave V2";
   if (lenderKey.startsWith("SILO")) return "Silo Finance";
-  // Try to extract a cleaner name from poolName (e.g. "Benqi WETH" → "Benqi")
-  if (poolName) {
-    const firstWord = poolName.split(/\s+/)[0];
-    if (firstWord && firstWord.length > 2) return firstWord;
-  }
-  // Strip hex hash suffixes (e.g. LISTA_DAO_2BB68BC7F... → Lista Dao)
+  if (lenderKey.startsWith("BENQI")) return "Benqi";
+  if (lenderKey.startsWith("LISTA_DAO")) return "Lista DAO";
+  if (lenderKey.startsWith("AVALON")) return "Avalon";
+  if (lenderKey.startsWith("TENDER")) return "Tender";
+  if (lenderKey.startsWith("PLUTOS")) return "Plutos";
+  // Strip hex hash suffixes (e.g. FOO_2BB68BC7F... → Foo)
   const base = lenderKey.replace(/_[A-F0-9]{8,}$/i, "");
   return base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
