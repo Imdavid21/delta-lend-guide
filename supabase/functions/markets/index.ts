@@ -42,6 +42,7 @@ function transformPool(pool: any) {
   const util = parseFloat(pool.utilization) || 0;
   const depositRate = parseFloat(pool.depositRate) || 0;
   const borrowRate = pool.variableBorrowRate != null ? parseFloat(pool.variableBorrowRate) || 0 : null;
+  // API returns rates already as percentages (e.g. 1.75 = 1.75%), no need to multiply by 100
 
   return {
     id: pool.marketUid ?? `${lender}:${chainId}:${asset}`,
