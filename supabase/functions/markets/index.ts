@@ -241,10 +241,18 @@ async function fetchPendle() {
   const items: any[] = isArr ? raw : (raw.results ?? raw.data ?? raw.markets ?? []);
   console.log(`Pendle: ${items.length} raw markets fetched`);
 
+  // Debug: log first item structure
+  if (items.length > 0) {
+    const sample = items[0];
+    console.log(`Pendle sample keys: ${Object.keys(sample).join(", ")}`);
+    console.log(`Pendle sample liquidity: ${JSON.stringify(sample.liquidity)}, totalLiquidity: ${sample.totalLiquidity}, tvl: ${sample.tvl}`);
+    console.log(`Pendle sample: name=${sample.name}, impliedApy=${sample.impliedApy}, expiry=${sample.expiry}`);
+  }
+
   const now = Date.now();
   return items
     .filter((m: any) => {
-      const liq = m.liquidity?.usd ?? m.totalLiquidity ?? 0;
+      const liq = m.liquidity?.usd ?? m.totalLiquidity ?? m.tvl ?? m.liquidityUsd ?? 0;
       return liq >= 10000;
     })
     .map((m: any) => {
