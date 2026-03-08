@@ -181,8 +181,6 @@ function morphoVaultDisplayName(pool: any, asset: string, morphoMeta: Map<string
   const lk = pool.lenderKey ?? "";
   const hexMatch = lk.match(/MORPHO_BLUE_([A-F0-9]+)/i);
 
-  // Try to match vault by address from the GraphQL data
-  // Also check if any vault metadata has a curator
   let curator: string | undefined;
 
   if (hexMatch) {
@@ -190,10 +188,12 @@ function morphoVaultDisplayName(pool: any, asset: string, morphoMeta: Map<string
     const meta = morphoMeta.get(uk);
     if (meta) {
       curator = meta.curator;
-      const displayName = curator
-        ? `${curator} ${meta.name}`
-        : `Morpho ${meta.name}`;
-      return { name: displayName, curator };
+      // When curator is known, use "Curator Asset" as the clean display name
+      if (curator) {
+        return { name: `${curator} ${asset}`, curator };
+      }
+      // No curator — use market pair e.g. "USDC/WBTC"
+      return { name: `Morpho ${meta.name}`, curator };
     }
   }
 
