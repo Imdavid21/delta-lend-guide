@@ -379,9 +379,24 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             {/* Empty state — quick actions */}
             {results.length === 0 && !value.trim() && (
               <Box sx={{ p: 1.5 }}>
-                <Typography variant="caption" color="text.disabled" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", mb: 0.5, display: "block" }}>
-                  Quick actions
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Quick actions
+                  </Typography>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => { setFocused(false); inputRef.current?.blur(); }}
+                    sx={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      border: "none", bgcolor: "transparent", cursor: "pointer",
+                      color: "text.disabled", p: 0, width: 18, height: 18,
+                      borderRadius: "50%", "&:hover": { color: "text.secondary", bgcolor: "action.hover" },
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 14 }} />
+                  </Box>
+                </Box>
                 <List dense disablePadding>
                   {QUICK_ACTIONS.map((a) => (
                     <ListItemButton
