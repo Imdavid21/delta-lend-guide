@@ -33,11 +33,12 @@ const LENDER_NAMES: Record<string, string> = {
 };
 
 function resolveLenderName(lenderKey: string): string {
-  // Exact match first
   if (LENDER_NAMES[lenderKey]) return LENDER_NAMES[lenderKey];
-  // Morpho Blue vaults have IDs like MORPHO_BLUE_C8455ED78...
   if (lenderKey.startsWith("MORPHO_BLUE")) return "Morpho Blue";
-  // Fallback: title-case the key
+  if (lenderKey.startsWith("COMPOUND_V3")) return "Compound V3";
+  if (lenderKey.startsWith("AAVE_V3")) return "Aave V3";
+  if (lenderKey.startsWith("AAVE_V2")) return "Aave V2";
+  if (lenderKey.startsWith("SILO")) return "Silo Finance";
   return lenderKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
