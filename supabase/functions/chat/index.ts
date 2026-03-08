@@ -41,17 +41,24 @@ function slimPools(raw: any, minTvlUsd = 10000) {
   const all = items.map((m: any) => {
     const tvl = parseFloat(m.totalDepositsUsd) || 0;
     const util = parseFloat(m.utilization) || 0;
+    const depositRate = parseFloat(m.depositRate) || 0;
+    const borrowRate = parseFloat(m.variableBorrowRate) || 0;
     return {
       marketUid: m.marketUid,
+      lender: m.lenderKey ?? m.lender ?? "",
       symbol: m.assetGroup ?? m.symbol ?? m.tokenSymbol,
-      depositRate: m.depositRate,
-      variableBorrowRate: m.variableBorrowRate,
+      depositRateRaw: depositRate,
+      depositAPR_pct: +(depositRate * 100).toFixed(4),
+      borrowAPR_pct: +(borrowRate * 100).toFixed(4),
       totalDepositsUsd: tvl,
       availableLiquidityUsd: Math.round(tvl * (1 - util) * 100) / 100,
-      utilization: util,
+      utilization: +(util * 100).toFixed(2),
     };
   });
-  const markets = all.filter((m: any) => m.totalDepositsUsd >= minTvlUsd);
+  // Filter by TVL and sort by deposit rate descending
+  const markets = all
+    .filter((m: any) => m.totalDepositsUsd >= minTvlUsd)
+    .sort((a: any, b: any) => b.depositAPR_pct - a.depositAPR_pct);
   return { markets, filteredCount: all.length - markets.length };
 }
 
@@ -74,6 +81,7 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       );
     case "get_lending_markets": {
       const { minTvlUsd, ...rest } = input;
+      if (!rest.count) rest.count = 100;
       return JSON.stringify(slimPools(await deltaGet("/data/lending/pools", rest), minTvlUsd ?? 10000));
     }
     case "get_lending_latest":
@@ -641,9 +649,12 @@ FORMATTING — render entities as special markdown links (the UI converts these 
 - Protocol: [Name](market:LENDER_ID:CHAIN_ID)   e.g. [Aave V3](market:AAVE_V3:1)
 Use these for EVERY token, chain, and protocol mention — never plain text.
 
-APR RULES:
-- depositRate = protocol APR only. True yield = intrinsic asset yield + depositRate.
-- variableBorrowRate = cost to borrower. Frame as "you pay X% APR".
+RATE FORMATTING (CRITICAL):
+- Tool results already contain depositAPR_pct and borrowAPR_pct as PERCENTAGE values. Display them directly with a % sign.
+- Example: depositAPR_pct=5.73 → "5.73% APR". Do NOT divide or multiply — they are already percentages.
+- Results are pre-sorted by depositAPR_pct descending. The FIRST items are the BEST rates.
+- When asked for "best" or "top" rates: use the first N items from the results. Exclude rates below 0.01%.
+- Prefer Aave V3, Compound V3, Morpho Blue, Spark over deprecated V2 protocols unless user asks specifically.
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
 
 LEVERAGED OPERATIONS (Loop Tools):
