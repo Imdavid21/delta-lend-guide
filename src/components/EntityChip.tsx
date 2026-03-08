@@ -27,6 +27,7 @@ interface Props {
   kind: "token" | "chain" | "market";
   value: string;
   label: string;
+  onClick?: () => void;
 }
 
 function Row({ l, v }: { l: string; v: ReactNode }) {
