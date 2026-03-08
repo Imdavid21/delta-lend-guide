@@ -9,6 +9,8 @@ const corsHeaders = {
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const ONEDELTA_API_KEY = Deno.env.get("ONEDELTA_API_KEY");
 const BASE = "https://portal.1delta.io/v1";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
@@ -36,6 +38,20 @@ async function deltaPost(endpoint: string, body: Record<string, any>) {
   return res.json();
 }
 
+/* ── Internal markets endpoint (single source of truth) ── */
+
+async function fetchMarketsEndpoint(type: "lending" | "vaults" | "pendle"): Promise<any[]> {
+  const url = `${SUPABASE_URL}/functions/v1/markets?type=${type}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 function slimPools(raw: any, minTvlUsd = 10000) {
   const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
   const all = items.map((m: any) => {
@@ -54,7 +70,6 @@ function slimPools(raw: any, minTvlUsd = 10000) {
       utilization: +(util * 100).toFixed(2),
     };
   });
-  // Filter by TVL and sort by deposit rate descending
   const markets = all
     .filter((m: any) => m.totalDepositsUsd >= minTvlUsd)
     .sort((a: any, b: any) => b.depositAPR_pct - a.depositAPR_pct);
@@ -65,6 +80,30 @@ function slimPools(raw: any, minTvlUsd = 10000) {
 
 async function dispatchTool(name: string, input: any): Promise<string> {
   switch (name) {
+    case "search_markets": {
+      const types: ("lending" | "vaults" | "pendle")[] = input.types ?? ["lending", "vaults", "pendle"];
+      const results = await Promise.all(types.map(fetchMarketsEndpoint));
+      const allItems: any[] = [];
+      types.forEach((t, i) => {
+        for (const item of results[i]) {
+          allItems.push({ ...item, _type: t });
+        }
+      });
+      // Filter by query terms
+      const q = (input.query ?? "").toLowerCase();
+      const filtered = q
+        ? allItems.filter((m) => {
+            const searchable = [
+              m.asset, m.protocolName, m.protocol, m.name, m.poolName,
+            ].filter(Boolean).join(" ").toLowerCase();
+            return q.split(/\s+/).every((term: string) => searchable.includes(term));
+          })
+        : allItems;
+      // Sort: lending by supplyAPY desc, vaults by apy desc, pendle by impliedAPY desc
+      filtered.sort((a, b) => (b.supplyAPY ?? b.apy ?? b.impliedAPY ?? 0) - (a.supplyAPY ?? a.apy ?? a.impliedAPY ?? 0));
+      const top = filtered.slice(0, input.limit ?? 20);
+      return JSON.stringify({ count: filtered.length, markets: top });
+    }
     case "find_market":
       return JSON.stringify(
         slimPools(
@@ -188,7 +227,31 @@ function extractAction(toolName: string, rawJson: string, input: any) {
 /* ───── tool definitions ───── */
 
 const TOOLS: any[] = [
-  // ── Data tools ──
+  // ── Unified search (single source of truth — same data as UI tables) ──
+  {
+    type: "function",
+    function: {
+      name: "search_markets",
+      description:
+        "Search across ALL market types (lending, vaults, fixed-yield) using the same data the UI displays. Use for informational queries: comparing rates, finding best yields, answering questions about markets. Results include protocolName, asset, supplyAPY/apy/impliedAPY, TVL, etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search term: asset name, protocol name, or keyword e.g. 'USDC', 'Aave', 'ETH Morpho'",
+          },
+          types: {
+            type: "array",
+            items: { type: "string", enum: ["lending", "vaults", "pendle"] },
+            description: "Which market types to search. Default: all three.",
+          },
+          limit: { type: "number", description: "Max results to return, default 20" },
+        },
+      },
+    },
+  },
+  // ── Data tools (for action preparation — need marketUid) ──
   {
     type: "function",
     function: {
@@ -622,13 +685,19 @@ const SYSTEM_PROMPT = `You are Klyro — a DeFi lending intelligence assistant. 
 questions about lending markets, rates, positions, and DeFi actions on Ethereum.
 
 TOOL-USE STRATEGY:
-1. Chain IDs and lender IDs must be exact — use the references below or call get_supported_chains / get_lender_ids.
-2. Use find_market (chainId + lender + assetGroup) to get a marketUid before any action.
-3. Call get_user_positions ONLY when user explicitly asks about their positions.
-4. For action tools: get token decimals first via get_token_info, then amount = tokens × 10^decimals as integer string.
-5. For leveraged positions: you need TWO marketUids — marketUidIn (debt side) and marketUidOut (collateral side).
-6. Use get_lending_metadata when user asks about protocol configs, risk parameters, supported assets.
-7. Use get_lending_latest for detailed rate snapshots with enriched yield data.
+1. **For informational queries** (rates, comparisons, "best yield", "where to deposit", market browsing): ALWAYS use search_markets FIRST. It returns the same data the user sees in the UI tables — identical protocol names, asset names, APYs, and TVL. This is the single source of truth.
+2. **For action preparation** (deposit, withdraw, borrow, repay): use find_market to get marketUid, then the action tool.
+3. Chain IDs and lender IDs must be exact — use the references below or call get_supported_chains / get_lender_ids.
+4. Call get_user_positions ONLY when user explicitly asks about their positions.
+5. For action tools: get token decimals first via get_token_info, then amount = tokens × 10^decimals as integer string.
+6. For leveraged positions: you need TWO marketUids — marketUidIn (debt side) and marketUidOut (collateral side).
+7. Use get_lending_metadata when user asks about protocol configs, risk parameters, supported assets.
+
+search_markets FIELD REFERENCE:
+- Lending results: protocolName, asset, supplyAPY (percentage), borrowAPR (percentage or null), totalSupplyUSD, availableLiquidityUSD, utilizationRate
+- Vault results: name, protocol, asset, apy (percentage), tvl
+- Pendle results: name, asset, impliedAPY (percentage), expiry, daysToMaturity, tvl
+Display APY/APR values directly with % sign — they are already percentages.
 
 CHAIN ID REFERENCE:
 Ethereum:1, OP Mainnet:10, Cronos:25, Telos:40, XDC:50, BNB:56, Gnosis:100, Unichain:130,
@@ -649,10 +718,11 @@ FORMATTING — render entities as special markdown links (the UI converts these 
 Use these for EVERY token, chain, and protocol mention — never plain text.
 
 RATE FORMATTING (CRITICAL):
-- Tool results already contain depositAPR_pct and borrowAPR_pct as PERCENTAGE values. Display them directly with a % sign.
-- Example: depositAPR_pct=5.73 → "5.73% APR". Do NOT divide or multiply — they are already percentages.
-- Results are pre-sorted by depositAPR_pct descending. The FIRST items are the BEST rates.
+- search_markets returns supplyAPY, apy, impliedAPY as PERCENTAGE values. Display them directly with a % sign.
+- Example: supplyAPY=5.73 → "5.73% APY". Do NOT divide or multiply — they are already percentages.
+- Results are pre-sorted by yield descending. The FIRST items are the BEST rates.
 - When asked for "best" or "top" rates: use the first N items from the results. Exclude rates below 0.01%.
+- For find_market/get_lending_markets (raw 1delta data): depositAPR_pct and borrowAPR_pct are also percentages.
 - Prefer Aave V3, Compound V3, Morpho Blue, Spark over deprecated V2 protocols unless user asks specifically.
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
 
