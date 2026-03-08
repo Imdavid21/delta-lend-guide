@@ -139,7 +139,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             label: `${m.asset} on ${m.protocolName}`,
             sub: `Supply ${formatPercent(m.supplyAPY)}`,
             icon: <AssetIcon symbol={m.asset} size={18} />,
-            action: () => { onNavigate("lending"); setValue(""); setFocused(false); },
+            action: () => { onSend(`Tell me about ${m.asset} on ${m.protocolName}`); setValue(""); setFocused(false); },
           });
         }
         if (items.length >= 8) break;
@@ -160,7 +160,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             label: v.name,
             sub: `APY ${formatPercent(v.apy)}`,
             icon: <ProtocolIcon name={v.protocol} size={18} />,
-            action: () => { onNavigate("vaults"); setValue(""); setFocused(false); },
+            action: () => { onSend(`Tell me about the ${v.name} vault`); setValue(""); setFocused(false); },
           });
         }
         if (items.length >= 8) break;
@@ -177,7 +177,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             label: p.name,
             sub: `Fixed ${formatPercent(p.impliedAPY)}`,
             icon: <LockClockIcon sx={{ fontSize: 16 }} />,
-            action: () => { onNavigate("fixed"); setValue(""); setFocused(false); },
+            action: () => { onSend(`Tell me about ${p.name} fixed yield`); setValue(""); setFocused(false); },
           });
         }
         if (items.length >= 8) break;
