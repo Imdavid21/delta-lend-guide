@@ -1,6 +1,7 @@
-import { useState, useMemo, createContext, useContext, useCallback, useRef } from "react";
+import { useState, useMemo, createContext, useContext, useCallback } from "react";
 import { Box } from "@mui/material";
 import AppHeader from "./AppHeader";
+import CommandBar from "./CommandBar";
 import ChatSidebar from "./ChatSidebar";
 import ChatPanel from "./ChatPanel";
 import LendingTable from "./markets/LendingTable";
@@ -132,69 +133,15 @@ export default function AppShell({ mode, onToggle }: Props) {
             <Box sx={{ flex: 1, overflow: "auto", p: tab === "chat" ? 0 : 2.5 }}>
               {content}
             </Box>
-            {/* Bottom chat input */}
-            <Box
-              component="form"
-              onSubmit={(e: React.FormEvent) => {
-                e.preventDefault();
-                const input = (e.currentTarget as HTMLFormElement).elements.namedItem(
-                  "chatInput",
-                ) as HTMLInputElement;
-                if (input?.value.trim()) {
-                  if (tab !== "chat") setTab("chat");
-                  sendMessage(input.value);
-                  input.value = "";
-                }
+            {/* Unified command bar */}
+            <CommandBar
+              loading={loading}
+              onSend={(text) => {
+                if (tab !== "chat") setTab("chat");
+                sendMessage(text);
               }}
-              sx={{
-                p: 1.5,
-                display: "flex",
-                gap: 1,
-                borderTop: 1,
-                borderColor: "divider",
-                bgcolor: "background.default",
-              }}
-            >
-              <Box
-                component="input"
-                name="chatInput"
-                placeholder="Ask about yields, rates, or execute DeFi actions…"
-                disabled={loading}
-                autoComplete="off"
-                className="clean-input"
-                sx={{
-                  flex: 1,
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: "12px",
-                  padding: "8px 14px",
-                  fontSize: 13,
-                  color: "text.primary",
-                  "&::placeholder": { color: "text.secondary", opacity: 1 },
-                }}
-              />
-              <Box
-                component="button"
-                type="submit"
-                disabled={loading}
-                sx={{
-                  bgcolor: "text.primary",
-                  color: "background.default",
-                  border: "none",
-                  borderRadius: "16px",
-                  padding: "8px 20px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.5 : 1,
-                  fontFamily: "inherit",
-                  transition: "all 200ms ease",
-                  "&:hover": { opacity: 0.85 },
-                }}
-              >
-                {loading ? "…" : "Send"}
-              </Box>
-            </Box>
+              onNavigate={setTab}
+            />
           </Box>
         </Box>
       </Box>
