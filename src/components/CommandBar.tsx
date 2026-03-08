@@ -6,14 +6,16 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import LockClockIcon from "@mui/icons-material/LockClock";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import HistoryIcon from "@mui/icons-material/History";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import { formatPercent } from "@/lib/marketTypes";
 import type { TabId } from "./AppShell";
+import type { Chat } from "@/hooks/useChats";
 
 interface SearchResult {
   id: string;
-  type: "market" | "vault" | "pendle" | "action" | "nav";
+  type: "market" | "vault" | "pendle" | "action" | "nav" | "history";
   label: string;
   sub: string;
   icon?: React.ReactNode;
@@ -24,6 +26,8 @@ interface Props {
   loading: boolean;
   onSend: (text: string) => void;
   onNavigate: (tab: TabId) => void;
+  onNewChat: (prompt: string) => void;
+  chatHistory: Chat[];
 }
 
 const QUICK_ACTIONS: { label: string; prompt: string }[] = [
@@ -32,7 +36,7 @@ const QUICK_ACTIONS: { label: string; prompt: string }[] = [
   { label: "Show my positions", prompt: "Show my positions" },
 ];
 
-export default function CommandBar({ loading, onSend, onNavigate }: Props) {
+export default function CommandBar({ loading, onSend, onNavigate, onNewChat, chatHistory }: Props) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,11 +62,47 @@ export default function CommandBar({ loading, onSend, onNavigate }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Extract unique recent user messages for autocomplete
+  const recentQueries = useMemo(() => {
+    const seen = new Set<string>();
+    const queries: string[] = [];
+    for (const chat of chatHistory) {
+      for (let i = chat.messages.length - 1; i >= 0; i--) {
+        const m = chat.messages[i];
+        if (m.role === "user") {
+          const normalized = m.content.trim().toLowerCase();
+          if (!seen.has(normalized)) {
+            seen.add(normalized);
+            queries.push(m.content.trim());
+          }
+        }
+        if (queries.length >= 20) break;
+      }
+      if (queries.length >= 20) break;
+    }
+    return queries;
+  }, [chatHistory]);
+
   const results = useMemo<SearchResult[]>(() => {
     const q = value.toLowerCase().trim();
     if (!q) return [];
 
     const items: SearchResult[] = [];
+
+    // Chat history autocomplete
+    const matchingHistory = recentQueries
+      .filter((msg) => msg.toLowerCase().includes(q))
+      .slice(0, 3);
+    for (const msg of matchingHistory) {
+      items.push({
+        id: `history:${msg}`,
+        type: "history",
+        label: msg,
+        sub: "Recent",
+        icon: <HistoryIcon sx={{ fontSize: 16, color: "text.disabled" }} />,
+        action: () => { onNewChat(msg); setValue(""); setFocused(false); },
+      });
+    }
 
     // Nav results
     const navItems: { tab: TabId; label: string; keywords: string[] }[] = [
@@ -145,7 +185,7 @@ export default function CommandBar({ loading, onSend, onNavigate }: Props) {
     }
 
     return items.slice(0, 8);
-  }, [value, markets, vaults, pendle, onNavigate]);
+  }, [value, markets, vaults, pendle, onNavigate, recentQueries, onNewChat]);
 
   const showDropdown = focused && (results.length > 0 || (value.trim() === "" && !loading));
 
@@ -313,7 +353,7 @@ export default function CommandBar({ loading, onSend, onNavigate }: Props) {
                       secondaryTypographyProps={{ fontSize: 10, color: "text.disabled" }}
                     />
                     <Chip
-                      label={r.type === "nav" ? "Page" : r.type === "market" ? "Lending" : r.type === "vault" ? "Vault" : "Fixed"}
+                      label={r.type === "nav" ? "Page" : r.type === "market" ? "Lending" : r.type === "vault" ? "Vault" : r.type === "history" ? "History" : "Fixed"}
                       size="small"
                       sx={{ fontSize: 9, height: 18, bgcolor: "action.hover", color: "text.secondary" }}
                     />
@@ -346,7 +386,7 @@ export default function CommandBar({ loading, onSend, onNavigate }: Props) {
                   {QUICK_ACTIONS.map((a) => (
                     <ListItemButton
                       key={a.label}
-                      onClick={() => { onSend(a.prompt); setValue(""); setFocused(false); }}
+                      onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
                       sx={{ py: 0.5, px: 1, borderRadius: 1.5 }}
                     >
                       <ListItemIcon sx={{ minWidth: 28 }}>
