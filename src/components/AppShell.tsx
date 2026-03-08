@@ -141,6 +141,8 @@ export default function AppShell({ mode, onToggle }: Props) {
                 sendMessage(text);
               }}
               onNavigate={setTab}
+              onNewChat={submitAction}
+              chatHistory={chats}
             />
           </Box>
         </Box>
