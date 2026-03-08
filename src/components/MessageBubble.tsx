@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import EntityChip from "./EntityChip";
 import TxExecutor from "./TxExecutor";
+import { useShell } from "./AppShell";
 import type { ChatMessage } from "../hooks/useChats";
 import type { Components } from "react-markdown";
 
@@ -10,45 +11,57 @@ interface Props {
   message: ChatMessage;
 }
 
-const mdComponents: Components = {
-  a: ({ href, children }) => {
-    const text = String(children);
-    if (href?.startsWith("token:")) {
-      return <EntityChip kind="token" value={href.replace("token:", "")} label={text} />;
-    }
-    if (href?.startsWith("chain:")) {
-      return <EntityChip kind="chain" value={href.replace("chain:", "")} label={text} />;
-    }
-    if (href?.startsWith("market:")) {
-      return <EntityChip kind="market" value={href.replace("market:", "")} label={text} />;
-    }
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>
+function useMdComponents(): Components {
+  const { submitAction } = useShell();
+
+  return {
+    a: ({ href, children }) => {
+      const text = String(children);
+      if (href?.startsWith("token:")) {
+        return <EntityChip kind="token" value={href.replace("token:", "")} label={text} />;
+      }
+      if (href?.startsWith("chain:")) {
+        return <EntityChip kind="chain" value={href.replace("chain:", "")} label={text} />;
+      }
+      if (href?.startsWith("market:")) {
+        return (
+          <EntityChip
+            kind="market"
+            value={href.replace("market:", "")}
+            label={text}
+            onClick={() => submitAction(`Tell me more about ${text} and help me deposit`)}
+          />
+        );
+      }
+      return (
+        <a href={href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline" }}>
+          {children}
+        </a>
+      );
+    },
+    table: ({ children, ...props }) => (
+      <Box sx={{ overflowX: "auto", my: 1 }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }} {...props}>
+          {children}
+        </table>
+      </Box>
+    ),
+    th: ({ children, ...props }) => (
+      <th style={{ borderBottom: "1px solid var(--md-border)", padding: "4px 8px", textAlign: "left", fontSize: 12 }} {...props}>
         {children}
-      </a>
-    );
-  },
-  table: ({ children, ...props }) => (
-    <Box sx={{ overflowX: "auto", my: 1 }}>
-      <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }} {...props}>
+      </th>
+    ),
+    td: ({ children, ...props }) => (
+      <td style={{ borderBottom: "1px solid var(--md-border)", padding: "4px 8px", fontSize: 12 }} {...props}>
         {children}
-      </table>
-    </Box>
-  ),
-  th: ({ children, ...props }) => (
-    <th style={{ borderBottom: "1px solid var(--md-border)", padding: "4px 8px", textAlign: "left", fontSize: 12 }} {...props}>
-      {children}
-    </th>
-  ),
-  td: ({ children, ...props }) => (
-    <td style={{ borderBottom: "1px solid var(--md-border)", padding: "4px 8px", fontSize: 12 }} {...props}>
-      {children}
-    </td>
-  ),
-};
+      </td>
+    ),
+  };
+}
 
 export default function MessageBubble({ message }: Props) {
   const isUser = message.role === "user";
+  const mdComponents = useMdComponents();
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", mb: 1.5 }}>
@@ -61,6 +74,7 @@ export default function MessageBubble({ message }: Props) {
           borderRadius: 3,
           border: 1,
           borderColor: isUser ? "text.primary" : "divider",
+          textAlign: "left",
           ...(isUser
             ? { bgcolor: "text.primary", color: "background.default" }
             : { bgcolor: "background.default" }),
