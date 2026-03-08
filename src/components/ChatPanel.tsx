@@ -22,6 +22,7 @@ interface Props {
 
 export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [dismissed, setDismissed] = useState(false);
   const messages = chat?.messages ?? [];
   const isEmpty = messages.length === 0;
 
