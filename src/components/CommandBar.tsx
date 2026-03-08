@@ -388,7 +388,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                   <Box
                     component="button"
                     type="button"
-                    onClick={() => { setFocused(false); inputRef.current?.blur(); }}
+                    onClick={() => { setQuickActionsDismissed(true); setFocused(false); inputRef.current?.blur(); }}
                     sx={{
                       display: "flex", alignItems: "center", justifyContent: "center",
                       border: "none", bgcolor: "transparent", cursor: "pointer",
