@@ -177,7 +177,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             label: p.name,
             sub: `Fixed ${formatPercent(p.impliedAPY)}`,
             icon: <LockClockIcon sx={{ fontSize: 16 }} />,
-            action: () => { onNavigate("fixed"); setValue(""); setFocused(false); },
+            action: () => { onSend(`Tell me about ${p.name} fixed yield`); setValue(""); setFocused(false); },
           });
         }
         if (items.length >= 8) break;
