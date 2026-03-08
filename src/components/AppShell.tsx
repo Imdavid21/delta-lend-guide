@@ -1,6 +1,7 @@
-import { useState, useMemo, createContext, useContext, useCallback, useRef } from "react";
+import { useState, useMemo, createContext, useContext, useCallback } from "react";
 import { Box } from "@mui/material";
 import AppHeader from "./AppHeader";
+import CommandBar from "./CommandBar";
 import ChatSidebar from "./ChatSidebar";
 import ChatPanel from "./ChatPanel";
 import LendingTable from "./markets/LendingTable";
