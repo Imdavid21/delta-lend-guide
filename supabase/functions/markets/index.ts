@@ -222,7 +222,6 @@ async function fetchVaults(hdrs: Record<string, string>) {
 }
 
 async function fetchPendle() {
-  // Use /all endpoint directly (paginated /markets was removed by Pendle)
   console.log("Fetching Pendle markets...");
   const raw = await fetchJSON(
     "https://api-v2.pendle.finance/core/v1/markets/all?chainId=1",
@@ -235,42 +234,41 @@ async function fetchPendle() {
     return [];
   }
 
-  const isArr = Array.isArray(raw);
-  const keys = !isArr ? Object.keys(raw).slice(0, 5) : [];
-  console.log(`Pendle raw: isArray=${isArr}, keys=${JSON.stringify(keys)}, type=${typeof raw}`);
-  const items: any[] = isArr ? raw : (raw.results ?? raw.data ?? raw.markets ?? []);
-  console.log(`Pendle: ${items.length} raw markets fetched`);
-
-  // Debug: log first item structure
-  if (items.length > 0) {
-    const sample = items[0];
-    console.log(`Pendle sample keys: ${Object.keys(sample).join(", ")}`);
-    console.log(`Pendle sample liquidity: ${JSON.stringify(sample.liquidity)}, totalLiquidity: ${sample.totalLiquidity}, tvl: ${sample.tvl}`);
-    console.log(`Pendle sample details: ${JSON.stringify(sample.details ?? {})}`);
-    console.log(`Pendle sample pt: ${JSON.stringify(sample.pt ?? {})}`);
-    console.log(`Pendle sample underlyingAsset: ${JSON.stringify(sample.underlyingAsset ?? {})}`);
-    console.log(`Pendle sample: name=${sample.name}, impliedApy=${sample.impliedApy}, expiry=${sample.expiry}`);
-  }
+  const items: any[] = raw.markets ?? (Array.isArray(raw) ? raw : (raw.results ?? raw.data ?? []));
+  console.log(`Pendle: ${items.length} raw markets`);
 
   const now = Date.now();
-  return items
+  const results = items
     .filter((m: any) => {
-      const liq = m.liquidity?.usd ?? m.totalLiquidity ?? m.tvl ?? m.liquidityUsd ?? 0;
-      return liq >= 10000;
+      // Filter: must have details, liquidity >= 10k, not expired
+      const details = m.details;
+      if (!details) return false;
+      const liq = details.liquidity ?? details.totalTvl ?? 0;
+      if (liq < 10000) return false;
+      const expiry = m.expiry ? new Date(m.expiry).getTime() : 0;
+      if (expiry <= now) return false; // Skip expired
+      return true;
     })
     .map((m: any) => {
+      const details = m.details ?? {};
       const expiry = m.expiry ? new Date(m.expiry).getTime() : 0;
       const daysToMaturity = expiry > now ? Math.ceil((expiry - now) / 86400000) : 0;
+      // Extract asset symbol from market name (e.g. "PT sUSDe 26DEC2024" → "sUSDe")
+      const nameParts = (m.name ?? "").split(" ");
+      const asset = nameParts.length > 1 ? nameParts.slice(0, -1).join(" ") : m.name ?? "";
       return {
-        id: m.address ?? m.id ?? `pendle:${m.name}`,
+        id: m.address ?? `pendle:${m.name}`,
         name: m.name ?? "",
-        asset: m.underlyingAsset?.symbol ?? m.pt?.symbol ?? "",
-        impliedAPY: (m.impliedApy ?? 0) * 100,
+        asset,
+        impliedAPY: (details.impliedApy ?? 0) * 100,
         expiry: m.expiry ?? "",
         daysToMaturity,
-        tvl: m.liquidity?.usd ?? m.totalLiquidity ?? 0,
+        tvl: details.liquidity ?? details.totalTvl ?? 0,
       };
     });
+
+  console.log(`Pendle: ${results.length} active markets after filtering`);
+  return results;
 }
 
 Deno.serve(async (req) => {
