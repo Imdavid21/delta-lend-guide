@@ -699,7 +699,7 @@ ID-BASED MARKET MAPPING (CRITICAL):
 - Every market from search_markets has an \`id\` field. This is the unique identifier across all market types.
 - Lending markets also have a \`marketUid\` field (format: LENDER:chainId:tokenAddress) used for action tools.
 - Vaults have an \`id\` that matches their marketUid.
-- **When linking to a market in markdown, ALWAYS use the id**: \`[Gauntlet USDC/wstETH](market:MORPHO_BLUE_XXX:1:0xabc)\`
+- **When linking to a market in markdown, ALWAYS use the full format**: \`[Gauntlet USDC/wstETH](market:MORPHO_BLUE_XXX:1:0xabc|Morpho Blue|USDC|5.96|8265748)\`
 - **When a user clicks a market link or asks about a specific market by id**, use that id directly with find_market or action tools.
 - If user message contains "(market id: ...)" or "(id: ...)", extract that id and use it for the action.
 
