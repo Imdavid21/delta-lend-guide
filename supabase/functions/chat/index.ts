@@ -718,10 +718,11 @@ FORMATTING — render entities as special markdown links (the UI converts these 
 Use these for EVERY token, chain, and protocol mention — never plain text.
 
 RATE FORMATTING (CRITICAL):
-- Tool results already contain depositAPR_pct and borrowAPR_pct as PERCENTAGE values. Display them directly with a % sign.
-- Example: depositAPR_pct=5.73 → "5.73% APR". Do NOT divide or multiply — they are already percentages.
-- Results are pre-sorted by depositAPR_pct descending. The FIRST items are the BEST rates.
+- search_markets returns supplyAPY, apy, impliedAPY as PERCENTAGE values. Display them directly with a % sign.
+- Example: supplyAPY=5.73 → "5.73% APY". Do NOT divide or multiply — they are already percentages.
+- Results are pre-sorted by yield descending. The FIRST items are the BEST rates.
 - When asked for "best" or "top" rates: use the first N items from the results. Exclude rates below 0.01%.
+- For find_market/get_lending_markets (raw 1delta data): depositAPR_pct and borrowAPR_pct are also percentages.
 - Prefer Aave V3, Compound V3, Morpho Blue, Spark over deprecated V2 protocols unless user asks specifically.
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
 
