@@ -15,7 +15,7 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-const opts = { refreshInterval: 120_000, revalidateOnFocus: false };
+const opts = { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 30_000 };
 
 export function useMarkets() {
   return useSWR<Market[]>(
