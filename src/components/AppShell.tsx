@@ -114,7 +114,6 @@ export default function AppShell({ mode, onToggle }: Props) {
               flexDirection: "column",
               overflow: "hidden",
               transition: "margin-right 250ms ease",
-              mr: chatOpen ? `${CHAT_DRAWER_WIDTH}px` : 0,
             }}
           >
             <Box
