@@ -41,17 +41,24 @@ function slimPools(raw: any, minTvlUsd = 10000) {
   const all = items.map((m: any) => {
     const tvl = parseFloat(m.totalDepositsUsd) || 0;
     const util = parseFloat(m.utilization) || 0;
+    const depositRate = parseFloat(m.depositRate) || 0;
+    const borrowRate = parseFloat(m.variableBorrowRate) || 0;
     return {
       marketUid: m.marketUid,
+      lender: m.lenderKey ?? m.lender ?? "",
       symbol: m.assetGroup ?? m.symbol ?? m.tokenSymbol,
-      depositRate: m.depositRate,
-      variableBorrowRate: m.variableBorrowRate,
+      depositRateRaw: depositRate,
+      depositAPR_pct: +(depositRate * 100).toFixed(4),
+      borrowAPR_pct: +(borrowRate * 100).toFixed(4),
       totalDepositsUsd: tvl,
       availableLiquidityUsd: Math.round(tvl * (1 - util) * 100) / 100,
-      utilization: util,
+      utilization: +(util * 100).toFixed(2),
     };
   });
-  const markets = all.filter((m: any) => m.totalDepositsUsd >= minTvlUsd);
+  // Filter by TVL and sort by deposit rate descending
+  const markets = all
+    .filter((m: any) => m.totalDepositsUsd >= minTvlUsd)
+    .sort((a: any, b: any) => b.depositAPR_pct - a.depositAPR_pct);
   return { markets, filteredCount: all.length - markets.length };
 }
 
