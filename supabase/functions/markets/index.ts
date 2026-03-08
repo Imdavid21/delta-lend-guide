@@ -303,6 +303,10 @@ async function fetchPendle() {
   return results;
 }
 
+/* ── In-memory cache (60s TTL) to avoid hammering upstream APIs ── */
+const cache = new Map<string, { data: any[]; ts: number }>();
+const CACHE_TTL = 60_000; // 60 seconds
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -313,6 +317,15 @@ Deno.serve(async (req) => {
     const type = url.searchParams.get("type") || "lending";
     const hdrs: Record<string, string> = {};
     if (API_KEY) hdrs["x-api-key"] = API_KEY;
+
+    // Check cache
+    const cached = cache.get(type);
+    const now = Date.now();
+    if (cached && now - cached.ts < CACHE_TTL) {
+      return new Response(JSON.stringify(cached.data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "HIT" },
+      });
+    }
 
     let data: any[];
     switch (type) {
@@ -333,8 +346,11 @@ Deno.serve(async (req) => {
       return true;
     });
 
+    // Update cache
+    cache.set(type, { data: unique, ts: now });
+
     return new Response(JSON.stringify(unique), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "MISS" },
     });
   } catch (e) {
     console.error("Markets error:", (e as Error).message);
