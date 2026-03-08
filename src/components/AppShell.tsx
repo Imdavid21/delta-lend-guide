@@ -1,5 +1,5 @@
 import { useState, useMemo, createContext, useContext, useCallback } from "react";
-import { Box, Drawer, IconButton, Tooltip, Fab } from "@mui/material";
+import { Box, IconButton, Tooltip, Fab, Dialog, Slide } from "@mui/material";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import AppHeader from "./AppHeader";
@@ -11,6 +11,8 @@ import TopYields from "./dashboard/TopYields";
 import MarketExplorer from "./dashboard/MarketExplorer";
 import PositionsPanel from "./dashboard/PositionsPanel";
 import { useChats, type ChatMessage } from "../hooks/useChats";
+import { forwardRef } from "react";
+import type { TransitionProps } from "@mui/material/transitions";
 
 export type TabId = "overview" | "lending" | "vaults" | "fixed" | "chat";
 
@@ -25,7 +27,12 @@ interface Props {
   onToggle: () => void;
 }
 
-const CHAT_DRAWER_WIDTH = 420;
+const SlideUp = forwardRef(function SlideUp(
+  props: TransitionProps & { children: React.ReactElement },
+  ref: React.Ref<unknown>,
+) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 export default function AppShell({ mode, onToggle }: Props) {
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
@@ -105,121 +112,110 @@ export default function AppShell({ mode, onToggle }: Props) {
           onToggleChat={() => setChatOpen((p) => !p)}
         />
 
-        <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
-          {/* Main dashboard content */}
+        {/* Main dashboard content */}
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <Box
             sx={{
               flex: 1,
+              overflow: "auto",
+              p: { xs: 2, md: 3 },
+              maxWidth: 1400,
+              mx: "auto",
+              width: "100%",
+            }}
+          >
+            <Box sx={{ mb: 2.5 }}>
+              <HeroStats />
+            </Box>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
+                gap: 2,
+                mb: 2.5,
+              }}
+            >
+              <TopYields onAction={submitAction} />
+              <PositionsPanel onAskChat={submitAction} />
+            </Box>
+            <MarketExplorer />
+          </Box>
+
+          <CommandBar
+            loading={loading}
+            onSend={(text) => sendMessage(text)}
+            onNavigate={() => {}}
+            onNewChat={submitAction}
+            chatHistory={chats}
+          />
+        </Box>
+
+        {/* Chat overlay — centered dialog on top of dashboard */}
+        <Dialog
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          TransitionComponent={SlideUp}
+          maxWidth={false}
+          PaperProps={{
+            sx: {
+              width: { xs: "95vw", sm: 520, md: 580 },
+              height: { xs: "80vh", sm: "75vh", md: "70vh" },
+              maxHeight: "80vh",
+              borderRadius: 4,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              transition: "margin-right 250ms ease",
+              bgcolor: "background.default",
+              border: 1,
+              borderColor: "divider",
+            },
+          }}
+          sx={{
+            "& .MuiBackdrop-root": {
+              backgroundColor: "rgba(0,0,0,0.3)",
+              backdropFilter: "blur(4px)",
+            },
+          }}
+        >
+          {/* Chat header */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              py: 1,
+              borderBottom: 1,
+              borderColor: "divider",
+              minHeight: 44,
+              flexShrink: 0,
             }}
           >
-            <Box
-              sx={{
-                flex: 1,
-                overflow: "auto",
-                p: { xs: 2, md: 3 },
-                maxWidth: 1400,
-                mx: "auto",
-                width: "100%",
-              }}
-            >
-              {/* Hero stats */}
-              <Box sx={{ mb: 2.5 }}>
-                <HeroStats />
-              </Box>
-
-              {/* Top yields + Positions row */}
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
-                  gap: 2,
-                  mb: 2.5,
-                }}
-              >
-                <TopYields onAction={submitAction} />
-                <PositionsPanel onAskChat={submitAction} />
-              </Box>
-
-              {/* Market explorer */}
-              <MarketExplorer />
-            </Box>
-
-            {/* Command bar */}
-            <CommandBar
-              loading={loading}
-              onSend={(text) => {
-                sendMessage(text);
-              }}
-              onNavigate={() => {}}
-              onNewChat={submitAction}
-              chatHistory={chats}
+            <ChatSidebar
+              chats={chats}
+              activeChatId={activeChatId}
+              onSelect={(id) => setActiveChatId(id)}
+              onNew={() => createChat()}
+              onDelete={deleteChat}
             />
+            <Tooltip title="Close chat">
+              <IconButton size="small" onClick={() => setChatOpen(false)} sx={{ color: "text.secondary" }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
 
-          {/* Chat drawer */}
-          <Drawer
-            variant="persistent"
-            anchor="right"
-            open={chatOpen}
-            sx={{
-              width: chatOpen ? CHAT_DRAWER_WIDTH : 0,
-              flexShrink: 0,
-              "& .MuiDrawer-paper": {
-                width: CHAT_DRAWER_WIDTH,
-                border: "none",
-                borderLeft: 1,
-                borderColor: "divider",
-                bgcolor: "background.default",
-                top: 49,
-                height: "calc(100% - 49px)",
-              },
-            }}
-          >
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-              {/* Chat header */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  px: 2,
-                  py: 1,
-                  borderBottom: 1,
-                  borderColor: "divider",
-                  minHeight: 44,
-                }}
-              >
-                <ChatSidebar
-                  chats={chats}
-                  activeChatId={activeChatId}
-                  onSelect={(id) => setActiveChatId(id)}
-                  onNew={() => createChat()}
-                  onDelete={deleteChat}
-                />
-                <Tooltip title="Close chat">
-                  <IconButton size="small" onClick={() => setChatOpen(false)} sx={{ color: "text.secondary" }}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
+          {/* Chat content */}
+          <Box sx={{ flex: 1, overflow: "hidden" }}>
+            <ChatPanel
+              chat={activeChat}
+              loading={loading}
+              onSuggestion={(s) => sendMessage(s)}
+            />
+          </Box>
+        </Dialog>
 
-              {/* Chat content */}
-              <Box sx={{ flex: 1, overflow: "hidden" }}>
-                <ChatPanel
-                  chat={activeChat}
-                  loading={loading}
-                  onSuggestion={(s) => sendMessage(s)}
-                />
-              </Box>
-            </Box>
-          </Drawer>
-        </Box>
-
-        {/* Chat FAB when drawer is closed */}
+        {/* Chat FAB when dialog is closed */}
         {!chatOpen && (
           <Fab
             size="medium"
