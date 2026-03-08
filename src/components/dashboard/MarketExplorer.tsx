@@ -3,7 +3,7 @@ import { Box, Tabs, Tab } from "@mui/material";
 import LendingTable from "../markets/LendingTable";
 import VaultsTable from "../markets/VaultsTable";
 import FixedYieldTable from "../markets/FixedYieldTable";
-import Compare from "./Compare";
+// import Compare from "./Compare";
 import LoopingStrategies from "./LoopingStrategies";
 
 type MarketTab = "lending" | "vaults" | "fixed" | "looping" | "compare";
