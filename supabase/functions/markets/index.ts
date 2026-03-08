@@ -9,7 +9,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-// Top chains by DeFi TVL
 const CHAIN_IDS = ["1", "42161", "8453", "10", "137", "56", "43114", "534352", "59144", "5000"];
 
 const CHAIN_NAMES: Record<string, string> = {
@@ -33,33 +32,21 @@ const LENDER_NAMES: Record<string, string> = {
   "MENDI": "Mendi Finance", "SILO": "Silo Finance",
 };
 
-function transformPool(pool: any) {
-  const parts = (pool.marketUid ?? "").split(":");
-  const chainId = String(pool.chainId ?? parts[1] ?? "");
-  const lender = String(pool.lender ?? parts[0] ?? "");
-  const asset = pool.assetGroup ?? pool.symbol ?? pool.underlying?.symbol ?? parts[2] ?? "";
-  const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-  const util = parseFloat(pool.utilization) || 0;
-  const depositRate = parseFloat(pool.depositRate) || 0;
-  const borrowRate = pool.variableBorrowRate != null ? parseFloat(pool.variableBorrowRate) || 0 : null;
-  // API returns rates already as percentages (e.g. 1.75 = 1.75%), no need to multiply by 100
-
-  return {
-    id: pool.marketUid ?? `${lender}:${chainId}:${asset}`,
-    marketUid: pool.marketUid,
-    chainId,
-    chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
-    protocol: lender,
-    protocolName: LENDER_NAMES[lender] || lender,
-    asset,
-    supplyAPY: depositRate,
-    supplyAPYWithIncentives: depositRate,
-    borrowAPR: borrowRate,
-    totalSupplyUSD: tvl,
-    availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
-    utilizationRate: util * 100,
-    updatedAt: Date.now(),
-  };
+function resolveLenderName(lenderKey: string): string {
+  if (LENDER_NAMES[lenderKey]) return LENDER_NAMES[lenderKey];
+  if (lenderKey.startsWith("MORPHO_BLUE")) return "Morpho Blue";
+  if (lenderKey.startsWith("COMPOUND_V3")) return "Compound V3";
+  if (lenderKey.startsWith("AAVE_V3")) return "Aave V3";
+  if (lenderKey.startsWith("AAVE_V2")) return "Aave V2";
+  if (lenderKey.startsWith("SILO")) return "Silo Finance";
+  if (lenderKey.startsWith("BENQI")) return "Benqi";
+  if (lenderKey.startsWith("LISTA_DAO")) return "Lista DAO";
+  if (lenderKey.startsWith("AVALON")) return "Avalon";
+  if (lenderKey.startsWith("TENDER")) return "Tender";
+  if (lenderKey.startsWith("PLUTOS")) return "Plutos";
+  // Strip hex hash suffixes (e.g. FOO_2BB68BC7F... → Foo)
+  const base = lenderKey.replace(/_[A-F0-9]{8,}$/i, "");
+  return base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 async function fetchChainPools(chainId: string, hdrs: Record<string, string>): Promise<any[]> {
@@ -89,17 +76,59 @@ Deno.serve(async (req) => {
     const hdrs: Record<string, string> = {};
     if (API_KEY) hdrs["x-api-key"] = API_KEY;
 
-    console.log("Fetching markets for chains:", CHAIN_IDS.join(","));
-
     const results = await Promise.all(
       CHAIN_IDS.map((cid) => fetchChainPools(cid, hdrs))
     );
-
     const allItems = results.flat();
-    console.log("Total raw items:", allItems.length);
 
     const markets = allItems
-      .map(transformPool)
+      .map((pool: any) => {
+        const chainId = String(pool.chainId ?? "");
+        const lenderKey = pool.lenderKey ?? pool.lender ?? "";
+        const isMorphoVault = lenderKey.startsWith("MORPHO_BLUE");
+
+        // Asset symbol from nested underlyingInfo — prefer assetGroup, then symbol
+        let asset = pool.underlyingInfo?.asset?.assetGroup
+          ?? pool.underlyingInfo?.asset?.symbol
+          ?? pool.assetGroup
+          ?? pool.tokenSymbol
+          ?? pool.symbol
+          ?? "";
+        // Clean up currencyId format like "Ripple USD::RLUSD" → "RLUSD"
+        if (asset.includes("::")) {
+          asset = asset.split("::").pop() ?? asset;
+        }
+
+        // Pool/vault name from API
+        const poolName = pool.name ?? "";
+
+        const tvl = parseFloat(pool.totalDepositsUsd) || 0;
+        const util = parseFloat(pool.utilization) || 0;
+        // API returns rates already as percentages (1.72 = 1.72%)
+        const depositRate = parseFloat(pool.depositRate) || 0;
+        const borrowRate = pool.variableBorrowRate != null
+          ? parseFloat(pool.variableBorrowRate) || 0
+          : null;
+
+        return {
+          id: pool.marketUid ?? `${lenderKey}:${chainId}:${asset}`,
+          marketUid: pool.marketUid ?? "",
+          chainId,
+          chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
+          protocol: isMorphoVault ? "MORPHO_BLUE" : lenderKey,
+          protocolName: resolveLenderName(lenderKey),
+          poolName,
+          vaultName: isMorphoVault ? poolName : "",
+          asset,
+          supplyAPY: depositRate,
+          supplyAPYWithIncentives: depositRate,
+          borrowAPR: borrowRate,
+          totalSupplyUSD: tvl,
+          availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
+          utilizationRate: util * 100,
+          updatedAt: Date.now(),
+        };
+      })
       .filter((m) => m.totalSupplyUSD >= 10000);
 
     // Deduplicate
@@ -109,8 +138,6 @@ Deno.serve(async (req) => {
       seen.add(m.id);
       return true;
     });
-
-    console.log("Returning", unique.length, "markets");
 
     return new Response(JSON.stringify(unique), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
