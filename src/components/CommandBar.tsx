@@ -7,6 +7,7 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import LockClockIcon from "@mui/icons-material/LockClock";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import HistoryIcon from "@mui/icons-material/History";
+import CloseIcon from "@mui/icons-material/Close";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import { formatPercent } from "@/lib/marketTypes";
