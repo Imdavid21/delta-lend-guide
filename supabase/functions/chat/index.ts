@@ -9,6 +9,8 @@ const corsHeaders = {
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const ONEDELTA_API_KEY = Deno.env.get("ONEDELTA_API_KEY");
 const BASE = "https://portal.1delta.io/v1";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
