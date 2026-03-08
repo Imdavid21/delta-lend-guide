@@ -9,7 +9,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-// Top chains by DeFi TVL
 const CHAIN_IDS = ["1", "42161", "8453", "10", "137", "56", "43114", "534352", "59144", "5000"];
 
 const CHAIN_NAMES: Record<string, string> = {
@@ -32,6 +31,15 @@ const LENDER_NAMES: Record<string, string> = {
   "GRANARY": "Granary", "YLDR": "Yldr", "MOONWELL": "Moonwell",
   "MENDI": "Mendi Finance", "SILO": "Silo Finance",
 };
+
+function resolveLenderName(lenderKey: string): string {
+  // Exact match first
+  if (LENDER_NAMES[lenderKey]) return LENDER_NAMES[lenderKey];
+  // Morpho Blue vaults have IDs like MORPHO_BLUE_C8455ED78...
+  if (lenderKey.startsWith("MORPHO_BLUE")) return "Morpho Blue";
+  // Fallback: title-case the key
+  return lenderKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 async function fetchChainPools(chainId: string, hdrs: Record<string, string>): Promise<any[]> {
   const url = new URL(BASE + "/data/lending/pools");
@@ -56,19 +64,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const reqUrl = new URL(req.url);
-
-  // Debug endpoint to inspect raw API data
-  if (reqUrl.searchParams.get("debug") === "1") {
-    const hdrs: Record<string, string> = {};
-    if (API_KEY) hdrs["x-api-key"] = API_KEY;
-    const items = await fetchChainPools("42161", hdrs);
-    // Return first 3 items with ALL fields
-    return new Response(JSON.stringify(items.slice(0, 3), null, 2), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   try {
     const hdrs: Record<string, string> = {};
     if (API_KEY) hdrs["x-api-key"] = API_KEY;
@@ -76,54 +71,42 @@ Deno.serve(async (req) => {
     const results = await Promise.all(
       CHAIN_IDS.map((cid) => fetchChainPools(cid, hdrs))
     );
-
     const allItems = results.flat();
-
-    // Build token address→symbol lookup from the data itself
-    const tokenSymbols = new Map<string, string>();
-    for (const pool of allItems) {
-      const addr = (pool.underlying?.address ?? "").toLowerCase();
-      const sym = pool.assetGroup ?? pool.tokenSymbol ?? pool.underlying?.symbol ?? pool.symbol;
-      if (addr && sym && !sym.startsWith("0x")) {
-        tokenSymbols.set(addr, sym);
-      }
-    }
 
     const markets = allItems
       .map((pool: any) => {
-        const parts = (pool.marketUid ?? "").split(":");
-        const chainId = String(pool.chainId ?? parts[1] ?? "");
-        const lender = String(pool.lender ?? parts[0] ?? "");
+        const chainId = String(pool.chainId ?? "");
+        const lenderKey = pool.lenderKey ?? pool.lender ?? "";
+        const isMorphoVault = lenderKey.startsWith("MORPHO_BLUE");
 
-        // Resolve asset symbol: prefer assetGroup, then token fields, then lookup by address
-        let asset = pool.assetGroup ?? pool.tokenSymbol ?? pool.underlying?.symbol ?? pool.symbol ?? "";
-        if (!asset || asset.startsWith("0x")) {
-          const addrFromUid = parts[2] ?? "";
-          asset = tokenSymbols.get(addrFromUid.toLowerCase()) ?? addrFromUid;
-        }
-        // If still an address, try to shorten it
-        if (asset.startsWith("0x") && asset.length > 10) {
-          asset = asset.slice(0, 6) + "…" + asset.slice(-4);
-        }
+        // Asset symbol from nested underlyingInfo
+        const asset = pool.underlyingInfo?.asset?.assetGroup
+          ?? pool.underlyingInfo?.asset?.symbol
+          ?? pool.assetGroup
+          ?? pool.tokenSymbol
+          ?? pool.symbol
+          ?? "";
+
+        // Pool/vault name from API
+        const poolName = pool.name ?? "";
 
         const tvl = parseFloat(pool.totalDepositsUsd) || 0;
         const util = parseFloat(pool.utilization) || 0;
+        // API returns rates already as percentages (1.72 = 1.72%)
         const depositRate = parseFloat(pool.depositRate) || 0;
-        const borrowRate = pool.variableBorrowRate != null ? parseFloat(pool.variableBorrowRate) || 0 : null;
-
-        // Determine if Morpho Blue vault - use vault name if available
-        const isMorphoVault = lender.startsWith("MORPHO_BLUE");
-        const vaultName = pool.name ?? pool.vaultName ?? pool.description ?? "";
-        const protocolBase = isMorphoVault ? "MORPHO_BLUE" : lender;
+        const borrowRate = pool.variableBorrowRate != null
+          ? parseFloat(pool.variableBorrowRate) || 0
+          : null;
 
         return {
-          id: pool.marketUid ?? `${lender}:${chainId}:${asset}`,
-          marketUid: pool.marketUid,
+          id: pool.marketUid ?? `${lenderKey}:${chainId}:${asset}`,
+          marketUid: pool.marketUid ?? "",
           chainId,
           chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
-          protocol: protocolBase,
-          protocolName: isMorphoVault ? "Morpho Blue" : (LENDER_NAMES[lender] || lender),
-          vaultName: isMorphoVault ? vaultName : "",
+          protocol: isMorphoVault ? "MORPHO_BLUE" : lenderKey,
+          protocolName: resolveLenderName(lenderKey),
+          poolName,
+          vaultName: isMorphoVault ? poolName : "",
           asset,
           supplyAPY: depositRate,
           supplyAPYWithIncentives: depositRate,

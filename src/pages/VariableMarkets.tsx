@@ -7,7 +7,27 @@ import { useMarkets } from "@/hooks/useMarkets";
 import MarketDetailDialog from "@/components/markets/MarketDetailDialog";
 
 const columns: GridColDef<Market>[] = [
-  { field: "protocolName", headerName: "Protocol", flex: 1, minWidth: 120 },
+  {
+    field: "protocolName",
+    headerName: "Protocol",
+    flex: 1,
+    minWidth: 140,
+    renderCell: (p) => {
+      const row = p.row;
+      return (
+        <Box>
+          <Typography fontSize="0.875rem" fontWeight={600}>
+            {row.protocolName}
+          </Typography>
+          {row.vaultName && (
+            <Typography fontSize="0.7rem" color="text.secondary" noWrap sx={{ maxWidth: 180 }}>
+              {row.vaultName}
+            </Typography>
+          )}
+        </Box>
+      );
+    },
+  },
   {
     field: "chainName",
     headerName: "Chain",
@@ -23,9 +43,20 @@ const columns: GridColDef<Market>[] = [
   {
     field: "asset",
     headerName: "Asset",
-    width: 100,
+    width: 110,
     renderCell: (p) => (
       <Typography fontFamily="monospace" fontWeight={700} fontSize="0.875rem">
+        {p.value}
+      </Typography>
+    ),
+  },
+  {
+    field: "poolName",
+    headerName: "Pool",
+    flex: 1,
+    minWidth: 160,
+    renderCell: (p) => (
+      <Typography fontSize="0.8125rem" color="text.secondary" noWrap>
         {p.value}
       </Typography>
     ),
@@ -42,13 +73,13 @@ const columns: GridColDef<Market>[] = [
     ),
   },
   {
-    field: "supplyAPYWithIncentives",
-    headerName: "w/ Incentives",
-    width: 130,
+    field: "borrowAPR",
+    headerName: "Borrow APR",
+    width: 120,
     type: "number",
     renderCell: (p) => (
-      <Typography sx={{ color: "info.main", fontWeight: 600 }}>
-        {formatPercent(p.value as number)}
+      <Typography sx={{ color: "text.primary", fontWeight: 600 }}>
+        {formatPercent(p.value as number | null)}
       </Typography>
     ),
   },
@@ -93,9 +124,12 @@ export default function VariableMarkets() {
   if (error) return <Alert severity="error">Failed to load markets</Alert>;
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+    <Box sx={{ maxWidth: 1400, mx: "auto" }}>
       <Typography variant="h5" fontWeight={800} gutterBottom>
         Variable Lending Markets
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {markets?.length ?? 0} markets across {new Set(markets?.map((m) => m.chainName)).size} chains
       </Typography>
       <Box
         sx={{
@@ -126,6 +160,10 @@ export default function VariableMarkets() {
           onRowClick={(p) => setSelected(p.row)}
           disableRowSelectionOnClick
           autoHeight
+          getRowHeight={() => "auto"}
+          sx={{
+            "& .MuiDataGrid-cell": { py: 1, display: "flex", alignItems: "center" },
+          }}
         />
       </Box>
       <MarketDetailDialog market={selected} open={!!selected} onClose={() => setSelected(null)} />

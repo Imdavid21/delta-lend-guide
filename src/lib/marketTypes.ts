@@ -5,6 +5,8 @@ export interface Market {
   chainName: string;
   protocol: string;
   protocolName: string;
+  poolName: string;
+  vaultName: string;
   asset: string;
   supplyAPY: number;
   supplyAPYWithIncentives: number;
