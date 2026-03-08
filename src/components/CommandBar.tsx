@@ -40,6 +40,7 @@ const QUICK_ACTIONS: { label: string; prompt: string }[] = [
 export default function CommandBar({ loading, onSend, onNavigate, onNewChat, chatHistory }: Props) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
+  const [quickActionsDismissed, setQuickActionsDismissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
 
@@ -188,7 +189,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
     return items.slice(0, 8);
   }, [value, markets, vaults, pendle, onNavigate, recentQueries, onNewChat]);
 
-  const showDropdown = focused && (results.length > 0 || (value.trim() === "" && !loading));
+  const showDropdown = focused && (results.length > 0 || (value.trim() === "" && !loading && !quickActionsDismissed));
 
   const handleSubmit = useCallback((e?: React.FormEvent) => {
     e?.preventDefault();
@@ -378,7 +379,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             )}
 
             {/* Empty state — quick actions */}
-            {results.length === 0 && !value.trim() && (
+            {results.length === 0 && !value.trim() && !quickActionsDismissed && (
               <Box sx={{ p: 1.5 }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
                   <Typography variant="caption" color="text.disabled" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -387,7 +388,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                   <Box
                     component="button"
                     type="button"
-                    onClick={() => { setFocused(false); inputRef.current?.blur(); }}
+                    onClick={() => { setQuickActionsDismissed(true); setFocused(false); inputRef.current?.blur(); }}
                     sx={{
                       display: "flex", alignItems: "center", justifyContent: "center",
                       border: "none", bgcolor: "transparent", cursor: "pointer",
