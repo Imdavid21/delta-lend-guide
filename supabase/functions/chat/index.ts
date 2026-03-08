@@ -658,6 +658,15 @@ LEVERAGED OPERATIONS (Loop Tools):
   Supports interest rate mode switching via irModeIn/irModeOut.
 - get_batch_calldata: Combine multiple deposit/withdraw/borrow/repay in one atomic tx via deltaCompose.
 
+COLLATERAL & E-MODE MANAGEMENT:
+- enable_collateral / disable_collateral: Toggle whether a deposited asset is used as collateral. Only for Aave V2/V3.
+  Use find_market first to get the marketUid. Disabling collateral reduces liquidation risk but lowers borrow capacity.
+- list_emode_categories: Query available E-Mode categories on Aave V3. Call before switch_emode.
+- switch_emode: Switch E-Mode on Aave V3. Category 0 = disable. Higher categories (e.g. 1=stablecoins, 2=ETH correlated)
+  give better LTV/liquidation thresholds for correlated asset pairs.
+- repay_with_atoken: Repay debt using the collateral aToken directly (Aave only). Useful when the user wants to
+  repay without withdrawing and swapping. The collateral balance decreases by the repaid amount.
+
 All leveraged operations use flash loans internally (free from Morpho Blue) and execute through the deltaCompose(bytes) entry point — a single contract call that encodes all sub-operations atomically.
 
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
