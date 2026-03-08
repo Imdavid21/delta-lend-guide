@@ -215,6 +215,51 @@ export default function AppShell({ mode, onToggle }: Props) {
               onSuggestion={(s) => sendMessage(s)}
             />
           </Box>
+
+          {/* Chat input */}
+          <Box
+            component="form"
+            onSubmit={(e: React.FormEvent) => {
+              e.preventDefault();
+              if (chatInput.trim()) {
+                sendMessage(chatInput.trim());
+                setChatInput("");
+              }
+            }}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 2,
+              py: 1.5,
+              borderTop: 1,
+              borderColor: "divider",
+              flexShrink: 0,
+            }}
+          >
+            <InputBase
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Ask anything..."
+              fullWidth
+              autoFocus
+              sx={{
+                fontSize: 14,
+                px: 1.5,
+                py: 0.75,
+                borderRadius: 2,
+                bgcolor: "action.hover",
+              }}
+            />
+            <IconButton
+              type="submit"
+              size="small"
+              disabled={!chatInput.trim() || loading}
+              sx={{ color: "text.primary" }}
+            >
+              <SendIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </Dialog>
 
         {/* Chat FAB when dialog is closed */}
