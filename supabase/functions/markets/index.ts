@@ -32,14 +32,21 @@ const LENDER_NAMES: Record<string, string> = {
   "MENDI": "Mendi Finance", "SILO": "Silo Finance",
 };
 
-function resolveLenderName(lenderKey: string): string {
+function resolveLenderName(lenderKey: string, poolName: string): string {
   if (LENDER_NAMES[lenderKey]) return LENDER_NAMES[lenderKey];
   if (lenderKey.startsWith("MORPHO_BLUE")) return "Morpho Blue";
   if (lenderKey.startsWith("COMPOUND_V3")) return "Compound V3";
   if (lenderKey.startsWith("AAVE_V3")) return "Aave V3";
   if (lenderKey.startsWith("AAVE_V2")) return "Aave V2";
   if (lenderKey.startsWith("SILO")) return "Silo Finance";
-  return lenderKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  // Try to extract a cleaner name from poolName (e.g. "Benqi WETH" → "Benqi")
+  if (poolName) {
+    const firstWord = poolName.split(/\s+/)[0];
+    if (firstWord && firstWord.length > 2) return firstWord;
+  }
+  // Strip hex hash suffixes (e.g. LISTA_DAO_2BB68BC7F... → Lista Dao)
+  const base = lenderKey.replace(/_[A-F0-9]{8,}$/i, "");
+  return base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 async function fetchChainPools(chainId: string, hdrs: Record<string, string>): Promise<any[]> {
