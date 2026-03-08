@@ -1,12 +1,11 @@
 import { useState } from "react";
 import {
-  Drawer, Box, List, ListItemButton, ListItemText, IconButton, Typography, Divider, Tooltip,
+  Box, List, ListItemButton, ListItemText, IconButton, Typography, Divider, Tooltip, Badge,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import CloseIcon from "@mui/icons-material/Close";
 import type { Chat } from "../hooks/useChats";
 
 interface Props {
@@ -26,145 +25,154 @@ function relativeTime(ts: number) {
 }
 
 const DRAWER_WIDTH = 220;
-const COLLAPSED_WIDTH = 46;
 
 export default function ChatSidebar({ chats, activeChatId, onSelect, onNew, onDelete }: Props) {
   const [open, setOpen] = useState(false);
-  const width = open ? DRAWER_WIDTH : COLLAPSED_WIDTH;
 
   return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width,
-        flexShrink: 0,
-        transition: "width 200ms ease",
-        "& .MuiDrawer-paper": {
-          width,
-          boxSizing: "border-box",
-          position: "relative",
-          height: "100%",
-          bgcolor: "background.default",
-          overflow: "hidden",
-          transition: "width 200ms ease",
-        },
-      }}
-    >
-      {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: open ? "space-between" : "center",
-          p: open ? 1.5 : 0.75,
-          pb: open ? 1 : 0.75,
-          minHeight: 40,
-        }}
-      >
-        {open ? (
-          <>
-            <Typography
-              variant="caption"
-              fontWeight={700}
-              sx={{ textTransform: "uppercase", letterSpacing: "0.08em", color: "text.secondary" }}
-            >
-              Chats
-            </Typography>
-            <Box sx={{ display: "flex", gap: 0.25 }}>
-              <IconButton size="small" onClick={onNew} sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}>
-                <AddIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => setOpen(false)} sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}>
-                <ChevronLeftIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          </>
-        ) : (
-          <Tooltip title="Expand chats" placement="right">
-            <IconButton size="small" onClick={() => setOpen(true)} sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}>
-              <ChevronRightIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
-      <Divider />
-
-      {/* Collapsed: icon buttons */}
+    <>
+      {/* Collapsed: single subtle icon tab on the left edge */}
       {!open && (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.5, gap: 0.25 }}>
-          <Tooltip title="New chat" placement="right">
-            <IconButton size="small" onClick={onNew} sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}>
-              <AddIcon fontSize="small" />
+        <Box
+          sx={{
+            width: 36,
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            pt: 1.5,
+            gap: 0.5,
+            borderRight: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Tooltip title="Chat history" placement="right">
+            <IconButton
+              size="small"
+              onClick={() => setOpen(true)}
+              sx={{
+                color: "text.disabled",
+                transition: "all 200ms ease",
+                "&:hover": { color: "text.primary" },
+              }}
+            >
+              <Badge
+                badgeContent={chats.length || undefined}
+                color="default"
+                max={9}
+                sx={{
+                  "& .MuiBadge-badge": {
+                    fontSize: 9,
+                    height: 14,
+                    minWidth: 14,
+                    bgcolor: "text.disabled",
+                    color: "background.default",
+                  },
+                }}
+              >
+                <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
+              </Badge>
             </IconButton>
           </Tooltip>
-          {chats
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .slice(0, 8)
-            .map((chat) => {
-              const active = chat.id === activeChatId;
-              return (
-                <Tooltip key={chat.id} title={chat.title} placement="right">
-                  <IconButton
-                    size="small"
-                    onClick={() => onSelect(chat.id)}
-                    sx={{
-                      color: active ? "text.primary" : "text.secondary",
-                      bgcolor: active ? "action.selected" : "transparent",
-                      "&:hover": { color: "text.primary" },
-                    }}
-                  >
-                    <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-              );
-            })}
         </Box>
       )}
 
-      {/* Expanded: full list */}
+      {/* Expanded panel — slides over content */}
       {open && (
-        <List dense sx={{ flex: 1, overflow: "auto", py: 0.5 }}>
-          {chats
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .map((chat) => {
-              const active = chat.id === activeChatId;
-              return (
-                <ListItemButton
-                  key={chat.id}
-                  selected={active}
-                  onClick={() => onSelect(chat.id)}
-                  sx={{
-                    borderLeft: active ? "2px solid" : "2px solid transparent",
-                    borderColor: active ? "text.primary" : "transparent",
-                    py: 0.75,
-                    px: 1.5,
-                    transition: "all 150ms ease",
-                    "&.Mui-selected": { bgcolor: "action.selected" },
-                    "&:hover .delete-btn": { opacity: 1 },
-                  }}
-                >
-                  <ListItemText
-                    primary={chat.title}
-                    secondary={relativeTime(chat.createdAt)}
-                    primaryTypographyProps={{ noWrap: true, fontSize: 12, fontWeight: active ? 600 : 400 }}
-                    secondaryTypographyProps={{ fontSize: 10 }}
-                  />
-                  <IconButton
-                    className="delete-btn"
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(chat.id);
+        <Box
+          sx={{
+            width: DRAWER_WIDTH,
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            borderRight: 1,
+            borderColor: "divider",
+            bgcolor: "background.default",
+            height: "100%",
+            overflow: "hidden",
+          }}
+        >
+          {/* Header */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 1.5,
+              py: 1,
+              minHeight: 40,
+            }}
+          >
+            <Typography
+              variant="caption"
+              fontWeight={600}
+              sx={{ textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary", fontSize: 10 }}
+            >
+              Chat History
+            </Typography>
+            <Box sx={{ display: "flex", gap: 0.25 }}>
+              <Tooltip title="New chat" placement="bottom">
+                <IconButton size="small" onClick={onNew} sx={{ color: "text.secondary", "&:hover": { color: "text.primary" }, p: 0.4 }}>
+                  <AddIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Close" placement="bottom">
+                <IconButton size="small" onClick={() => setOpen(false)} sx={{ color: "text.disabled", "&:hover": { color: "text.primary" }, p: 0.4 }}>
+                  <CloseIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+          <Divider />
+
+          {/* Chat list */}
+          <List dense sx={{ flex: 1, overflow: "auto", py: 0.5 }}>
+            {chats.length === 0 && (
+              <Typography variant="caption" color="text.disabled" sx={{ display: "block", textAlign: "center", py: 3, px: 2 }}>
+                No chats yet
+              </Typography>
+            )}
+            {chats
+              .sort((a, b) => b.createdAt - a.createdAt)
+              .map((chat) => {
+                const active = chat.id === activeChatId;
+                return (
+                  <ListItemButton
+                    key={chat.id}
+                    selected={active}
+                    onClick={() => onSelect(chat.id)}
+                    sx={{
+                      py: 0.6,
+                      px: 1.5,
+                      transition: "all 150ms ease",
+                      borderLeft: "2px solid transparent",
+                      ...(active && { borderLeftColor: "text.primary", bgcolor: "action.selected" }),
+                      "&:hover .delete-btn": { opacity: 1 },
                     }}
-                    sx={{ opacity: 0, transition: "opacity 150ms", ml: 0.5, p: 0.3 }}
                   >
-                    <DeleteOutlineIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </ListItemButton>
-              );
-            })}
-        </List>
+                    <ListItemText
+                      primary={chat.title}
+                      secondary={relativeTime(chat.createdAt)}
+                      primaryTypographyProps={{ noWrap: true, fontSize: 11, fontWeight: active ? 600 : 400 }}
+                      secondaryTypographyProps={{ fontSize: 9, color: "text.disabled" }}
+                    />
+                    <IconButton
+                      className="delete-btn"
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(chat.id);
+                      }}
+                      sx={{ opacity: 0, transition: "opacity 150ms", ml: 0.5, p: 0.3 }}
+                    >
+                      <DeleteOutlineIcon sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </ListItemButton>
+                );
+              })}
+          </List>
+        </Box>
       )}
-    </Drawer>
+    </>
   );
 }
