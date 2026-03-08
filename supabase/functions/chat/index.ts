@@ -144,6 +144,10 @@ const ACTION_TOOLS = new Set([
   "get_collateral_swap_calldata",
   "get_debt_swap_calldata",
   "get_batch_calldata",
+  "enable_collateral",
+  "disable_collateral",
+  "switch_emode",
+  "repay_with_atoken",
 ]);
 
 function extractAction(toolName: string, rawJson: string, input: any) {
