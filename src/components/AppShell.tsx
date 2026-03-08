@@ -160,8 +160,9 @@ export default function AppShell({ mode, onToggle }: Props) {
           maxWidth={false}
           PaperProps={{
             sx: {
-              width: { xs: "95vw", sm: 520, md: 580 },
-              height: { xs: "80vh", sm: "75vh", md: "70vh" },
+              width: { xs: "95vw", sm: "85vw", md: "80vw" },
+              maxWidth: 900,
+              height: "80vh",
               maxHeight: "80vh",
               borderRadius: 4,
               display: "flex",
