@@ -749,6 +749,12 @@ COLLATERAL & E-MODE MANAGEMENT:
 
 All leveraged operations use flash loans internally (free from Morpho Blue) and execute through the deltaCompose(bytes) entry point — a single contract call that encodes all sub-operations atomically.
 
+VAULT & PROTOCOL SUPPORT (CRITICAL):
+- Action tools (deposit, withdraw, borrow, repay, leverage, etc.) ONLY work with 1delta-supported lending protocols: Aave V2/V3, Compound V2/V3, Spark, Morpho Blue, Radiant, Moonwell, Mendi, Silo, Euler, etc.
+- Yearn vaults are displayed in the UI for informational purposes (APY, TVL) but deposits/withdrawals into Yearn vaults are NOT supported via the action tools.
+- If a user asks to deposit into a Yearn vault, explain that direct Yearn vault interactions aren't supported yet, and suggest comparable opportunities on supported protocols (e.g. Morpho Blue or Euler vaults for the same asset).
+- For Morpho Blue and Euler vaults shown in search_markets results, you CAN use find_market + action tools since they are backed by 1delta lending pools.
+
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
 Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on [Aave V3](market:AAVE_V3:1)."
 No summaries, no tables, no bullet points after actions.`;
