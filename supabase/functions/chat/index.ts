@@ -38,6 +38,20 @@ async function deltaPost(endpoint: string, body: Record<string, any>) {
   return res.json();
 }
 
+/* ── Internal markets endpoint (single source of truth) ── */
+
+async function fetchMarketsEndpoint(type: "lending" | "vaults" | "pendle"): Promise<any[]> {
+  const url = `${SUPABASE_URL}/functions/v1/markets?type=${type}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 function slimPools(raw: any, minTvlUsd = 10000) {
   const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
   const all = items.map((m: any) => {
@@ -56,7 +70,6 @@ function slimPools(raw: any, minTvlUsd = 10000) {
       utilization: +(util * 100).toFixed(2),
     };
   });
-  // Filter by TVL and sort by deposit rate descending
   const markets = all
     .filter((m: any) => m.totalDepositsUsd >= minTvlUsd)
     .sort((a: any, b: any) => b.depositAPR_pct - a.depositAPR_pct);
