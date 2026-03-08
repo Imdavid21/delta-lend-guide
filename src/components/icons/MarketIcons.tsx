@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import aaveIcon from "@/assets/protocols/aave.png";
 
 /**
  * Protocol icon slugs for DeFiLlama icons CDN.
@@ -41,10 +42,16 @@ export function getTokenIconUrl(symbol: string): string {
   return `${TOKEN_CDN}/${clean}.png`;
 }
 
+/** Local overrides for protocol icons */
+const LOCAL_PROTOCOL_ICONS: Record<string, string> = {
+  "Aave V2": aaveIcon,
+  "Aave V3": aaveIcon,
+};
+
 export function getProtocolIconUrl(protocolName: string): string {
+  if (LOCAL_PROTOCOL_ICONS[protocolName]) return LOCAL_PROTOCOL_ICONS[protocolName];
   const slug = PROTOCOL_SLUGS[protocolName];
   if (slug) return `https://icons.llamao.fi/icons/protocols/${slug}`;
-  // Fallback: try to derive slug
   const derived = protocolName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   return `https://icons.llamao.fi/icons/protocols/${derived}`;
 }
