@@ -109,7 +109,7 @@ export default function ChatArea({ chat, chatId, onSend, onCreateChat }: Props) 
             )}
             <Grid container spacing={1} sx={{ mt: 1 }}>
               {SUGGESTIONS.map((s) => (
-                <Grid item xs={6} key={s}>
+                <Grid size={6} key={s}>
                   <Chip
                     label={s}
                     variant="outlined"
