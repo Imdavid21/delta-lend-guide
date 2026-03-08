@@ -105,10 +105,84 @@ async function fetchLending(hdrs: Record<string, string>) {
     .filter(Boolean);
 }
 
+/* ── Morpho vault names from GraphQL API ── */
+
+async function fetchMorphoVaultNames(): Promise<Map<string, string>> {
+  const nameMap = new Map<string, string>();
+  try {
+    const query = `{
+      markets(first: 500, where: { chainId_in: [1], whitelisted: true }) {
+        items {
+          uniqueKey
+          loanAsset { symbol }
+          collateralAsset { symbol }
+          morphoBlue { chain { id } }
+        }
+      }
+      vaultV2s(first: 200, where: { chainId_in: [1] }) {
+        items {
+          address
+          name
+          symbol
+          asset { symbol }
+        }
+      }
+    }`;
+    const res = await fetch("https://blue-api.morpho.org/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return nameMap;
+    const json = await res.json();
+
+    // Map market uniqueKeys to descriptive names
+    for (const m of json?.data?.markets?.items ?? []) {
+      const loan = m.loanAsset?.symbol ?? "";
+      const coll = m.collateralAsset?.symbol ?? "";
+      if (m.uniqueKey) {
+        nameMap.set(m.uniqueKey.toLowerCase(), `${loan}/${coll}`);
+      }
+    }
+
+    // Map vault addresses to vault names
+    for (const v of json?.data?.vaultV2s?.items ?? []) {
+      if (v.address && v.name) {
+        nameMap.set(v.address.toLowerCase(), v.name);
+      }
+    }
+  } catch (e) {
+    console.log(`Morpho GraphQL error: ${(e as Error).message}`);
+  }
+  return nameMap;
+}
+
+function morphoVaultDisplayName(pool: any, asset: string, morphoNames: Map<string, string>): string {
+  // Try by marketUid — extract the unique key hex from the lender key
+  const lk = pool.lenderKey ?? "";
+  const hexMatch = lk.match(/MORPHO_BLUE_([A-F0-9]+)/i);
+  if (hexMatch) {
+    const uk = "0x" + hexMatch[1].toLowerCase();
+    const graphqlName = morphoNames.get(uk);
+    if (graphqlName) return `Morpho ${graphqlName}`;
+  }
+
+  // Try pool name if it's descriptive enough (not just "Loan X" / "Collateral X")
+  const rawName = pool.name ?? "";
+  if (rawName && !rawName.startsWith("Loan ") && !rawName.startsWith("Collateral ")) {
+    return rawName;
+  }
+
+  // Fallback: "Morpho Blue <asset> (supply|collateral)"
+  const isLoan = rawName.startsWith("Loan ");
+  return `Morpho Blue ${asset} ${isLoan ? "Supply" : "Collateral"}`;
+}
+
 async function fetchVaults(hdrs: Record<string, string>) {
-  const [items1delta, yearnRaw] = await Promise.all([
+  const [items1delta, morphoNames] = await Promise.all([
     fetch1DeltaPools(hdrs),
-    fetchJSON("https://ydaemon.yearn.fi/1/vaults/all", {}, 12000),
+    fetchMorphoVaultNames(),
   ]);
 
   const vaults: any[] = [];
@@ -125,10 +199,13 @@ async function fetchVaults(hdrs: Record<string, string>) {
     const asset = extractAsset(pool);
     const protocol = isMorpho ? "Morpho Blue" : "Euler";
     const source = isMorpho ? "morpho" : "euler";
+    const name = isMorpho
+      ? morphoVaultDisplayName(pool, asset, morphoNames)
+      : (pool.name || `Euler ${asset}`);
 
     vaults.push({
       id: pool.marketUid ?? `${source}:1:${asset}`,
-      name: pool.name || `${protocol} ${asset}`,
+      name,
       protocol,
       asset,
       apy: parseFloat(pool.depositRate) || 0,
@@ -137,54 +214,36 @@ async function fetchVaults(hdrs: Record<string, string>) {
     });
   }
 
-  // Yearn V3 vaults
-  if (yearnRaw && Array.isArray(yearnRaw)) {
-    for (const v of yearnRaw) {
-      const tvlUsd = v.tvl?.tvl ?? v.tvl?.totalAssets ?? 0;
-      if (tvlUsd < 10000) continue;
-      vaults.push({
-        id: `yearn:${v.address}`,
-        name: v.name ?? "Yearn Vault",
-        protocol: "Yearn",
-        asset: v.token?.symbol ?? "???",
-        apy: (v.apr?.netAPR ?? v.apr?.forwardAPR?.netAPR ?? 0) * 100,
-        tvl: tvlUsd,
-        source: "yearn",
-      });
-    }
-  }
+  // NOTE: Yearn vaults are intentionally excluded from the API response for now.
+  // The fetching code is preserved below for future re-enablement.
+  // if (yearnRaw && Array.isArray(yearnRaw)) { ... }
 
   return vaults;
 }
 
 async function fetchPendle() {
-  // Try paginated endpoint first
+  // Use /all endpoint directly (paginated /markets was removed by Pendle)
+  console.log("Fetching Pendle markets...");
   const raw = await fetchJSON(
-    "https://api-v2.pendle.finance/core/v1/markets?chainId=1&limit=100&order_by=name%3A1",
+    "https://api-v2.pendle.finance/core/v1/markets/all?chainId=1",
     {},
-    12000,
+    20000,
   );
 
-  let items: any[] = [];
-  if (raw) {
-    items = raw.results ?? raw.data ?? (Array.isArray(raw) ? raw : []);
+  if (!raw) {
+    console.log("Pendle API returned null");
+    return [];
   }
 
-  if (items.length === 0) {
-    // Fallback to /all endpoint
-    const raw2 = await fetchJSON(
-      "https://api-v2.pendle.finance/core/v1/markets/all?chainId=1",
-      {},
-      12000,
-    );
-    if (raw2) {
-      items = raw2.results ?? raw2.data ?? (Array.isArray(raw2) ? raw2 : []);
-    }
-  }
+  const items: any[] = Array.isArray(raw) ? raw : (raw.results ?? raw.data ?? []);
+  console.log(`Pendle: ${items.length} raw markets fetched`);
 
   const now = Date.now();
   return items
-    .filter((m: any) => (m.liquidity?.usd ?? 0) >= 10000)
+    .filter((m: any) => {
+      const liq = m.liquidity?.usd ?? m.totalLiquidity ?? 0;
+      return liq >= 10000;
+    })
     .map((m: any) => {
       const expiry = m.expiry ? new Date(m.expiry).getTime() : 0;
       const daysToMaturity = expiry > now ? Math.ceil((expiry - now) / 86400000) : 0;
@@ -195,7 +254,7 @@ async function fetchPendle() {
         impliedAPY: (m.impliedApy ?? 0) * 100,
         expiry: m.expiry ?? "",
         daysToMaturity,
-        tvl: m.liquidity?.usd ?? 0,
+        tvl: m.liquidity?.usd ?? m.totalLiquidity ?? 0,
       };
     });
 }
