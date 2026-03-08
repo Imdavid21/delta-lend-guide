@@ -1,70 +1,199 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const BASE = "https://portal.1delta.io/v1";
-const API_KEY = Deno.env.get("ONEDELTA_API_KEY") || "";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-const CHAIN_IDS = ["1", "42161", "8453", "10", "137", "56", "43114", "534352", "59144", "5000"];
-
-const CHAIN_NAMES: Record<string, string> = {
-  "1": "Ethereum", "10": "Optimism", "25": "Cronos", "40": "Telos", "50": "XDC",
-  "56": "BNB Chain", "100": "Gnosis", "130": "Unichain", "137": "Polygon", "143": "Monad",
-  "146": "Sonic", "169": "Manta Pacific", "250": "Fantom", "1088": "Metis", "1116": "Core DAO",
-  "1284": "Moonbeam", "1329": "Sei", "1868": "Soneium", "2818": "Morph", "5000": "Mantle",
-  "8217": "Klaytn", "8453": "Base", "9745": "Plasma", "34443": "Mode", "42161": "Arbitrum",
-  "43111": "Hemi", "43114": "Avalanche", "59144": "Linea", "80094": "Berachain",
-  "81457": "Blast", "167000": "Taiko", "534352": "Scroll", "747474": "Katana",
-};
+const BASE = "https://portal.1delta.io/v1";
+const API_KEY = Deno.env.get("ONEDELTA_API_KEY") || "";
 
 const LENDER_NAMES: Record<string, string> = {
-  "AAVE_V2": "Aave V2", "AAVE_V3": "Aave V3", "COMPOUND_V2": "Compound V2",
-  "COMPOUND_V3": "Compound V3", "LENDLE": "Lendle", "MORPHO": "Morpho",
-  "MORPHO_BLUE": "Morpho Blue", "SPARK": "Spark", "RADIANT": "Radiant",
-  "RADIANT_V2": "Radiant V2", "VENUS": "Venus", "SEAMLESS": "Seamless",
-  "ZEROLEND": "ZeroLend", "LAYERBANK": "LayerBank", "AURELIUS": "Aurelius",
-  "INIT": "Init Capital", "MERIDIAN": "Meridian", "IRONCLAD": "Ironclad",
-  "GRANARY": "Granary", "YLDR": "Yldr", "MOONWELL": "Moonwell",
-  "MENDI": "Mendi Finance", "SILO": "Silo Finance",
+  AAVE_V2: "Aave V2", AAVE_V3: "Aave V3", COMPOUND_V2: "Compound V2",
+  COMPOUND_V3: "Compound V3", LENDLE: "Lendle", MORPHO: "Morpho",
+  MORPHO_BLUE: "Morpho Blue", SPARK: "Spark", RADIANT: "Radiant",
+  RADIANT_V2: "Radiant V2", VENUS: "Venus", SEAMLESS: "Seamless",
+  ZEROLEND: "ZeroLend", LAYERBANK: "LayerBank", AURELIUS: "Aurelius",
+  INIT: "Init Capital", MERIDIAN: "Meridian", IRONCLAD: "Ironclad",
+  GRANARY: "Granary", YLDR: "Yldr", MOONWELL: "Moonwell",
+  MENDI: "Mendi Finance", SILO: "Silo Finance", EULER: "Euler",
 };
 
-function resolveLenderName(lenderKey: string): string {
-  if (LENDER_NAMES[lenderKey]) return LENDER_NAMES[lenderKey];
-  if (lenderKey.startsWith("MORPHO_BLUE")) return "Morpho Blue";
-  if (lenderKey.startsWith("COMPOUND_V3")) return "Compound V3";
-  if (lenderKey.startsWith("AAVE_V3")) return "Aave V3";
-  if (lenderKey.startsWith("AAVE_V2")) return "Aave V2";
-  if (lenderKey.startsWith("SILO")) return "Silo Finance";
-  if (lenderKey.startsWith("BENQI")) return "Benqi";
-  if (lenderKey.startsWith("LISTA_DAO")) return "Lista DAO";
-  if (lenderKey.startsWith("AVALON")) return "Avalon";
-  if (lenderKey.startsWith("TENDER")) return "Tender";
-  if (lenderKey.startsWith("PLUTOS")) return "Plutos";
-  // Strip hex hash suffixes (e.g. FOO_2BB68BC7F... → Foo)
-  const base = lenderKey.replace(/_[A-F0-9]{8,}$/i, "");
+function resolveLenderName(key: string): string {
+  if (LENDER_NAMES[key]) return LENDER_NAMES[key];
+  if (key.startsWith("MORPHO_BLUE")) return "Morpho Blue";
+  if (key.startsWith("COMPOUND_V3")) return "Compound V3";
+  if (key.startsWith("AAVE_V3")) return "Aave V3";
+  if (key.startsWith("AAVE_V2")) return "Aave V2";
+  if (key.startsWith("SILO")) return "Silo Finance";
+  if (key.startsWith("EULER")) return "Euler";
+  if (key.startsWith("BENQI")) return "Benqi";
+  const base = key.replace(/_[A-F0-9]{8,}$/i, "");
   return base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-async function fetchChainPools(chainId: string, hdrs: Record<string, string>): Promise<any[]> {
-  const url = new URL(BASE + "/data/lending/pools");
-  url.searchParams.set("chainId", chainId);
-  url.searchParams.set("count", "30");
+function extractAsset(pool: any): string {
+  let asset =
+    pool.underlyingInfo?.asset?.assetGroup ??
+    pool.underlyingInfo?.asset?.symbol ??
+    pool.assetGroup ??
+    pool.tokenSymbol ??
+    pool.symbol ??
+    "";
+  if (asset.includes("::")) asset = asset.split("::").pop() ?? asset;
+  return asset;
+}
+
+async function fetchJSON(url: string, headers: Record<string, string> = {}, timeout = 10000) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const res = await fetch(url.toString(), { headers: hdrs, signal: controller.signal });
-    clearTimeout(timeout);
-    if (!res.ok) { await res.text(); return []; }
-    const raw = await res.json();
-    return raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+    const res = await fetch(url, { headers, signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return res.json();
   } catch {
-    clearTimeout(timeout);
-    return [];
+    clearTimeout(timer);
+    return null;
   }
+}
+
+async function fetch1DeltaPools(hdrs: Record<string, string>) {
+  const url = new URL(BASE + "/data/lending/pools");
+  url.searchParams.set("chainId", "1");
+  url.searchParams.set("count", "200");
+  const raw = await fetchJSON(url.toString(), hdrs);
+  if (!raw) return [];
+  return raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+}
+
+async function fetchLending(hdrs: Record<string, string>) {
+  const items = await fetch1DeltaPools(hdrs);
+  return items
+    .map((pool: any) => {
+      const lenderKey = pool.lenderKey ?? pool.lender ?? "";
+      if (lenderKey.startsWith("MORPHO_BLUE")) return null;
+
+      const asset = extractAsset(pool);
+      const tvl = parseFloat(pool.totalDepositsUsd) || 0;
+      if (tvl < 10000) return null;
+      const util = parseFloat(pool.utilization) || 0;
+
+      return {
+        id: pool.marketUid ?? `${lenderKey}:1:${asset}`,
+        marketUid: pool.marketUid ?? "",
+        protocol: lenderKey,
+        protocolName: resolveLenderName(lenderKey),
+        poolName: pool.name ?? "",
+        asset,
+        supplyAPY: parseFloat(pool.depositRate) || 0,
+        borrowAPR:
+          pool.variableBorrowRate != null
+            ? parseFloat(pool.variableBorrowRate) || 0
+            : null,
+        totalSupplyUSD: tvl,
+        availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
+        utilizationRate: util * 100,
+      };
+    })
+    .filter(Boolean);
+}
+
+async function fetchVaults(hdrs: Record<string, string>) {
+  const [items1delta, yearnRaw] = await Promise.all([
+    fetch1DeltaPools(hdrs),
+    fetchJSON("https://ydaemon.yearn.fi/1/vaults/all", {}, 12000),
+  ]);
+
+  const vaults: any[] = [];
+
+  // Morpho Blue + Euler vaults from 1delta
+  for (const pool of items1delta) {
+    const lk = pool.lenderKey ?? "";
+    const isMorpho = lk.startsWith("MORPHO_BLUE");
+    const isEuler = lk.startsWith("EULER");
+    if (!isMorpho && !isEuler) continue;
+
+    const tvl = parseFloat(pool.totalDepositsUsd) || 0;
+    if (tvl < 10000) continue;
+    const asset = extractAsset(pool);
+    const protocol = isMorpho ? "Morpho Blue" : "Euler";
+    const source = isMorpho ? "morpho" : "euler";
+
+    vaults.push({
+      id: pool.marketUid ?? `${source}:1:${asset}`,
+      name: pool.name || `${protocol} ${asset}`,
+      protocol,
+      asset,
+      apy: parseFloat(pool.depositRate) || 0,
+      tvl,
+      source,
+    });
+  }
+
+  // Yearn V3 vaults
+  if (yearnRaw && Array.isArray(yearnRaw)) {
+    for (const v of yearnRaw) {
+      const tvlUsd = v.tvl?.tvl ?? v.tvl?.totalAssets ?? 0;
+      if (tvlUsd < 10000) continue;
+      vaults.push({
+        id: `yearn:${v.address}`,
+        name: v.name ?? "Yearn Vault",
+        protocol: "Yearn",
+        asset: v.token?.symbol ?? "???",
+        apy: (v.apr?.netAPR ?? v.apr?.forwardAPR?.netAPR ?? 0) * 100,
+        tvl: tvlUsd,
+        source: "yearn",
+      });
+    }
+  }
+
+  return vaults;
+}
+
+async function fetchPendle() {
+  // Try paginated endpoint first
+  const raw = await fetchJSON(
+    "https://api-v2.pendle.finance/core/v1/markets?chainId=1&limit=100&order_by=name%3A1",
+    {},
+    12000,
+  );
+
+  let items: any[] = [];
+  if (raw) {
+    items = raw.results ?? raw.data ?? (Array.isArray(raw) ? raw : []);
+  }
+
+  if (items.length === 0) {
+    // Fallback to /all endpoint
+    const raw2 = await fetchJSON(
+      "https://api-v2.pendle.finance/core/v1/markets/all?chainId=1",
+      {},
+      12000,
+    );
+    if (raw2) {
+      items = raw2.results ?? raw2.data ?? (Array.isArray(raw2) ? raw2 : []);
+    }
+  }
+
+  const now = Date.now();
+  return items
+    .filter((m: any) => (m.liquidity?.usd ?? 0) >= 10000)
+    .map((m: any) => {
+      const expiry = m.expiry ? new Date(m.expiry).getTime() : 0;
+      const daysToMaturity = expiry > now ? Math.ceil((expiry - now) / 86400000) : 0;
+      return {
+        id: m.address ?? m.id ?? `pendle:${m.name}`,
+        name: m.name ?? "",
+        asset: m.underlyingAsset?.symbol ?? m.pt?.symbol ?? "",
+        impliedAPY: (m.impliedApy ?? 0) * 100,
+        expiry: m.expiry ?? "",
+        daysToMaturity,
+        tvl: m.liquidity?.usd ?? 0,
+      };
+    });
 }
 
 Deno.serve(async (req) => {
@@ -73,67 +202,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const type = url.searchParams.get("type") || "lending";
     const hdrs: Record<string, string> = {};
     if (API_KEY) hdrs["x-api-key"] = API_KEY;
 
-    const results = await Promise.all(
-      CHAIN_IDS.map((cid) => fetchChainPools(cid, hdrs))
-    );
-    const allItems = results.flat();
+    let data: any[];
+    switch (type) {
+      case "vaults":
+        data = await fetchVaults(hdrs);
+        break;
+      case "pendle":
+        data = await fetchPendle();
+        break;
+      default:
+        data = await fetchLending(hdrs);
+    }
 
-    const markets = allItems
-      .map((pool: any) => {
-        const chainId = String(pool.chainId ?? "");
-        const lenderKey = pool.lenderKey ?? pool.lender ?? "";
-        const isMorphoVault = lenderKey.startsWith("MORPHO_BLUE");
-
-        // Asset symbol from nested underlyingInfo — prefer assetGroup, then symbol
-        let asset = pool.underlyingInfo?.asset?.assetGroup
-          ?? pool.underlyingInfo?.asset?.symbol
-          ?? pool.assetGroup
-          ?? pool.tokenSymbol
-          ?? pool.symbol
-          ?? "";
-        // Clean up currencyId format like "Ripple USD::RLUSD" → "RLUSD"
-        if (asset.includes("::")) {
-          asset = asset.split("::").pop() ?? asset;
-        }
-
-        // Pool/vault name from API
-        const poolName = pool.name ?? "";
-
-        const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-        const util = parseFloat(pool.utilization) || 0;
-        // API returns rates already as percentages (1.72 = 1.72%)
-        const depositRate = parseFloat(pool.depositRate) || 0;
-        const borrowRate = pool.variableBorrowRate != null
-          ? parseFloat(pool.variableBorrowRate) || 0
-          : null;
-
-        return {
-          id: pool.marketUid ?? `${lenderKey}:${chainId}:${asset}`,
-          marketUid: pool.marketUid ?? "",
-          chainId,
-          chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
-          protocol: isMorphoVault ? "MORPHO_BLUE" : lenderKey,
-          protocolName: resolveLenderName(lenderKey),
-          poolName,
-          vaultName: isMorphoVault ? poolName : "",
-          asset,
-          supplyAPY: depositRate,
-          supplyAPYWithIncentives: depositRate,
-          borrowAPR: borrowRate,
-          totalSupplyUSD: tvl,
-          availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
-          utilizationRate: util * 100,
-          updatedAt: Date.now(),
-        };
-      })
-      .filter((m) => m.totalSupplyUSD >= 10000);
-
-    // Deduplicate
+    // Deduplicate by id
     const seen = new Set<string>();
-    const unique = markets.filter((m) => {
+    const unique = data.filter((m: any) => {
       if (seen.has(m.id)) return false;
       seen.add(m.id);
       return true;

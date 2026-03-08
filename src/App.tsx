@@ -1,18 +1,11 @@
 import { useState, useMemo } from "react";
-import { ThemeProvider, CssBaseline, Box } from "@mui/material";
+import { ThemeProvider, CssBaseline } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import { getTheme } from "./theme";
 import { config } from "./config/wagmi";
-import AppHeader from "./components/AppHeader";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import MarketsLayout from "./components/markets/MarketsLayout";
-import MarketsHome from "./pages/MarketsHome";
-import VariableMarkets from "./pages/VariableMarkets";
-import VaultsPage from "./pages/VaultsPage";
-import FixedMarketsPage from "./pages/FixedMarketsPage";
+import AppShell from "./components/AppShell";
 
 const queryClient = new QueryClient();
 
@@ -40,24 +33,7 @@ export default function App() {
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <BrowserRouter>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-                    <AppHeader mode={mode} onToggle={toggle} />
-                    <Index />
-                  </Box>
-                }
-              />
-              <Route path="/markets" element={<MarketsLayout />}>
-                <Route index element={<MarketsHome />} />
-                <Route path="variable" element={<VariableMarkets />} />
-                <Route path="vaults" element={<VaultsPage />} />
-                <Route path="fixed" element={<FixedMarketsPage />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppShell mode={mode} onToggle={toggle} />
           </BrowserRouter>
         </ThemeProvider>
       </QueryClientProvider>
