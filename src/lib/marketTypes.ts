@@ -14,12 +14,14 @@ export interface Market {
 
 export interface Vault {
   id: string;
+  marketUid?: string;
   name: string;
   protocol: string;
   asset: string;
   apy: number;
   tvl: number;
   source: "morpho" | "yearn" | "euler";
+  curator?: string;
 }
 
 export interface PendleMarket {
