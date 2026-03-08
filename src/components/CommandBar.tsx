@@ -160,7 +160,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             label: v.name,
             sub: `APY ${formatPercent(v.apy)}`,
             icon: <ProtocolIcon name={v.protocol} size={18} />,
-            action: () => { onNavigate("vaults"); setValue(""); setFocused(false); },
+            action: () => { onSend(`Tell me about the ${v.name} vault`); setValue(""); setFocused(false); },
           });
         }
         if (items.length >= 8) break;
