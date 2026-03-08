@@ -8,10 +8,10 @@ import { useShell } from "./AppShell";
 import type { ChatMessage } from "../hooks/useChats";
 import type { Components } from "react-markdown";
 
-/** Parse market href: "market:ID|PROTOCOL|ASSET|APY|TVL" */
+/** Parse market href: "market:ID~PROTOCOL~ASSET~APY~TVL" */
 function parseMarketHref(href: string): { id: string; protocol: string; asset: string; apy: string; tvl: string } | null {
   const raw = href.replace("market:", "");
-  const parts = raw.split("|");
+  const parts = raw.split("~");
   if (parts.length >= 5) {
     return { id: parts[0], protocol: parts[1], asset: parts[2], apy: parts[3], tvl: parts[4] };
   }
