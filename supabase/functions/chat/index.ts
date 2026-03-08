@@ -118,6 +118,17 @@ async function dispatchTool(name: string, input: any): Promise<string> {
     // Batch operations
     case "get_batch_calldata":
       return JSON.stringify(await deltaPost("/actions/allocate/multi-op", input));
+    // Collateral & E-mode management
+    case "enable_collateral":
+      return JSON.stringify(await deltaGet("/actions/lending/enable-collateral", { ...input, simulate: true }));
+    case "disable_collateral":
+      return JSON.stringify(await deltaGet("/actions/lending/disable-collateral", { ...input, simulate: true }));
+    case "switch_emode":
+      return JSON.stringify(await deltaGet("/actions/lending/switch-emode", { ...input, simulate: true }));
+    case "list_emode_categories":
+      return JSON.stringify(await deltaGet("/data/lending/emode-categories", input));
+    case "repay_with_atoken":
+      return JSON.stringify(await deltaGet("/actions/lending/repay-with-atoken", { ...input, simulate: true }));
     default:
       return JSON.stringify({ error: "Unknown tool" });
   }
