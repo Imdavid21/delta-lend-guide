@@ -44,7 +44,6 @@ export default function MarketExplorer() {
         {tab === "vaults" && <VaultsTable />}
         {tab === "fixed" && <FixedYieldTable />}
         {tab === "looping" && <LoopingStrategies />}
-        {tab === "compare" && <Compare />}
       </Box>
     </Box>
   );
