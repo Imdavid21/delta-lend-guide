@@ -6,14 +6,16 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import LockClockIcon from "@mui/icons-material/LockClock";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import HistoryIcon from "@mui/icons-material/History";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import { formatPercent } from "@/lib/marketTypes";
 import type { TabId } from "./AppShell";
+import type { Chat } from "@/hooks/useChats";
 
 interface SearchResult {
   id: string;
-  type: "market" | "vault" | "pendle" | "action" | "nav";
+  type: "market" | "vault" | "pendle" | "action" | "nav" | "history";
   label: string;
   sub: string;
   icon?: React.ReactNode;
@@ -24,6 +26,8 @@ interface Props {
   loading: boolean;
   onSend: (text: string) => void;
   onNavigate: (tab: TabId) => void;
+  onNewChat: (prompt: string) => void;
+  chatHistory: Chat[];
 }
 
 const QUICK_ACTIONS: { label: string; prompt: string }[] = [
