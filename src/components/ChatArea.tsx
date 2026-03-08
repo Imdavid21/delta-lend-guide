@@ -107,18 +107,17 @@ export default function ChatArea({ chat, chatId, onSend, onCreateChat }: Props) 
                 Connect your wallet to query your positions automatically.
               </Typography>
             )}
-            <Grid container spacing={1} sx={{ mt: 1 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mt: 1, width: "100%" }}>
               {SUGGESTIONS.map((s) => (
-                <Grid size={6} key={s}>
-                  <Chip
-                    label={s}
-                    variant="outlined"
-                    onClick={() => submit(s)}
-                    sx={{ width: "100%", height: "auto", py: 1, "& .MuiChip-label": { whiteSpace: "normal", fontSize: 12 } }}
-                  />
-                </Grid>
+                <Chip
+                  key={s}
+                  label={s}
+                  variant="outlined"
+                  onClick={() => submit(s)}
+                  sx={{ height: "auto", py: 1, "& .MuiChip-label": { whiteSpace: "normal", fontSize: 12 } }}
+                />
               ))}
-            </Grid>
+            </Box>
           </Box>
         ) : (
           <>
