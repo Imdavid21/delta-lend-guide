@@ -12,6 +12,8 @@ const BASE = "https://portal.1delta.io/v1";
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
+/* ───── helpers ───── */
+
 async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
   const url = new URL(BASE + endpoint);
   for (const [k, v] of Object.entries(params)) {
@@ -23,6 +25,14 @@ async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
   if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
   const res = await fetch(url.toString(), { headers });
   if (!res.ok) throw new Error(`1delta ${res.status}`);
+  return res.json();
+}
+
+async function deltaPost(endpoint: string, body: Record<string, any>) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
+  const res = await fetch(BASE + endpoint, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`1delta POST ${res.status}`);
   return res.json();
 }
 
@@ -45,6 +55,8 @@ function slimPools(raw: any, minTvlUsd = 10000) {
   return { markets, filteredCount: all.length - markets.length };
 }
 
+/* ───── tool dispatch ───── */
+
 async function dispatchTool(name: string, input: any): Promise<string> {
   switch (name) {
     case "find_market":
@@ -64,6 +76,10 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       const { minTvlUsd, ...rest } = input;
       return JSON.stringify(slimPools(await deltaGet("/data/lending/pools", rest), minTvlUsd ?? 10000));
     }
+    case "get_lending_latest":
+      return JSON.stringify(await deltaGet("/data/lending/latest", input));
+    case "get_lending_metadata":
+      return JSON.stringify(await deltaGet("/data/meta/lending/complete", input));
     case "get_user_positions":
       return JSON.stringify(await deltaGet("/data/lending/user-positions", input));
     case "get_supported_chains":
@@ -81,6 +97,7 @@ async function dispatchTool(name: string, input: any): Promise<string> {
     }
     case "get_token_balances":
       return JSON.stringify(await deltaGet("/data/token/balances", input));
+    // Basic lending actions
     case "get_deposit_calldata":
       return JSON.stringify(await deltaGet("/actions/lending/deposit", { ...input, simulate: true }));
     case "get_withdraw_calldata":
@@ -89,6 +106,18 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       return JSON.stringify(await deltaGet("/actions/lending/borrow", { ...input, simulate: true }));
     case "get_repay_calldata":
       return JSON.stringify(await deltaGet("/actions/lending/repay", { ...input, simulate: true }));
+    // Leveraged / loop actions
+    case "get_leverage_calldata":
+      return JSON.stringify(await deltaGet("/actions/loop/leverage", { ...input, simulate: true }));
+    case "get_close_leverage_calldata":
+      return JSON.stringify(await deltaGet("/actions/loop/close", { ...input, simulate: true }));
+    case "get_collateral_swap_calldata":
+      return JSON.stringify(await deltaGet("/actions/loop/collateral-swap", { ...input, simulate: true }));
+    case "get_debt_swap_calldata":
+      return JSON.stringify(await deltaGet("/actions/loop/debt-swap", { ...input, simulate: true }));
+    // Batch operations
+    case "get_batch_calldata":
+      return JSON.stringify(await deltaPost("/actions/allocate/multi-op", input));
     default:
       return JSON.stringify({ error: "Unknown tool" });
   }
@@ -99,6 +128,11 @@ const ACTION_TOOLS = new Set([
   "get_withdraw_calldata",
   "get_borrow_calldata",
   "get_repay_calldata",
+  "get_leverage_calldata",
+  "get_close_leverage_calldata",
+  "get_collateral_swap_calldata",
+  "get_debt_swap_calldata",
+  "get_batch_calldata",
 ]);
 
 function extractAction(toolName: string, rawJson: string, input: any) {
@@ -109,6 +143,8 @@ function extractAction(toolName: string, rawJson: string, input: any) {
     const chainId =
       typeof input.marketUid === "string"
         ? parseInt(input.marketUid.split(":")[1], 10) || undefined
+        : typeof input.marketUidIn === "string"
+        ? parseInt(input.marketUidIn.split(":")[1], 10) || undefined
         : undefined;
     const toStep = (item: any, desc: string) =>
       item?.to && item?.data
@@ -127,7 +163,10 @@ function extractAction(toolName: string, rawJson: string, input: any) {
   }
 }
 
+/* ───── tool definitions ───── */
+
 const TOOLS: any[] = [
+  // ── Data tools ──
   {
     type: "function",
     function: {
@@ -136,7 +175,7 @@ const TOOLS: any[] = [
       parameters: {
         type: "object",
         properties: {
-          chainId: { type: "string", description: "Numeric chain ID e.g. '42161' for Arbitrum" },
+          chainId: { type: "string", description: "Numeric chain ID e.g. '1' for Ethereum" },
           assetGroup: { type: "string", description: "Asset name e.g. 'USDC', 'ETH' (use 'ETH' for WETH)" },
           tokenAddress: { type: "string" },
           lender: { type: "string", description: "e.g. 'AAVE_V3'" },
@@ -172,13 +211,42 @@ const TOOLS: any[] = [
   {
     type: "function",
     function: {
+      name: "get_lending_latest",
+      description: "Get latest rate snapshots with enriched price/yield data. Good for detailed market analysis.",
+      parameters: {
+        type: "object",
+        properties: {
+          chains: { type: "string", description: "Comma-separated chain IDs e.g. '1'" },
+          lenders: { type: "string", description: "Comma-separated lender IDs" },
+        },
+        required: ["chains"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_lending_metadata",
+      description: "Get comprehensive protocol metadata — supported assets, lender configs, risk parameters.",
+      parameters: {
+        type: "object",
+        properties: {
+          chainIds: { type: "string", description: "Comma-separated chain IDs" },
+          lenders: { type: "string", description: "Comma-separated lender IDs" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_user_positions",
-      description: "Get lending/borrowing positions for a wallet.",
+      description: "Get lending/borrowing positions for a wallet. Returns deposits, debts, health factor, net worth.",
       parameters: {
         type: "object",
         properties: {
           account: { type: "string", description: "Wallet address 0x-" },
-          chains: { type: "string", description: "Comma-separated chain IDs e.g. '1,42161'" },
+          chains: { type: "string", description: "Comma-separated chain IDs e.g. '1'" },
           lenders: { type: "string" },
         },
         required: ["account", "chains"],
@@ -247,11 +315,12 @@ const TOOLS: any[] = [
       },
     },
   },
+  // ── Basic lending actions ──
   {
     type: "function",
     function: {
       name: "get_deposit_calldata",
-      description: "Build calldata to deposit into a lending pool.",
+      description: "Build calldata to deposit/supply into a lending pool.",
       parameters: {
         type: "object",
         properties: {
@@ -259,6 +328,7 @@ const TOOLS: any[] = [
           amount: { type: "string", description: "Base units integer string, no decimals. E.g. 1 USDC = '1000000'" },
           operator: { type: "string", description: "Wallet address" },
           receiver: { type: "string" },
+          payAsset: { type: "string", description: "If paying with different token, its address" },
           mode: { type: "string", enum: ["direct", "proxy"] },
         },
         required: ["marketUid", "amount", "operator"],
@@ -277,6 +347,7 @@ const TOOLS: any[] = [
           amount: { type: "string" },
           operator: { type: "string" },
           receiver: { type: "string" },
+          receiveAsset: { type: "string", description: "If receiving different token, its address" },
           isAll: { type: "boolean" },
           mode: { type: "string", enum: ["direct", "proxy"] },
         },
@@ -296,6 +367,7 @@ const TOOLS: any[] = [
           amount: { type: "string" },
           operator: { type: "string" },
           receiver: { type: "string" },
+          receiveAsset: { type: "string" },
           lendingMode: { type: "string", enum: ["0", "1", "2"], description: "0=none 1=stable 2=variable" },
           mode: { type: "string", enum: ["direct", "proxy"] },
         },
@@ -314,6 +386,7 @@ const TOOLS: any[] = [
           marketUid: { type: "string" },
           amount: { type: "string" },
           operator: { type: "string" },
+          payAsset: { type: "string", description: "If paying with different token, its address" },
           isAll: { type: "boolean" },
           lendingMode: { type: "string", enum: ["0", "1", "2"] },
           mode: { type: "string", enum: ["direct", "proxy"] },
@@ -322,16 +395,137 @@ const TOOLS: any[] = [
       },
     },
   },
+  // ── Leveraged / loop actions ──
+  {
+    type: "function",
+    function: {
+      name: "get_leverage_calldata",
+      description: "Open a leveraged position atomically (flash loan → borrow → swap → deposit). Use for looping strategies.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUidIn: { type: "string", description: "Debt market UID (lender:chainId:address)" },
+          marketUidOut: { type: "string", description: "Collateral market UID (lender:chainId:address)" },
+          debtAmount: { type: "string", description: "Base units integer string for debt amount" },
+          slippage: { type: "number", description: "Slippage in basis points e.g. 50 = 0.5%" },
+          leverage: { type: "number", description: "Target leverage multiplier e.g. 2.0" },
+          operator: { type: "string", description: "Wallet address" },
+          payAsset: { type: "string", description: "Optional: initial collateral token address if different" },
+          payAmount: { type: "string", description: "Optional: initial collateral amount in base units" },
+          lendingMode: { type: "string", enum: ["0", "1", "2"] },
+          mode: { type: "string", enum: ["direct", "proxy"] },
+        },
+        required: ["marketUidIn", "marketUidOut", "debtAmount", "slippage", "operator"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_close_leverage_calldata",
+      description: "Unwind/close a leveraged position atomically in one transaction (flash loan → repay → withdraw → swap).",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUidIn: { type: "string", description: "Debt market UID" },
+          marketUidOut: { type: "string", description: "Collateral market UID" },
+          amount: { type: "string", description: "Amount to close in base units. Use max uint for full close." },
+          slippage: { type: "number", description: "Slippage in bps e.g. 50 = 0.5%" },
+          operator: { type: "string", description: "Wallet address" },
+          receiveAsset: { type: "string" },
+          lendingMode: { type: "string", enum: ["0", "1", "2"] },
+          mode: { type: "string", enum: ["direct", "proxy"] },
+        },
+        required: ["marketUidIn", "marketUidOut", "amount", "slippage", "operator"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_collateral_swap_calldata",
+      description: "Change collateral type without closing the position (e.g. swap ETH collateral to WBTC). Uses flash loan internally.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUidIn: { type: "string", description: "Current collateral market UID (to withdraw from)" },
+          marketUidOut: { type: "string", description: "New collateral market UID (to deposit into)" },
+          amount: { type: "string", description: "Amount in base units of current collateral to swap" },
+          slippage: { type: "number", description: "Slippage in bps" },
+          operator: { type: "string" },
+          isMaxIn: { type: "boolean", description: "If true, swap entire collateral balance" },
+          mode: { type: "string", enum: ["direct", "proxy"] },
+        },
+        required: ["marketUidIn", "marketUidOut", "amount", "slippage", "operator"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_debt_swap_calldata",
+      description: "Change debt type without affecting collateral (e.g. switch USDC debt to USDT). Uses flash loan internally.",
+      parameters: {
+        type: "object",
+        properties: {
+          marketUidIn: { type: "string", description: "Current debt market UID (to repay)" },
+          marketUidOut: { type: "string", description: "New debt market UID (to borrow from)" },
+          amount: { type: "string", description: "Amount in base units of current debt to swap" },
+          slippage: { type: "number", description: "Slippage in bps" },
+          operator: { type: "string" },
+          isMaxOut: { type: "boolean", description: "If true, swap full debt" },
+          irModeIn: { type: "string", enum: ["0", "1", "2"], description: "Interest rate mode of current debt" },
+          irModeOut: { type: "string", enum: ["0", "1", "2"], description: "Interest rate mode for new debt" },
+          mode: { type: "string", enum: ["direct", "proxy"] },
+        },
+        required: ["marketUidIn", "marketUidOut", "amount", "slippage", "operator"],
+      },
+    },
+  },
+  // ── Batch operations ──
+  {
+    type: "function",
+    function: {
+      name: "get_batch_calldata",
+      description: "Batch multiple lending operations into a single atomic transaction via deltaCompose. POST body with array of ops.",
+      parameters: {
+        type: "object",
+        properties: {
+          chainId: { type: "string" },
+          operator: { type: "string" },
+          operations: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                action: { type: "string", enum: ["deposit", "withdraw", "borrow", "repay"] },
+                marketUid: { type: "string" },
+                amount: { type: "string" },
+              },
+              required: ["action", "marketUid", "amount"],
+            },
+            description: "Array of lending operations to execute atomically",
+          },
+        },
+        required: ["chainId", "operator", "operations"],
+      },
+    },
+  },
 ];
 
-const SYSTEM_PROMPT = `You are a helpful DeFi lending assistant. Use the provided tools to answer all
-questions about lending markets, rates, positions, and DeFi actions.
+/* ───── system prompt ───── */
+
+const SYSTEM_PROMPT = `You are Klyro — a DeFi lending intelligence assistant. Use the provided tools to answer all
+questions about lending markets, rates, positions, and DeFi actions on Ethereum.
 
 TOOL-USE STRATEGY:
 1. Chain IDs and lender IDs must be exact — use the references below or call get_supported_chains / get_lender_ids.
 2. Use find_market (chainId + lender + assetGroup) to get a marketUid before any action.
 3. Call get_user_positions ONLY when user explicitly asks about their positions.
 4. For action tools: get token decimals first via get_token_info, then amount = tokens × 10^decimals as integer string.
+5. For leveraged positions: you need TWO marketUids — marketUidIn (debt side) and marketUidOut (collateral side).
+6. Use get_lending_metadata when user asks about protocol configs, risk parameters, supported assets.
+7. Use get_lending_latest for detailed rate snapshots with enriched yield data.
 
 CHAIN ID REFERENCE:
 Ethereum:1, OP Mainnet:10, Cronos:25, Telos:40, XDC:50, BNB:56, Gnosis:100, Unichain:130,
@@ -341,14 +535,14 @@ Plasma:9745, Mode:34443, Arbitrum:42161, Hemi:43111, Avalanche:43114, Linea:5914
 Berachain:80094, Blast:81457, Taiko:167000, Scroll:534352, Katana:747474
 
 LENDER ID REFERENCE:
-AAVE_V2, AAVE_V3, COMPOUND_V2, COMPOUND_V3, LENDLE, AURELIUS, MENDI, MOONWELL, SILO, RADIANT_V2
+AAVE_V2, AAVE_V3, COMPOUND_V2, COMPOUND_V3, LENDLE, AURELIUS, MENDI, MOONWELL, SILO, RADIANT_V2, MORPHO_BLUE
 
 ASSET GROUPS: Use 'ETH' for WETH. All other tokens use their own symbol (USDC, WBTC, wstETH, etc.).
 
 FORMATTING — render entities as special markdown links (the UI converts these to interactive chips):
 - Token:    [SYMBOL](token:SYMBOL)               e.g. [USDC](token:USDC)
-- Chain:    [Name](chain:CHAIN_ID)               e.g. [Arbitrum](chain:42161)
-- Protocol: [Name](market:LENDER_ID:CHAIN_ID)   e.g. [Aave V3](market:AAVE_V3:42161)
+- Chain:    [Name](chain:CHAIN_ID)               e.g. [Ethereum](chain:1)
+- Protocol: [Name](market:LENDER_ID:CHAIN_ID)   e.g. [Aave V3](market:AAVE_V3:1)
 Use these for EVERY token, chain, and protocol mention — never plain text.
 
 APR RULES:
@@ -356,9 +550,25 @@ APR RULES:
 - variableBorrowRate = cost to borrower. Frame as "you pay X% APR".
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
 
+LEVERAGED OPERATIONS (Loop Tools):
+- get_leverage_calldata: Open a leveraged position. Flash loan → borrow → swap → deposit, all atomic.
+  marketUidIn = debt market, marketUidOut = collateral market.
+  Example: leverage ETH with USDC debt → marketUidIn=USDC market, marketUidOut=ETH market.
+  Slippage in basis points (50 = 0.5%). Always use mode='proxy' for loop operations.
+- get_close_leverage_calldata: Unwind a leveraged position. Flash loan → repay → withdraw → swap, all atomic.
+  Same market convention: marketUidIn=debt, marketUidOut=collateral.
+- get_collateral_swap_calldata: Change collateral without closing position. marketUidIn=old collateral, marketUidOut=new collateral.
+- get_debt_swap_calldata: Change debt without affecting collateral. marketUidIn=old debt, marketUidOut=new debt.
+  Supports interest rate mode switching via irModeIn/irModeOut.
+- get_batch_calldata: Combine multiple deposit/withdraw/borrow/repay in one atomic tx via deltaCompose.
+
+All leveraged operations use flash loans internally (free from Morpho Blue) and execute through the deltaCompose(bytes) entry point — a single contract call that encodes all sub-operations atomically.
+
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
-Respond with ONE sentence only, e.g. "Depositing 1 ETH on [Aave V3](market:AAVE_V3:1)."
+Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on [Aave V3](market:AAVE_V3:1)."
 No summaries, no tables, no bullet points after actions.`;
+
+/* ───── agent loop ───── */
 
 async function runAgent(query: string, userAddress?: string, history: any[] = []) {
   const messages: any[] = [
@@ -405,6 +615,8 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
     ...(collectedQuote && { quote: collectedQuote }),
   };
 }
+
+/* ───── HTTP handler ───── */
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
