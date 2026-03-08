@@ -50,7 +50,20 @@ export default function FixedYieldTable() {
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Box>
           <Typography variant="h6" fontWeight={800}>Fixed Yield</Typography>
-          <Typography variant="caption" color="text.secondary">Pendle markets on Ethereum</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="caption" color="text.secondary">Pendle markets on Ethereum</Typography>
+            <Chip
+              label="Execution coming soon"
+              size="small"
+              sx={{
+                fontSize: 10,
+                height: 20,
+                bgcolor: "action.hover",
+                color: "text.secondary",
+                fontWeight: 600,
+              }}
+            />
+          </Box>
         </Box>
         <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </Box>

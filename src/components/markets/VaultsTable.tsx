@@ -133,11 +133,12 @@ export default function VaultsTable() {
                     <TableCell align="right">
                       <MarketActionButton
                         label="Deposit"
-                        prompt={`Deposit into ${v.protocol} vault "${v.name}" for ${v.asset} (id: ${v.id}${v.marketUid ? `, marketUid: ${v.marketUid}` : ''})`}
+                        prompt={`Deposit into ${v.protocol} vault "${displayName}" for ${v.asset} (id: ${v.id}${v.marketUid ? `, marketUid: ${v.marketUid}` : ''})`}
                       />
                     </TableCell>
                   </TableRow>
-                ))}
+                );
+                })}
           </TableBody>
         </Table>
       </TableContainer>

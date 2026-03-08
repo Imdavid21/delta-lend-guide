@@ -44,10 +44,15 @@ export default function ProtocolCompare() {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          {asset && <AssetIcon symbol={asset} size={24} />}
-          <Typography variant="h6" fontWeight={800}>
-            {asset || "Select Asset"} — Protocol Comparison
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            {asset && <AssetIcon symbol={asset} size={24} />}
+            <Typography variant="h6" fontWeight={800}>
+              Protocol Comparison
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            Compare {asset || "asset"} rates across protocols
           </Typography>
         </Box>
         <AssetFilter assets={allAssets} value={selectedAsset} onChange={setSelectedAsset} />

@@ -4,8 +4,9 @@ import LendingTable from "../markets/LendingTable";
 import VaultsTable from "../markets/VaultsTable";
 import FixedYieldTable from "../markets/FixedYieldTable";
 import ProtocolCompare from "./ProtocolCompare";
+import AssetCompare from "./AssetCompare";
 
-type MarketTab = "lending" | "vaults" | "fixed" | "compare";
+type MarketTab = "lending" | "vaults" | "fixed" | "protocol-compare" | "asset-compare";
 
 export default function MarketExplorer() {
   const [tab, setTab] = useState<MarketTab>("lending");
@@ -36,13 +37,15 @@ export default function MarketExplorer() {
         <Tab label="Lending" value="lending" />
         <Tab label="Vaults" value="vaults" />
         <Tab label="Fixed Yield" value="fixed" />
-        <Tab label="Compare" value="compare" />
+        <Tab label="Protocol Comparison" value="protocol-compare" />
+        <Tab label="Asset Comparison" value="asset-compare" />
       </Tabs>
       <Box>
         {tab === "lending" && <LendingTable />}
         {tab === "vaults" && <VaultsTable />}
         {tab === "fixed" && <FixedYieldTable />}
-        {tab === "compare" && <ProtocolCompare />}
+        {tab === "protocol-compare" && <ProtocolCompare />}
+        {tab === "asset-compare" && <AssetCompare />}
       </Box>
     </Box>
   );
