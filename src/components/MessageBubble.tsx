@@ -118,13 +118,13 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
   const segments = isUser ? null : parseContent(message.content);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", mb: 1.5 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", mb: 2.5 }}>
       <Paper
         elevation={0}
         sx={{
-          px: 2,
-          py: 1.2,
-          maxWidth: 600,
+          px: 2.5,
+          py: 1.5,
+          maxWidth: "85%",
           borderRadius: 3,
           border: 1,
           borderColor: isUser ? "text.primary" : "divider",
@@ -132,11 +132,14 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
           ...(isUser
             ? { bgcolor: "text.primary", color: "background.default" }
             : { bgcolor: "background.default" }),
-          "& p": { m: 0 },
-          "& p + p": { mt: 1 },
-          "& ul, & ol": { pl: 2, my: 0.5 },
+          "& p": { m: 0, lineHeight: 1.7 },
+          "& p + p": { mt: 1.5 },
+          "& ul, & ol": { pl: 2.5, my: 1 },
+          "& li": { mb: 0.5 },
+          "& li:last-child": { mb: 0 },
+          "& h3, & h4": { mt: 2, mb: 1 },
           "& code": { fontSize: 12, bgcolor: "action.hover", px: 0.5, borderRadius: 0.5 },
-          "& pre": { overflow: "auto", bgcolor: "action.hover", p: 1, borderRadius: 1, my: 1 },
+          "& pre": { overflow: "auto", bgcolor: "action.hover", p: 1, borderRadius: 1, my: 1.5 },
         }}
       >
         {isUser ? (
