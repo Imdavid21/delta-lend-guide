@@ -26,7 +26,10 @@ async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
   const headers: Record<string, string> = {};
   if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
   const res = await fetch(url.toString(), { headers });
-  if (!res.ok) throw new Error(`1delta ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`1delta ${res.status}: ${body}`);
+  }
   return res.json();
 }
 
@@ -79,6 +82,7 @@ function slimPools(raw: any, minTvlUsd = 10000) {
 /* ───── tool dispatch ───── */
 
 async function dispatchTool(name: string, input: any): Promise<string> {
+  try {
   switch (name) {
     case "search_markets": {
       const types: ("lending" | "vaults" | "pendle")[] = input.types ?? ["lending", "vaults", "pendle"];
@@ -177,6 +181,10 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       return JSON.stringify(await deltaGet("/actions/lending/repay-with-atoken", { ...input, simulate: true }));
     default:
       return JSON.stringify({ error: "Unknown tool" });
+  }
+  } catch (err: any) {
+    console.error(`Tool ${name} failed:`, err.message);
+    return JSON.stringify({ error: err.message ?? "Tool call failed" });
   }
 }
 
