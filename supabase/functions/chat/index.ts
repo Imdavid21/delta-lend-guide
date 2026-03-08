@@ -641,9 +641,10 @@ FORMATTING — render entities as special markdown links (the UI converts these 
 - Protocol: [Name](market:LENDER_ID:CHAIN_ID)   e.g. [Aave V3](market:AAVE_V3:1)
 Use these for EVERY token, chain, and protocol mention — never plain text.
 
-APR RULES:
-- depositRate = protocol APR only. True yield = intrinsic asset yield + depositRate.
-- variableBorrowRate = cost to borrower. Frame as "you pay X% APR".
+RATE FORMATTING (CRITICAL):
+- API returns rates as raw decimals: depositRate=0.0196 means 1.96% APR. ALWAYS multiply by 100 before displaying.
+- Example: depositRate=0.0573 → display as "5.73% APR". depositRate=0.00001961 → display as "0.001961% APR".
+- variableBorrowRate follows the same convention — multiply by 100.
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
 
 LEVERAGED OPERATIONS (Loop Tools):
