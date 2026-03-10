@@ -96,7 +96,7 @@ export default function AppShell({ mode, onToggle }: Props) {
         setLoading(false);
       }
     },
-    [activeChatId, loading, chats, createChat, addMessage, SUPABASE_URL, SUPABASE_KEY],
+    [activeChatId, loading, chats, createChat, addMessage, SUPABASE_URL, SUPABASE_KEY, walletAddress, walletConnected],
   );
 
   const submitAction = useCallback(
