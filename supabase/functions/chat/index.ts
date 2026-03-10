@@ -229,6 +229,8 @@ async function dispatchTool(name: string, input: any): Promise<string> {
 }
 
 const ACTION_TOOLS = new Set([
+  "vault_deposit",
+  "vault_withdraw",
   "get_deposit_calldata",
   "get_withdraw_calldata",
   "get_borrow_calldata",
