@@ -502,12 +502,12 @@ const TOOLS: any[] = [
       },
     },
   },
-  // ── ERC4626 Vault actions (for MetaMorpho, Euler vaults) ──
+  // ── ERC4626 Vault actions via 1delta deltaCompose ──
   {
     type: "function",
     function: {
       name: "vault_deposit",
-      description: "Deposit into an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'. Do NOT use get_deposit_calldata for these — it will fail.",
+      description: "Deposit into an ERC4626 vault (MetaMorpho, Euler) via 1delta deltaCompose. Use for vaults with id starting with 'morpho-vault:' or 'euler:'. Do NOT use get_deposit_calldata for these.",
       parameters: {
         type: "object",
         properties: {
@@ -515,6 +515,7 @@ const TOOLS: any[] = [
           assetAddress: { type: "string", description: "The underlying asset token address (e.g. USDC address)" },
           amount: { type: "string", description: "Amount in base units (e.g. 1 USDC = '1000000')" },
           operator: { type: "string", description: "Wallet address" },
+          chainId: { type: "string", description: "Chain ID e.g. '1' for Ethereum", default: "1" },
         },
         required: ["vaultAddress", "assetAddress", "amount", "operator"],
       },
@@ -524,13 +525,14 @@ const TOOLS: any[] = [
     type: "function",
     function: {
       name: "vault_withdraw",
-      description: "Withdraw from an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'.",
+      description: "Withdraw from an ERC4626 vault (MetaMorpho, Euler) via 1delta deltaCompose. Use for vaults with id starting with 'morpho-vault:' or 'euler:'.",
       parameters: {
         type: "object",
         properties: {
           vaultAddress: { type: "string", description: "The vault contract address" },
           amount: { type: "string", description: "Amount in base units to withdraw" },
           operator: { type: "string", description: "Wallet address" },
+          chainId: { type: "string", description: "Chain ID e.g. '1' for Ethereum", default: "1" },
         },
         required: ["vaultAddress", "amount", "operator"],
       },
