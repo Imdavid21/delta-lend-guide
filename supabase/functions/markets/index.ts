@@ -105,40 +105,21 @@ async function fetchLending(hdrs: Record<string, string>) {
     .filter(Boolean);
 }
 
-/* ── Morpho vault + curator metadata from GraphQL API ── */
+/* ── Morpho vaults directly from Morpho GraphQL API ── */
 
-interface MorphoMeta {
-  name: string;
-  curator?: string;
-}
-
-async function fetchMorphoMetadata(): Promise<Map<string, MorphoMeta>> {
-  const metaMap = new Map<string, MorphoMeta>();
+async function fetchMorphoVaults(): Promise<any[]> {
   try {
     const query = `{
-      markets(first: 500, where: { chainId_in: [1], whitelisted: true }) {
-        items {
-          uniqueKey
-          loanAsset { symbol }
-          collateralAsset { symbol }
-        }
-      }
-      vaults(first: 200, where: { chainId_in: [1] }) {
+      vaults(first: 500, where: { chainId_in: [1] }) {
         items {
           address
           name
           symbol
           asset { symbol }
-          curator {
-            name
-            image
-          }
-          metadata {
-            description
-            image
-          }
+          metadata { curators { name } }
           state {
             totalAssetsUsd
+            apy
           }
         }
       }
@@ -147,113 +128,81 @@ async function fetchMorphoMetadata(): Promise<Map<string, MorphoMeta>> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return metaMap;
+    if (!res.ok) {
+      const text = await res.text();
+      console.log(`Morpho vault API status=${res.status} body=${text.slice(0, 500)}`);
+      return [];
+    }
     const json = await res.json();
-
-    // Map market uniqueKeys to descriptive names
-    for (const m of json?.data?.markets?.items ?? []) {
-      const loan = m.loanAsset?.symbol ?? "";
-      const coll = m.collateralAsset?.symbol ?? "";
-      if (m.uniqueKey) {
-        metaMap.set(m.uniqueKey.toLowerCase(), { name: `${loan}/${coll}` });
-      }
+    if (json.errors) {
+      console.log(`Morpho GQL errors: ${JSON.stringify(json.errors[0])}`);
+      return [];
     }
+    const items = json?.data?.vaults?.items ?? [];
+    console.log(`Morpho GraphQL: ${items.length} vaults`);
 
-    // Map vault addresses to vault names + curator
-    for (const v of json?.data?.vaults?.items ?? []) {
-      if (v.address) {
-        const curatorName = v.curator?.name ?? undefined;
-        metaMap.set(v.address.toLowerCase(), {
-          name: v.name ?? v.symbol ?? "",
-          curator: curatorName,
-        });
-      }
-    }
+    return items
+      .filter((v: any) => {
+        const tvl = v.state?.totalAssetsUsd ?? 0;
+        return tvl >= 100000;
+      })
+      .map((v: any) => {
+        const asset = v.asset?.symbol ?? "";
+        const tvl = v.state?.totalAssetsUsd ?? 0;
+        const apy = (v.state?.apy ?? 0) * 100;
+        const displayName = v.name ?? v.symbol ?? `Morpho ${asset}`;
+        // Extract curator from metadata or infer from vault name
+        const curatorList = v.metadata?.curators ?? [];
+        const curator = curatorList.length > 0 ? curatorList[0]?.name : undefined;
+
+        return {
+          id: `morpho-vault:${v.address}`,
+          marketUid: v.address ?? "",
+          name: displayName,
+          protocol: "Morpho Blue",
+          asset,
+          apy,
+          tvl,
+          source: "morpho",
+          ...(curator && { curator }),
+        };
+      });
   } catch (e) {
-    console.log(`Morpho GraphQL error: ${(e as Error).message}`);
+    console.log(`Morpho vaults error: ${(e as Error).message}`);
+    return [];
   }
-  return metaMap;
-}
-
-function morphoVaultDisplayName(pool: any, asset: string, morphoMeta: Map<string, MorphoMeta>): { name: string; curator?: string } {
-  const lk = pool.lenderKey ?? "";
-  const hexMatch = lk.match(/MORPHO_BLUE_([A-F0-9]+)/i);
-
-  let curator: string | undefined;
-
-  if (hexMatch) {
-    const uk = "0x" + hexMatch[1].toLowerCase();
-    const meta = morphoMeta.get(uk);
-    if (meta) {
-      curator = meta.curator;
-      // When curator is known, use "Curator Asset" as the clean display name
-      if (curator) {
-        return { name: `${curator} ${asset}`, curator };
-      }
-      // No curator — use market pair e.g. "USDC/WBTC"
-      return { name: `Morpho ${meta.name}`, curator };
-    }
-  }
-
-  // Try pool name if descriptive
-  const rawName = pool.name ?? "";
-  if (rawName && !rawName.startsWith("Loan ") && !rawName.startsWith("Collateral ")) {
-    return { name: rawName, curator };
-  }
-
-  // Fallback
-  const isLoan = rawName.startsWith("Loan ");
-  return { name: `Morpho Blue ${asset} ${isLoan ? "Supply" : "Collateral"}`, curator };
 }
 
 async function fetchVaults(hdrs: Record<string, string>) {
-  const [items1delta, morphoMeta] = await Promise.all([
+  const [morphoVaults, items1delta] = await Promise.all([
+    fetchMorphoVaults(),
     fetch1DeltaPools(hdrs),
-    fetchMorphoMetadata(),
   ]);
 
-  const vaults: any[] = [];
-
+  const eulerVaults: any[] = [];
   for (const pool of items1delta) {
     const lk = pool.lenderKey ?? "";
-    const isMorpho = lk.startsWith("MORPHO_BLUE");
-    const isEuler = lk.startsWith("EULER");
-    if (!isMorpho && !isEuler) continue;
-
+    if (!lk.startsWith("EULER")) continue;
     const tvl = parseFloat(pool.totalDepositsUsd) || 0;
     if (tvl < 10000) continue;
     const asset = extractAsset(pool);
-    const protocol = isMorpho ? "Morpho Blue" : "Euler";
-    const source = isMorpho ? "morpho" : "euler";
-
-    let name: string;
-    let curator: string | undefined;
-
-    if (isMorpho) {
-      const result = morphoVaultDisplayName(pool, asset, morphoMeta);
-      name = result.name;
-      curator = result.curator;
-    } else {
-      name = pool.name || `Euler ${asset}`;
-    }
-
-    vaults.push({
-      id: pool.marketUid ?? `${source}:1:${asset}`,
+    eulerVaults.push({
+      id: pool.marketUid ?? `euler:1:${asset}`,
       marketUid: pool.marketUid ?? "",
-      name,
-      protocol,
+      name: pool.name || `Euler ${asset}`,
+      protocol: "Euler",
       asset,
       apy: parseFloat(pool.depositRate) || 0,
       tvl,
-      source,
-      ...(curator && { curator }),
+      source: "euler",
     });
   }
 
-  return vaults;
+  return [...morphoVaults, ...eulerVaults];
 }
+
 
 async function fetchPendle() {
   console.log("Fetching Pendle markets...");
