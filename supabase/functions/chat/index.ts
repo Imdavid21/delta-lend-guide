@@ -148,7 +148,46 @@ async function dispatchTool(name: string, input: any): Promise<string> {
     }
     case "get_token_balances":
       return JSON.stringify(await deltaGet("/data/token/balances", input));
-    // Basic lending actions
+    // ERC4626 vault deposit (for MetaMorpho vaults)
+    case "vault_deposit": {
+      const { vaultAddress, assetAddress, amount, operator } = input;
+      // ERC20 approve ABI: approve(address spender, uint256 amount)
+      const approveSelector = "0x095ea7b3";
+      const approveData = approveSelector +
+        vaultAddress.slice(2).padStart(64, "0") +
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+      // ERC4626 deposit ABI: deposit(uint256 assets, address receiver)
+      const depositSelector = "0x6e553f65";
+      const amountHex = BigInt(amount).toString(16).padStart(64, "0");
+      const receiverHex = operator.slice(2).padStart(64, "0");
+      const depositData = depositSelector + amountHex + receiverHex;
+      const result = {
+        actions: {
+          permissions: [{ to: assetAddress, data: approveData, value: "0x0", info: `Approve ${vaultAddress} to spend tokens` }],
+          transactions: [{ to: vaultAddress, data: depositData, value: "0x0", info: "Deposit into vault" }],
+        },
+        success: true,
+      };
+      return JSON.stringify(result);
+    }
+    // ERC4626 vault withdraw
+    case "vault_withdraw": {
+      const { vaultAddress, amount, operator } = input;
+      // ERC4626 withdraw ABI: withdraw(uint256 assets, address receiver, address owner)
+      const withdrawSelector = "0xb460af94";
+      const amtHex = BigInt(amount).toString(16).padStart(64, "0");
+      const addrHex = operator.slice(2).padStart(64, "0");
+      const withdrawData = withdrawSelector + amtHex + addrHex + addrHex;
+      const result = {
+        actions: {
+          permissions: [],
+          transactions: [{ to: vaultAddress, data: withdrawData, value: "0x0", info: "Withdraw from vault" }],
+        },
+        success: true,
+      };
+      return JSON.stringify(result);
+    }
+    // Basic lending actions (via 1delta — for Aave, Compound, Spark, etc.)
     case "get_deposit_calldata":
       return JSON.stringify(await deltaGet("/actions/lending/deposit", { ...input, simulate: true }));
     case "get_withdraw_calldata":
