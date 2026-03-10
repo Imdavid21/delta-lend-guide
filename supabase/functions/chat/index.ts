@@ -813,14 +813,31 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   const collectedSteps: any[] = [];
   let collectedQuote: any;
 
-  let response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    max_completion_tokens: 4096,
-    tools: TOOLS,
-    messages,
-  });
+  const createCompletion = async (msgs: any[]) => {
+    try {
+      return await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_completion_tokens: 4096,
+        tools: TOOLS,
+        messages: msgs,
+      });
+    } catch (err: any) {
+      console.error("OpenAI API error:", err.message);
+      return {
+        choices: [{
+          finish_reason: "stop",
+          message: { content: "I'm having trouble connecting right now. Please try again in a moment." },
+        }],
+      };
+    }
+  };
 
-  while (response.choices[0].finish_reason === "tool_calls") {
+  let response = await createCompletion(messages);
+  let toolRounds = 0;
+  const MAX_TOOL_ROUNDS = 5;
+
+  while (response.choices[0].finish_reason === "tool_calls" && toolRounds < MAX_TOOL_ROUNDS) {
+    toolRounds++;
     const toolCalls = response.choices[0].message.tool_calls ?? [];
     messages.push(response.choices[0].message);
     for (const tc of toolCalls) {
@@ -835,12 +852,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
       }
       messages.push({ role: "tool", tool_call_id: tc.id, content: result });
     }
-    response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_completion_tokens: 4096,
-      tools: TOOLS,
-      messages,
-    });
+    response = await createCompletion(messages);
   }
 
   return {
