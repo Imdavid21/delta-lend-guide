@@ -120,7 +120,6 @@ async function fetchMorphoVaults(): Promise<any[]> {
           state {
             totalAssetsUsd
             netApy
-            apy
           }
         }
       }
