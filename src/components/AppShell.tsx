@@ -1,5 +1,6 @@
 import { useState, useMemo, createContext, useContext, useCallback } from "react";
 import { Box, IconButton, Tooltip, Fab, Dialog, Slide, InputBase } from "@mui/material";
+import { useAccount } from "wagmi";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
@@ -37,6 +38,7 @@ const SlideUp = forwardRef(function SlideUp(
 
 export default function AppShell({ mode, onToggle }: Props) {
   const [chatInput, setChatInput] = useState("");
+  const { address: walletAddress, isConnected: walletConnected } = useAccount();
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
     useChats();
   const [loading, setLoading] = useState(false);
@@ -69,7 +71,11 @@ export default function AppShell({ mode, onToggle }: Props) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${SUPABASE_KEY}`,
           },
-          body: JSON.stringify({ query, history }),
+          body: JSON.stringify({
+            query,
+            history,
+            userAddress: walletConnected ? walletAddress : undefined,
+          }),
         });
 
         const data = await res.json();
@@ -90,7 +96,7 @@ export default function AppShell({ mode, onToggle }: Props) {
         setLoading(false);
       }
     },
-    [activeChatId, loading, chats, createChat, addMessage, SUPABASE_URL, SUPABASE_KEY],
+    [activeChatId, loading, chats, createChat, addMessage, SUPABASE_URL, SUPABASE_KEY, walletAddress, walletConnected],
   );
 
   const submitAction = useCallback(
