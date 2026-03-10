@@ -306,6 +306,8 @@ function extractAction(toolName: string, rawJson: string, input: any) {
         ? parseInt(input.marketUid.split(":")[1], 10) || undefined
         : typeof input.marketUidIn === "string"
         ? parseInt(input.marketUidIn.split(":")[1], 10) || undefined
+        : typeof input.chainId === "string"
+        ? parseInt(input.chainId, 10) || undefined
         : undefined;
     const toStep = (item: any, desc: string) =>
       item?.to && item?.data
