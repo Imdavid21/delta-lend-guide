@@ -151,7 +151,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
         const curator = v.curator?.name ?? undefined;
         const asset = v.asset?.symbol ?? "";
         const tvl = v.state?.totalAssetsUsd ?? 0;
-        const apy = (v.state?.netApy ?? v.state?.apy ?? 0) * 100;
+        const apy = (v.state?.netApy ?? 0) * 100;
         const displayName = v.name ?? v.symbol ?? `Morpho ${asset}`;
 
         return {
