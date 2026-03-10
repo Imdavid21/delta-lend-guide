@@ -105,13 +105,97 @@ async function fetchLending(hdrs: Record<string, string>) {
     .filter(Boolean);
 }
 
-/* ── Morpho vault + curator metadata from GraphQL API ── */
+/* ── Morpho vaults directly from Morpho GraphQL API ── */
 
-interface MorphoMeta {
-  name: string;
-  curator?: string;
+async function fetchMorphoVaults(): Promise<any[]> {
+  try {
+    const query = `{
+      vaults(first: 500, where: { chainId_in: [1] }) {
+        items {
+          address
+          name
+          symbol
+          asset { symbol }
+          curator { name }
+          state {
+            totalAssetsUsd
+            netApy
+            apy
+          }
+        }
+      }
+    }`;
+    const res = await fetch("https://blue-api.morpho.org/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      console.log(`Morpho GraphQL ${res.status}`);
+      return [];
+    }
+    const json = await res.json();
+    const items = json?.data?.vaults?.items ?? [];
+    console.log(`Morpho GraphQL: ${items.length} vaults`);
+
+    return items
+      .filter((v: any) => {
+        const tvl = v.state?.totalAssetsUsd ?? 0;
+        return tvl >= 100000;
+      })
+      .map((v: any) => {
+        const curator = v.curator?.name ?? undefined;
+        const asset = v.asset?.symbol ?? "";
+        const tvl = v.state?.totalAssetsUsd ?? 0;
+        const apy = (v.state?.netApy ?? v.state?.apy ?? 0) * 100;
+        const displayName = v.name ?? v.symbol ?? `Morpho ${asset}`;
+
+        return {
+          id: `morpho-vault:${v.address}`,
+          marketUid: v.address ?? "",
+          name: displayName,
+          protocol: "Morpho Blue",
+          asset,
+          apy,
+          tvl,
+          source: "morpho",
+          ...(curator && { curator }),
+        };
+      });
+  } catch (e) {
+    console.log(`Morpho vaults error: ${(e as Error).message}`);
+    return [];
+  }
 }
 
+async function fetchVaults(hdrs: Record<string, string>) {
+  const [morphoVaults, items1delta] = await Promise.all([
+    fetchMorphoVaults(),
+    fetch1DeltaPools(hdrs),
+  ]);
+
+  const eulerVaults: any[] = [];
+  for (const pool of items1delta) {
+    const lk = pool.lenderKey ?? "";
+    if (!lk.startsWith("EULER")) continue;
+    const tvl = parseFloat(pool.totalDepositsUsd) || 0;
+    if (tvl < 10000) continue;
+    const asset = extractAsset(pool);
+    eulerVaults.push({
+      id: pool.marketUid ?? `euler:1:${asset}`,
+      marketUid: pool.marketUid ?? "",
+      name: pool.name || `Euler ${asset}`,
+      protocol: "Euler",
+      asset,
+      apy: parseFloat(pool.depositRate) || 0,
+      tvl,
+      source: "euler",
+    });
+  }
+
+  return [...morphoVaults, ...eulerVaults];
+}
 async function fetchMorphoMetadata(): Promise<Map<string, MorphoMeta>> {
   const metaMap = new Map<string, MorphoMeta>();
   try {
