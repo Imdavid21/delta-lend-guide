@@ -109,6 +109,18 @@ async function fetchLending(hdrs: Record<string, string>) {
 
 async function fetchMorphoVaults(): Promise<any[]> {
   try {
+    // First, introspect the Vault type to find curator field
+    const introQuery = `{ __type(name: "Vault") { fields { name type { name kind ofType { name } } } } }`;
+    const introRes = await fetch("https://blue-api.morpho.org/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: introQuery }),
+      signal: AbortSignal.timeout(5000),
+    });
+    const introJson = await introRes.json();
+    const fieldNames = (introJson?.data?.__type?.fields ?? []).map((f: any) => f.name);
+    console.log(`Morpho Vault fields: ${fieldNames.join(", ")}`);
+
     const query = `{
       vaults(first: 500, where: { chainId_in: [1] }) {
         items {
@@ -116,7 +128,6 @@ async function fetchMorphoVaults(): Promise<any[]> {
           name
           symbol
           asset { symbol }
-          curator { name }
           state {
             totalAssetsUsd
             apy
