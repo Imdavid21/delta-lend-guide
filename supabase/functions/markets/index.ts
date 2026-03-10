@@ -160,7 +160,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
         return tvl >= 100000;
       })
       .map((v: any) => {
-        const curator = v.curator?.name ?? undefined;
+        const curator = undefined; // TODO: find correct field after introspection
         const asset = v.asset?.symbol ?? "";
         const tvl = v.state?.totalAssetsUsd ?? 0;
         const apy = (v.state?.apy ?? 0) * 100;
