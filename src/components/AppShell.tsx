@@ -71,7 +71,11 @@ export default function AppShell({ mode, onToggle }: Props) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${SUPABASE_KEY}`,
           },
-          body: JSON.stringify({ query, history }),
+          body: JSON.stringify({
+            query,
+            history,
+            userAddress: walletConnected ? walletAddress : undefined,
+          }),
         });
 
         const data = await res.json();
