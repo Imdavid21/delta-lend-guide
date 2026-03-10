@@ -148,7 +148,46 @@ async function dispatchTool(name: string, input: any): Promise<string> {
     }
     case "get_token_balances":
       return JSON.stringify(await deltaGet("/data/token/balances", input));
-    // Basic lending actions
+    // ERC4626 vault deposit (for MetaMorpho vaults)
+    case "vault_deposit": {
+      const { vaultAddress, assetAddress, amount, operator } = input;
+      // ERC20 approve ABI: approve(address spender, uint256 amount)
+      const approveSelector = "0x095ea7b3";
+      const approveData = approveSelector +
+        vaultAddress.slice(2).padStart(64, "0") +
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+      // ERC4626 deposit ABI: deposit(uint256 assets, address receiver)
+      const depositSelector = "0x6e553f65";
+      const amountHex = BigInt(amount).toString(16).padStart(64, "0");
+      const receiverHex = operator.slice(2).padStart(64, "0");
+      const depositData = depositSelector + amountHex + receiverHex;
+      const result = {
+        actions: {
+          permissions: [{ to: assetAddress, data: approveData, value: "0x0", info: `Approve ${vaultAddress} to spend tokens` }],
+          transactions: [{ to: vaultAddress, data: depositData, value: "0x0", info: "Deposit into vault" }],
+        },
+        success: true,
+      };
+      return JSON.stringify(result);
+    }
+    // ERC4626 vault withdraw
+    case "vault_withdraw": {
+      const { vaultAddress, amount, operator } = input;
+      // ERC4626 withdraw ABI: withdraw(uint256 assets, address receiver, address owner)
+      const withdrawSelector = "0xb460af94";
+      const amtHex = BigInt(amount).toString(16).padStart(64, "0");
+      const addrHex = operator.slice(2).padStart(64, "0");
+      const withdrawData = withdrawSelector + amtHex + addrHex + addrHex;
+      const result = {
+        actions: {
+          permissions: [],
+          transactions: [{ to: vaultAddress, data: withdrawData, value: "0x0", info: "Withdraw from vault" }],
+        },
+        success: true,
+      };
+      return JSON.stringify(result);
+    }
+    // Basic lending actions (via 1delta — for Aave, Compound, Spark, etc.)
     case "get_deposit_calldata":
       return JSON.stringify(await deltaGet("/actions/lending/deposit", { ...input, simulate: true }));
     case "get_withdraw_calldata":
@@ -190,6 +229,8 @@ async function dispatchTool(name: string, input: any): Promise<string> {
 }
 
 const ACTION_TOOLS = new Set([
+  "vault_deposit",
+  "vault_withdraw",
   "get_deposit_calldata",
   "get_withdraw_calldata",
   "get_borrow_calldata",
@@ -409,7 +450,41 @@ const TOOLS: any[] = [
       },
     },
   },
-  // ── Basic lending actions ──
+  // ── ERC4626 Vault actions (for MetaMorpho, Euler vaults) ──
+  {
+    type: "function",
+    function: {
+      name: "vault_deposit",
+      description: "Deposit into an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'. Do NOT use get_deposit_calldata for these — it will fail.",
+      parameters: {
+        type: "object",
+        properties: {
+          vaultAddress: { type: "string", description: "The vault contract address (from marketUid field)" },
+          assetAddress: { type: "string", description: "The underlying asset token address (e.g. USDC address)" },
+          amount: { type: "string", description: "Amount in base units (e.g. 1 USDC = '1000000')" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["vaultAddress", "assetAddress", "amount", "operator"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "vault_withdraw",
+      description: "Withdraw from an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'.",
+      parameters: {
+        type: "object",
+        properties: {
+          vaultAddress: { type: "string", description: "The vault contract address" },
+          amount: { type: "string", description: "Amount in base units to withdraw" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["vaultAddress", "amount", "operator"],
+      },
+    },
+  },
+  // ── Basic lending actions (1delta — Aave, Compound, Spark) ──
   {
     type: "function",
     function: {
@@ -792,11 +867,27 @@ COLLATERAL & E-MODE MANAGEMENT:
 
 All leveraged operations use flash loans internally (free from Morpho Blue) and execute through the deltaCompose(bytes) entry point — a single contract call that encodes all sub-operations atomically.
 
-VAULT & PROTOCOL SUPPORT (CRITICAL):
-- Action tools (deposit, withdraw, borrow, repay, leverage, etc.) ONLY work with 1delta-supported lending protocols: Aave V2/V3, Compound V2/V3, Spark, Morpho Blue, Radiant, Moonwell, Mendi, Silo, Euler, etc.
+VAULT vs LENDING DEPOSITS (CRITICAL — READ CAREFULLY):
+- **MetaMorpho vaults** (id starts with "morpho-vault:") and **Euler vaults** (id starts with "euler:") are ERC4626 vault contracts.
+  → Use **vault_deposit** / **vault_withdraw** for these. NEVER use get_deposit_calldata — it WILL FAIL with a 500 error.
+  → The vaultAddress is the marketUid field (the 0x address).
+  → You need the underlying asset's token address. Common addresses on Ethereum:
+    USDC: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+    USDT: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+    WETH: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    DAI:  0x6B175474E89094C44Da98b954EedeAC495271d0F
+    WBTC: 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599
+    wstETH: 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0
+    PYUSD: 0x6c3ea9036406852006290770BEdFcAbA0e23A0e8
+    cbBTC: 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf
+    EURC: 0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c
+    USDtb: 0xC139190f447E929f090eDeb554D95ABb8B18Ac1c
+  → Example: To deposit 100 USDC into Steakhouse USDC vault (marketUid: 0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB):
+    vault_deposit(vaultAddress="0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB", assetAddress="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", amount="100000000", operator="0xUSER...")
+- **Lending pools** (Aave V3, Compound V3, Spark, etc.) with marketUid format "LENDER:chainId:tokenAddress":
+  → Use **get_deposit_calldata** / **get_withdraw_calldata** for these.
 - Yearn vaults are NOT displayed in the UI and are not supported for actions.
 - Pendle fixed-yield markets are displayed in the UI and available via search_markets for informational queries (APY, TVL, maturity). However, Pendle PT/YT trading execution is NOT supported yet via action tools. If a user asks to buy a Pendle PT or trade on Pendle, explain that execution isn't available yet but show them the market data.
-- For Morpho Blue and Euler vaults shown in search_markets results, you CAN use find_market + action tools since they are backed by 1delta lending pools.
 
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
 Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on [Aave V3](market:AAVE_V3:1)."
