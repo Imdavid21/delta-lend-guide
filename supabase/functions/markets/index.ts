@@ -135,6 +135,10 @@ async function fetchMorphoVaults(): Promise<any[]> {
       return [];
     }
     const json = await res.json();
+    if (json.errors) {
+      console.log(`Morpho GraphQL errors: ${JSON.stringify(json.errors[0]?.message)}`);
+      return [];
+    }
     const items = json?.data?.vaults?.items ?? [];
     console.log(`Morpho GraphQL: ${items.length} vaults`);
 
