@@ -187,44 +187,55 @@ async function dispatchTool(name: string, input: any): Promise<string> {
     }
     case "get_token_balances":
       return JSON.stringify(await deltaGet("/data/token/balances", input));
-    // ERC4626 vault deposit (for MetaMorpho vaults)
+    // ERC4626 vault deposit via 1delta deltaCompose
     case "vault_deposit": {
-      const { vaultAddress, assetAddress, amount, operator } = input;
-      // ERC20 approve ABI: approve(address spender, uint256 amount)
-      const approveSelector = "0x095ea7b3";
-      const approveData = approveSelector +
-        vaultAddress.slice(2).padStart(64, "0") +
-        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-      // ERC4626 deposit ABI: deposit(uint256 assets, address receiver)
-      const depositSelector = "0x6e553f65";
-      const amountHex = BigInt(amount).toString(16).padStart(64, "0");
-      const receiverHex = operator.slice(2).padStart(64, "0");
-      const depositData = depositSelector + amountHex + receiverHex;
-      const result = {
+      const { vaultAddress, assetAddress, amount, operator, chainId: cid } = input;
+      const chain = parseInt(cid || "1");
+      const composerAddr = COMPOSER_ADDRESSES[chain];
+      if (!composerAddr) return JSON.stringify({ error: `Unsupported chain ${chain}` });
+      const amt = BigInt(amount);
+
+      // Forwarder ops: APPROVE vault + EXT_CALL vault.deposit(assets, receiver)
+      const depositData = "6e553f65" + h256(amt) + h256Addr(operator);
+      const fwOps =
+        h8(0x40) + h8(5) + hAddr(assetAddress) + hAddr(vaultAddress) +
+        h8(0x20) + hAddr(vaultAddress) + h128(0n) + h16(depositData.length / 2) + depositData;
+
+      // Composer ops: TRANSFER_FROM user→forwarder + EXT_CALL forwarder
+      const composerOps =
+        h8(0x40) + h8(0) + hAddr(assetAddress) + hAddr(CALL_FORWARDER) + h128(amt) +
+        h8(0x20) + hAddr(CALL_FORWARDER) + h128(0n) + h16(fwOps.length / 2) + fwOps;
+
+      return JSON.stringify({
         actions: {
-          permissions: [{ to: assetAddress, data: approveData, value: "0x0", info: `Approve ${vaultAddress} to spend tokens` }],
-          transactions: [{ to: vaultAddress, data: depositData, value: "0x0", info: "Deposit into vault" }],
+          permissions: [{ to: assetAddress, data: encodeERC20Approve(composerAddr), value: "0x0", info: "Approve 1delta composer" }],
+          transactions: [{ to: composerAddr, data: encodeDeltaCompose(composerOps), value: "0x0", info: "Deposit into vault via 1delta composer" }],
         },
         success: true,
-      };
-      return JSON.stringify(result);
+      });
     }
-    // ERC4626 vault withdraw
+    // ERC4626 vault withdraw via 1delta deltaCompose
     case "vault_withdraw": {
-      const { vaultAddress, amount, operator } = input;
-      // ERC4626 withdraw ABI: withdraw(uint256 assets, address receiver, address owner)
-      const withdrawSelector = "0xb460af94";
-      const amtHex = BigInt(amount).toString(16).padStart(64, "0");
-      const addrHex = operator.slice(2).padStart(64, "0");
-      const withdrawData = withdrawSelector + amtHex + addrHex + addrHex;
-      const result = {
+      const { vaultAddress, amount, operator, chainId: cid } = input;
+      const chain = parseInt(cid || "1");
+      const composerAddr = COMPOSER_ADDRESSES[chain];
+      if (!composerAddr) return JSON.stringify({ error: `Unsupported chain ${chain}` });
+      const amt = BigInt(amount);
+
+      // Forwarder ops: EXT_CALL vault.withdraw(assets, receiver, owner)
+      const withdrawData = "b460af94" + h256(amt) + h256Addr(operator) + h256Addr(operator);
+      const fwOps = h8(0x20) + hAddr(vaultAddress) + h128(0n) + h16(withdrawData.length / 2) + withdrawData;
+
+      // Composer ops: EXT_CALL forwarder
+      const composerOps = h8(0x20) + hAddr(CALL_FORWARDER) + h128(0n) + h16(fwOps.length / 2) + fwOps;
+
+      return JSON.stringify({
         actions: {
-          permissions: [],
-          transactions: [{ to: vaultAddress, data: withdrawData, value: "0x0", info: "Withdraw from vault" }],
+          permissions: [{ to: vaultAddress, data: encodeERC20Approve(CALL_FORWARDER), value: "0x0", info: "Approve 1delta to withdraw" }],
+          transactions: [{ to: composerAddr, data: encodeDeltaCompose(composerOps), value: "0x0", info: "Withdraw from vault via 1delta composer" }],
         },
         success: true,
-      };
-      return JSON.stringify(result);
+      });
     }
     // Basic lending actions (via 1delta — for Aave, Compound, Spark, etc.)
     case "get_deposit_calldata":
