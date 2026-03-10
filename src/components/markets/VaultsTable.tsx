@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Typography, Skeleton, TableSortLabel, Chip,
+  Typography, Skeleton, TableSortLabel, Chip, Autocomplete, TextField,
 } from "@mui/material";
 import { useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
@@ -9,11 +9,12 @@ import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import AssetFilter from "./AssetFilter";
 import MarketActionButton from "./MarketActionButton";
 
-type SortKey = "asset" | "protocol" | "apy" | "tvl" | "name";
+type SortKey = "asset" | "protocol" | "apy" | "tvl" | "name" | "curator";
 
 export default function VaultsTable() {
   const { data, isLoading, error } = useVaults();
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
+  const [curatorFilter, setCuratorFilter] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("apy");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -22,16 +23,23 @@ export default function VaultsTable() {
     return [...new Set(data.map((v) => v.asset))].sort();
   }, [data]);
 
+  const curators = useMemo(() => {
+    if (!data) return [];
+    return [...new Set(data.map((v) => v.curator).filter(Boolean) as string[])].sort();
+  }, [data]);
+
   const rows = useMemo(() => {
     if (!data) return [];
-    let filtered = assetFilter ? data.filter((v) => v.asset === assetFilter) : data;
+    let filtered = data;
+    if (assetFilter) filtered = filtered.filter((v) => v.asset === assetFilter);
+    if (curatorFilter) filtered = filtered.filter((v) => v.curator === curatorFilter);
     return [...filtered].sort((a, b) => {
-      const av = (a as any)[sortKey] ?? 0;
-      const bv = (b as any)[sortKey] ?? 0;
+      const av = (a as any)[sortKey] ?? "";
+      const bv = (b as any)[sortKey] ?? "";
       if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       return sortDir === "asc" ? av - bv : bv - av;
     });
-  }, [data, assetFilter, sortKey, sortDir]);
+  }, [data, assetFilter, curatorFilter, sortKey, sortDir]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -40,17 +48,39 @@ export default function VaultsTable() {
 
   const cols: { key: SortKey; label: string; align?: "right" }[] = [
     { key: "name", label: "Vault" },
+    { key: "curator", label: "Curator" },
     { key: "asset", label: "Asset" },
-    { key: "protocol", label: "Protocol" },
     { key: "apy", label: "APY", align: "right" },
     { key: "tvl", label: "TVL", align: "right" },
   ];
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, gap: 1.5 }}>
         <Typography variant="h6" fontWeight={800}>Vaults</Typography>
-        <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Autocomplete
+            size="small"
+            options={curators}
+            value={curatorFilter}
+            onChange={(_, v) => setCuratorFilter(v)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Filter curator…"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 3,
+                    fontSize: 13,
+                  },
+                }}
+              />
+            )}
+            sx={{ width: 200 }}
+            clearOnEscape
+          />
+          <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
+        </Box>
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load vaults</Typography>}
       <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 3 }}>
@@ -79,41 +109,34 @@ export default function VaultsTable() {
                     <TableCell><Skeleton width={50} /></TableCell>
                   </TableRow>
                 ))
-              : rows.map((v) => {
-                  // Use curator name as primary display if available
-                  const displayName = v.curator 
-                    ? `${v.curator} ${v.asset}`
-                    : v.name;
-                  return (
+              : rows.map((v) => (
                   <TableRow key={v.id}>
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <ProtocolIcon name={v.protocol} size={16} />
-                        <Box>
-                          <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 240 }} noWrap>
-                            {displayName}
-                          </Typography>
-                          {v.curator && v.name !== displayName && (
-                            <Typography fontSize={10} color="text.secondary" noWrap>
-                              {v.name}
-                            </Typography>
-                          )}
-                        </Box>
+                        <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 260 }} noWrap>
+                          {v.name}
+                        </Typography>
                       </Box>
+                    </TableCell>
+                    <TableCell>
+                      {v.curator ? (
+                        <Chip
+                          label={v.curator}
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setCuratorFilter(v.curator ?? null)}
+                          sx={{ fontSize: 11, height: 22, borderColor: "divider", fontWeight: 600, cursor: "pointer" }}
+                        />
+                      ) : (
+                        <Typography fontSize={12} color="text.secondary">—</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <AssetIcon symbol={v.asset} size={18} />
                         <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums" }}>{v.asset}</Typography>
                       </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={v.protocol}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontSize: 11, height: 22, borderColor: "divider", fontWeight: 600 }}
-                      />
                     </TableCell>
                     <TableCell align="right">
                       <Typography
@@ -133,12 +156,11 @@ export default function VaultsTable() {
                     <TableCell align="right">
                       <MarketActionButton
                         label="Deposit"
-                        prompt={`Deposit into ${v.protocol} vault "${displayName}" for ${v.asset} (id: ${v.id}${v.marketUid ? `, marketUid: ${v.marketUid}` : ''})`}
+                        prompt={`Deposit into ${v.protocol} vault "${v.name}" for ${v.asset} (id: ${v.id}${v.marketUid ? `, marketUid: ${v.marketUid}` : ''})`}
                       />
                     </TableCell>
                   </TableRow>
-                );
-                })}
+                ))}
           </TableBody>
         </Table>
       </TableContainer>
