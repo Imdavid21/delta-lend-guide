@@ -130,9 +130,14 @@ async function fetchMorphoVaults(): Promise<any[]> {
       body: JSON.stringify({ query }),
       signal: AbortSignal.timeout(10000),
     });
+    if (!res.ok) {
+      const text = await res.text();
+      console.log(`Morpho vault API status=${res.status} body=${text.slice(0, 500)}`);
+      return [];
+    }
     const json = await res.json();
-    if (!res.ok || json.errors) {
-      console.log(`Morpho GraphQL error: ${JSON.stringify(json.errors?.[0]?.message ?? res.status)}`);
+    if (json.errors) {
+      console.log(`Morpho GQL errors: ${JSON.stringify(json.errors[0])}`);
       return [];
     }
     const items = json?.data?.vaults?.items ?? [];
