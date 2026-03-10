@@ -109,18 +109,6 @@ async function fetchLending(hdrs: Record<string, string>) {
 
 async function fetchMorphoVaults(): Promise<any[]> {
   try {
-    // First, introspect the Vault type to find curator field
-    const introQuery = `{ __type(name: "Vault") { fields { name type { name kind ofType { name } } } } }`;
-    const introRes = await fetch("https://blue-api.morpho.org/graphql", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: introQuery }),
-      signal: AbortSignal.timeout(5000),
-    });
-    const introJson = await introRes.json();
-    const fieldNames = (introJson?.data?.__type?.fields ?? []).map((f: any) => f.name);
-    console.log(`Morpho Vault fields: ${fieldNames.join(", ")}`);
-
     const query = `{
       vaults(first: 500, where: { chainId_in: [1] }) {
         items {
@@ -128,6 +116,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
           name
           symbol
           asset { symbol }
+          metadata { curators { name } }
           state {
             totalAssetsUsd
             apy
@@ -160,11 +149,13 @@ async function fetchMorphoVaults(): Promise<any[]> {
         return tvl >= 100000;
       })
       .map((v: any) => {
-        const curator = undefined; // TODO: find correct field after introspection
         const asset = v.asset?.symbol ?? "";
         const tvl = v.state?.totalAssetsUsd ?? 0;
         const apy = (v.state?.apy ?? 0) * 100;
         const displayName = v.name ?? v.symbol ?? `Morpho ${asset}`;
+        // Extract curator from metadata or infer from vault name
+        const curatorList = v.metadata?.curators ?? [];
+        const curator = curatorList.length > 0 ? curatorList[0]?.name : undefined;
 
         return {
           id: `morpho-vault:${v.address}`,
