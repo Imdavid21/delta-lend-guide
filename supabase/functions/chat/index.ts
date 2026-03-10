@@ -1,4 +1,43 @@
 import OpenAI from "https://esm.sh/openai@4.58.1";
+import { keccak_256 } from "https://esm.sh/@noble/hashes@1.5.0/sha3";
+
+/* ───── deltaCompose encoding ───── */
+
+const COMPOSER_ADDRESSES: Record<number, string> = {
+  1: "0x8e24cfc19c6c00c524353cb8816f5f1c2f33c201",
+  10: "0xCDef0A216fcEF809258aA4f341dB1A5aB296ea72",
+  56: "0x816EBC5cb8A5651C902Cb06659907A93E574Db0B",
+  137: "0xFd245e732b40b6BF2038e42b476bD06580585326",
+  8453: "0xB7ea94340e65CC68d1274aE483dfBE593fD6f21e",
+  42161: "0x05f3f58716a88A52493Be45aA0871c55b3748f18",
+};
+const CALL_FORWARDER = "0xfCa1154C643C32638AEe9a43eeE7f377f515c801";
+
+// Hex helpers (raw hex, no 0x prefix)
+function h8(v: number): string { return v.toString(16).padStart(2, "0"); }
+function h16(v: number): string { return v.toString(16).padStart(4, "0"); }
+function h128(v: bigint): string { return v.toString(16).padStart(32, "0"); }
+function h256(v: bigint): string { return v.toString(16).padStart(64, "0"); }
+function hAddr(a: string): string { return a.slice(2).toLowerCase().padStart(40, "0"); }
+function h256Addr(a: string): string { return hAddr(a).padStart(64, "0"); }
+
+const DELTA_COMPOSE_SELECTOR = (() => {
+  const hash = keccak_256(new TextEncoder().encode("deltaCompose(bytes)"));
+  return Array.from(hash.slice(0, 4)).map(b => b.toString(16).padStart(2, "0")).join("");
+})();
+
+function encodeERC20Approve(spender: string): string {
+  return "0x095ea7b3" + h256Addr(spender) + "f".repeat(64);
+}
+
+function encodeDeltaCompose(opsHex: string): string {
+  const clean = opsHex.startsWith("0x") ? opsHex.slice(2) : opsHex;
+  const byteLen = clean.length / 2;
+  const padLen = (32 - (byteLen % 32)) % 32;
+  return "0x" + DELTA_COMPOSE_SELECTOR +
+    h256(32n) + h256(BigInt(byteLen)) + clean + "00".repeat(padLen);
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
