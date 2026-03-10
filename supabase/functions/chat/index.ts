@@ -1,4 +1,43 @@
 import OpenAI from "https://esm.sh/openai@4.58.1";
+import { keccak_256 } from "https://esm.sh/@noble/hashes@1.5.0/sha3";
+
+/* ───── deltaCompose encoding ───── */
+
+const COMPOSER_ADDRESSES: Record<number, string> = {
+  1: "0x8e24cfc19c6c00c524353cb8816f5f1c2f33c201",
+  10: "0xCDef0A216fcEF809258aA4f341dB1A5aB296ea72",
+  56: "0x816EBC5cb8A5651C902Cb06659907A93E574Db0B",
+  137: "0xFd245e732b40b6BF2038e42b476bD06580585326",
+  8453: "0xB7ea94340e65CC68d1274aE483dfBE593fD6f21e",
+  42161: "0x05f3f58716a88A52493Be45aA0871c55b3748f18",
+};
+const CALL_FORWARDER = "0xfCa1154C643C32638AEe9a43eeE7f377f515c801";
+
+// Hex helpers (raw hex, no 0x prefix)
+function h8(v: number): string { return v.toString(16).padStart(2, "0"); }
+function h16(v: number): string { return v.toString(16).padStart(4, "0"); }
+function h128(v: bigint): string { return v.toString(16).padStart(32, "0"); }
+function h256(v: bigint): string { return v.toString(16).padStart(64, "0"); }
+function hAddr(a: string): string { return a.slice(2).toLowerCase().padStart(40, "0"); }
+function h256Addr(a: string): string { return hAddr(a).padStart(64, "0"); }
+
+const DELTA_COMPOSE_SELECTOR = (() => {
+  const hash = keccak_256(new TextEncoder().encode("deltaCompose(bytes)"));
+  return Array.from(hash.slice(0, 4)).map(b => b.toString(16).padStart(2, "0")).join("");
+})();
+
+function encodeERC20Approve(spender: string): string {
+  return "0x095ea7b3" + h256Addr(spender) + "f".repeat(64);
+}
+
+function encodeDeltaCompose(opsHex: string): string {
+  const clean = opsHex.startsWith("0x") ? opsHex.slice(2) : opsHex;
+  const byteLen = clean.length / 2;
+  const padLen = (32 - (byteLen % 32)) % 32;
+  return "0x" + DELTA_COMPOSE_SELECTOR +
+    h256(32n) + h256(BigInt(byteLen)) + clean + "00".repeat(padLen);
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -148,44 +187,55 @@ async function dispatchTool(name: string, input: any): Promise<string> {
     }
     case "get_token_balances":
       return JSON.stringify(await deltaGet("/data/token/balances", input));
-    // ERC4626 vault deposit (for MetaMorpho vaults)
+    // ERC4626 vault deposit via 1delta deltaCompose
     case "vault_deposit": {
-      const { vaultAddress, assetAddress, amount, operator } = input;
-      // ERC20 approve ABI: approve(address spender, uint256 amount)
-      const approveSelector = "0x095ea7b3";
-      const approveData = approveSelector +
-        vaultAddress.slice(2).padStart(64, "0") +
-        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-      // ERC4626 deposit ABI: deposit(uint256 assets, address receiver)
-      const depositSelector = "0x6e553f65";
-      const amountHex = BigInt(amount).toString(16).padStart(64, "0");
-      const receiverHex = operator.slice(2).padStart(64, "0");
-      const depositData = depositSelector + amountHex + receiverHex;
-      const result = {
+      const { vaultAddress, assetAddress, amount, operator, chainId: cid } = input;
+      const chain = parseInt(cid || "1");
+      const composerAddr = COMPOSER_ADDRESSES[chain];
+      if (!composerAddr) return JSON.stringify({ error: `Unsupported chain ${chain}` });
+      const amt = BigInt(amount);
+
+      // Forwarder ops: APPROVE vault + EXT_CALL vault.deposit(assets, receiver)
+      const depositData = "6e553f65" + h256(amt) + h256Addr(operator);
+      const fwOps =
+        h8(0x40) + h8(5) + hAddr(assetAddress) + hAddr(vaultAddress) +
+        h8(0x20) + hAddr(vaultAddress) + h128(0n) + h16(depositData.length / 2) + depositData;
+
+      // Composer ops: TRANSFER_FROM user→forwarder + EXT_CALL forwarder
+      const composerOps =
+        h8(0x40) + h8(0) + hAddr(assetAddress) + hAddr(CALL_FORWARDER) + h128(amt) +
+        h8(0x20) + hAddr(CALL_FORWARDER) + h128(0n) + h16(fwOps.length / 2) + fwOps;
+
+      return JSON.stringify({
         actions: {
-          permissions: [{ to: assetAddress, data: approveData, value: "0x0", info: `Approve ${vaultAddress} to spend tokens` }],
-          transactions: [{ to: vaultAddress, data: depositData, value: "0x0", info: "Deposit into vault" }],
+          permissions: [{ to: assetAddress, data: encodeERC20Approve(composerAddr), value: "0x0", info: "Approve 1delta composer" }],
+          transactions: [{ to: composerAddr, data: encodeDeltaCompose(composerOps), value: "0x0", info: "Deposit into vault via 1delta composer" }],
         },
         success: true,
-      };
-      return JSON.stringify(result);
+      });
     }
-    // ERC4626 vault withdraw
+    // ERC4626 vault withdraw via 1delta deltaCompose
     case "vault_withdraw": {
-      const { vaultAddress, amount, operator } = input;
-      // ERC4626 withdraw ABI: withdraw(uint256 assets, address receiver, address owner)
-      const withdrawSelector = "0xb460af94";
-      const amtHex = BigInt(amount).toString(16).padStart(64, "0");
-      const addrHex = operator.slice(2).padStart(64, "0");
-      const withdrawData = withdrawSelector + amtHex + addrHex + addrHex;
-      const result = {
+      const { vaultAddress, amount, operator, chainId: cid } = input;
+      const chain = parseInt(cid || "1");
+      const composerAddr = COMPOSER_ADDRESSES[chain];
+      if (!composerAddr) return JSON.stringify({ error: `Unsupported chain ${chain}` });
+      const amt = BigInt(amount);
+
+      // Forwarder ops: EXT_CALL vault.withdraw(assets, receiver, owner)
+      const withdrawData = "b460af94" + h256(amt) + h256Addr(operator) + h256Addr(operator);
+      const fwOps = h8(0x20) + hAddr(vaultAddress) + h128(0n) + h16(withdrawData.length / 2) + withdrawData;
+
+      // Composer ops: EXT_CALL forwarder
+      const composerOps = h8(0x20) + hAddr(CALL_FORWARDER) + h128(0n) + h16(fwOps.length / 2) + fwOps;
+
+      return JSON.stringify({
         actions: {
-          permissions: [],
-          transactions: [{ to: vaultAddress, data: withdrawData, value: "0x0", info: "Withdraw from vault" }],
+          permissions: [{ to: vaultAddress, data: encodeERC20Approve(CALL_FORWARDER), value: "0x0", info: "Approve 1delta to withdraw" }],
+          transactions: [{ to: composerAddr, data: encodeDeltaCompose(composerOps), value: "0x0", info: "Withdraw from vault via 1delta composer" }],
         },
         success: true,
-      };
-      return JSON.stringify(result);
+      });
     }
     // Basic lending actions (via 1delta — for Aave, Compound, Spark, etc.)
     case "get_deposit_calldata":
@@ -256,6 +306,8 @@ function extractAction(toolName: string, rawJson: string, input: any) {
         ? parseInt(input.marketUid.split(":")[1], 10) || undefined
         : typeof input.marketUidIn === "string"
         ? parseInt(input.marketUidIn.split(":")[1], 10) || undefined
+        : typeof input.chainId === "string"
+        ? parseInt(input.chainId, 10) || undefined
         : undefined;
     const toStep = (item: any, desc: string) =>
       item?.to && item?.data
@@ -450,12 +502,12 @@ const TOOLS: any[] = [
       },
     },
   },
-  // ── ERC4626 Vault actions (for MetaMorpho, Euler vaults) ──
+  // ── ERC4626 Vault actions via 1delta deltaCompose ──
   {
     type: "function",
     function: {
       name: "vault_deposit",
-      description: "Deposit into an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'. Do NOT use get_deposit_calldata for these — it will fail.",
+      description: "Deposit into an ERC4626 vault (MetaMorpho, Euler) via 1delta deltaCompose. Use for vaults with id starting with 'morpho-vault:' or 'euler:'. Do NOT use get_deposit_calldata for these.",
       parameters: {
         type: "object",
         properties: {
@@ -463,6 +515,7 @@ const TOOLS: any[] = [
           assetAddress: { type: "string", description: "The underlying asset token address (e.g. USDC address)" },
           amount: { type: "string", description: "Amount in base units (e.g. 1 USDC = '1000000')" },
           operator: { type: "string", description: "Wallet address" },
+          chainId: { type: "string", description: "Chain ID e.g. '1' for Ethereum", default: "1" },
         },
         required: ["vaultAddress", "assetAddress", "amount", "operator"],
       },
@@ -472,13 +525,14 @@ const TOOLS: any[] = [
     type: "function",
     function: {
       name: "vault_withdraw",
-      description: "Withdraw from an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'.",
+      description: "Withdraw from an ERC4626 vault (MetaMorpho, Euler) via 1delta deltaCompose. Use for vaults with id starting with 'morpho-vault:' or 'euler:'.",
       parameters: {
         type: "object",
         properties: {
           vaultAddress: { type: "string", description: "The vault contract address" },
           amount: { type: "string", description: "Amount in base units to withdraw" },
           operator: { type: "string", description: "Wallet address" },
+          chainId: { type: "string", description: "Chain ID e.g. '1' for Ethereum", default: "1" },
         },
         required: ["vaultAddress", "amount", "operator"],
       },
@@ -868,8 +922,10 @@ COLLATERAL & E-MODE MANAGEMENT:
 All leveraged operations use flash loans internally (free from Morpho Blue) and execute through the deltaCompose(bytes) entry point — a single contract call that encodes all sub-operations atomically.
 
 VAULT vs LENDING DEPOSITS (CRITICAL — READ CAREFULLY):
+ALL execution routes through the 1delta deltaCompose contract. Both vault and lending deposits use 1delta infrastructure.
 - **MetaMorpho vaults** (id starts with "morpho-vault:") and **Euler vaults** (id starts with "euler:") are ERC4626 vault contracts.
-  → Use **vault_deposit** / **vault_withdraw** for these. NEVER use get_deposit_calldata — it WILL FAIL with a 500 error.
+  → Use **vault_deposit** / **vault_withdraw** for these. NEVER use get_deposit_calldata — it WILL FAIL.
+  → These are routed through 1delta's deltaCompose via EXT_CALL to the call forwarder.
   → The vaultAddress is the marketUid field (the 0x address).
   → You need the underlying asset's token address. Common addresses on Ethereum:
     USDC: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
@@ -882,12 +938,10 @@ VAULT vs LENDING DEPOSITS (CRITICAL — READ CAREFULLY):
     cbBTC: 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf
     EURC: 0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c
     USDtb: 0xC139190f447E929f090eDeb554D95ABb8B18Ac1c
-  → Example: To deposit 100 USDC into Steakhouse USDC vault (marketUid: 0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB):
-    vault_deposit(vaultAddress="0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB", assetAddress="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", amount="100000000", operator="0xUSER...")
+  → Example: vault_deposit(vaultAddress="0xBEEF...", assetAddress="0xA0b8...", amount="100000000", operator="0xUSER...", chainId="1")
 - **Lending pools** (Aave V3, Compound V3, Spark, etc.) with marketUid format "LENDER:chainId:tokenAddress":
-  → Use **get_deposit_calldata** / **get_withdraw_calldata** for these.
-- Yearn vaults are NOT displayed in the UI and are not supported for actions.
-- Pendle fixed-yield markets are displayed in the UI and available via search_markets for informational queries (APY, TVL, maturity). However, Pendle PT/YT trading execution is NOT supported yet via action tools. If a user asks to buy a Pendle PT or trade on Pendle, explain that execution isn't available yet but show them the market data.
+  → Use **get_deposit_calldata** / **get_withdraw_calldata** — these also route through 1delta's composer.
+- Pendle fixed-yield: informational only, no execution support yet.
 
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
 Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on [Aave V3](market:AAVE_V3:1)."
