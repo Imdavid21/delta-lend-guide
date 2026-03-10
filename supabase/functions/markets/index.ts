@@ -146,7 +146,11 @@ async function fetchMorphoVaults(): Promise<any[]> {
     return items
       .filter((v: any) => {
         const tvl = v.state?.totalAssetsUsd ?? 0;
-        return tvl >= 100000;
+        if (tvl < 100000) return false;
+        // Filter out unrealistic APYs (>100%) — likely reward-gaming or data artifacts
+        const apy = (v.state?.apy ?? 0) * 100;
+        if (apy > 100) return false;
+        return true;
       })
       .map((v: any) => {
         const asset = v.asset?.symbol ?? "";
