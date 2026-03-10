@@ -65,20 +65,54 @@ export default function AppShell({ mode, onToggle }: Props) {
           .slice(-10)
           .map((m) => ({ role: m.role, content: m.content }));
 
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_KEY}`,
-          },
-          body: JSON.stringify({
-            query,
-            history,
-            userAddress: walletConnected ? walletAddress : undefined,
-          }),
+        const payload = JSON.stringify({
+          query,
+          history,
+          userAddress: walletConnected ? walletAddress : undefined,
         });
 
-        const data = await res.json();
+        const fetchWithTimeout = async (timeoutMs: number) => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${SUPABASE_KEY}`,
+              },
+              body: payload,
+              signal: controller.signal,
+            });
+            clearTimeout(timer);
+            if (!res.ok) throw new Error(`Server error (${res.status})`);
+            return res.json();
+          } catch (err: any) {
+            clearTimeout(timer);
+            if (err.name === "AbortError") throw new Error("Request timed out");
+            throw err;
+          }
+        };
+
+        let data: any;
+        try {
+          data = await fetchWithTimeout(55000);
+        } catch (firstErr: any) {
+          // Retry once on failure
+          console.warn("Chat first attempt failed, retrying:", firstErr.message);
+          try {
+            data = await fetchWithTimeout(55000);
+          } catch (retryErr: any) {
+            throw new Error(
+              retryErr.message === "Request timed out"
+                ? "The request timed out. The AI might be processing a complex query — please try again."
+                : retryErr.message === "Failed to fetch"
+                ? "Network error — please check your connection and try again."
+                : retryErr.message
+            );
+          }
+        }
+
         addMessage(cid, {
           role: "assistant",
           content: data.response || data.error || "No response",
