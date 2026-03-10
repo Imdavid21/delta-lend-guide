@@ -119,7 +119,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
           curator { name }
           state {
             totalAssetsUsd
-            netApy
+            apy
           }
         }
       }
@@ -130,13 +130,9 @@ async function fetchMorphoVaults(): Promise<any[]> {
       body: JSON.stringify({ query }),
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) {
-      console.log(`Morpho GraphQL ${res.status}`);
-      return [];
-    }
     const json = await res.json();
-    if (json.errors) {
-      console.log(`Morpho GraphQL errors: ${JSON.stringify(json.errors[0]?.message)}`);
+    if (!res.ok || json.errors) {
+      console.log(`Morpho GraphQL error: ${JSON.stringify(json.errors?.[0]?.message ?? res.status)}`);
       return [];
     }
     const items = json?.data?.vaults?.items ?? [];
