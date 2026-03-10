@@ -450,7 +450,41 @@ const TOOLS: any[] = [
       },
     },
   },
-  // ── Basic lending actions ──
+  // ── ERC4626 Vault actions (for MetaMorpho, Euler vaults) ──
+  {
+    type: "function",
+    function: {
+      name: "vault_deposit",
+      description: "Deposit into an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'. Do NOT use get_deposit_calldata for these — it will fail.",
+      parameters: {
+        type: "object",
+        properties: {
+          vaultAddress: { type: "string", description: "The vault contract address (from marketUid field)" },
+          assetAddress: { type: "string", description: "The underlying asset token address (e.g. USDC address)" },
+          amount: { type: "string", description: "Amount in base units (e.g. 1 USDC = '1000000')" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["vaultAddress", "assetAddress", "amount", "operator"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "vault_withdraw",
+      description: "Withdraw from an ERC4626 vault (MetaMorpho, Euler). Use this for vaults with id starting with 'morpho-vault:' or 'euler:'.",
+      parameters: {
+        type: "object",
+        properties: {
+          vaultAddress: { type: "string", description: "The vault contract address" },
+          amount: { type: "string", description: "Amount in base units to withdraw" },
+          operator: { type: "string", description: "Wallet address" },
+        },
+        required: ["vaultAddress", "amount", "operator"],
+      },
+    },
+  },
+  // ── Basic lending actions (1delta — Aave, Compound, Spark) ──
   {
     type: "function",
     function: {
