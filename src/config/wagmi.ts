@@ -17,9 +17,7 @@ import {
   manta,
   fantom,
 } from "wagmi/chains";
-import { injected, walletConnect } from "wagmi/connectors";
-
-const WC_PROJECT_ID = "d1a01c795abe998a98cfe28e970e2ff5";
+import { injected } from "wagmi/connectors";
 
 export const config = createConfig({
   chains: [
@@ -40,19 +38,7 @@ export const config = createConfig({
     manta,
     fantom,
   ],
-  connectors: [
-    injected(),
-    walletConnect({
-      projectId: WC_PROJECT_ID,
-      metadata: {
-        name: "Klyro",
-        description: "DeFi Yield Intelligence",
-        url: "https://delta-lend-guide.lovable.app",
-        icons: ["https://delta-lend-guide.lovable.app/favicon.ico"],
-      },
-      showQrModal: true,
-    }),
-  ],
+  connectors: [injected({ shimDisconnect: true })],
   transports: {
     [mainnet.id]: http(),
     [optimism.id]: http(),
