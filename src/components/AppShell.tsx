@@ -184,6 +184,9 @@ export default function AppShell({ mode, onToggle }: Props) {
               <Route path="/lending/markets" element={
                 <MarketPage><LendingTable viewMode="lending" /></MarketPage>
               } />
+              <Route path="/borrow/markets" element={
+                <MarketPage><LendingTable viewMode="borrow" /></MarketPage>
+              } />
               <Route path="/lending/vaults" element={
                 <MarketPage><VaultsTable /></MarketPage>
               } />
