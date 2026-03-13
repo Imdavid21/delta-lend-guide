@@ -1,9 +1,8 @@
 import { useState, useMemo, createContext, useContext, useCallback, forwardRef } from "react";
-import { Box, IconButton, Tooltip, Fab, Dialog, Slide, InputBase } from "@mui/material";
+import { Box, IconButton, Tooltip, Dialog, Slide, InputBase } from "@mui/material";
 import { useAccount } from "wagmi";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useWalletAuth } from "../hooks/useWalletAuth";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
 import AppHeader from "./AppHeader";
@@ -317,28 +316,6 @@ export default function AppShell({ mode, onToggle }: Props) {
           </Box>
         </Dialog>
 
-        {/* Chat FAB when dialog is closed */}
-        {!chatOpen && (
-          <Fab
-            size="medium"
-            onClick={() => setChatOpen(true)}
-            sx={{
-              position: "fixed",
-              bottom: 80,
-              right: 24,
-              bgcolor: "text.primary",
-              color: "background.default",
-              "&:hover": { bgcolor: "text.secondary" },
-              zIndex: 1200,
-              boxShadow: (t) =>
-                t.palette.mode === "dark"
-                  ? "0 4px 20px rgba(255,255,255,0.1)"
-                  : "0 4px 20px rgba(0,0,0,0.15)",
-            }}
-          >
-            <ChatBubbleOutlineIcon />
-          </Fab>
-        )}
       </Box>
     </ShellContext.Provider>
   );
@@ -360,7 +337,7 @@ function DashboardContainer({ viewMode, submitAction }: {
           mb: 2.5,
         }}
       >
-      <TopYields viewMode={viewMode} onAction={submitAction} />
+        <TopYields viewMode={viewMode} onAction={submitAction} />
         <PositionsPanel onAskChat={submitAction} />
       </Box>
     </>
