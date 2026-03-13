@@ -12,7 +12,6 @@ const queryClient = new QueryClient();
 
 // Create AppKit instance
 createAppKit({
-  // @ts-ignore - network types are compatible at runtime
   adapters: [wagmiAdapter],
   projectId,
   networks,
