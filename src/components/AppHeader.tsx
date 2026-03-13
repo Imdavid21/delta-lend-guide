@@ -7,7 +7,7 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import HomeIcon from "@mui/icons-material/Home";
 import WalletButton from "./WalletButton";
-import klyroLogo from "@/assets/klyro-logo.png";
+import nebulaLogo from "@/assets/nebula-logo.png";
 
 interface Props {
   mode: "light" | "dark";
@@ -42,8 +42,8 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
         {/* Left: Logo + Brand */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <img
-            src={klyroLogo}
-            alt="Klyro"
+            src={nebulaLogo}
+            alt="Nebula"
             style={{ width: 24, height: 24, filter: mode === "dark" ? "none" : "invert(1)" }}
           />
           <Typography

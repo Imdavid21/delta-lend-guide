@@ -14,14 +14,14 @@ export default function Account() {
   }
 
   // Dummy keys based on address
-  const apiKey = `klyro_live_${address?.substring(2, 24)}`;
+  const apiKey = `nebula_live_${address?.substring(2, 24)}`;
   const mcpConfig = `{
   "mcpServers": {
-    "klyro-defi": {
+    "nebula-defi": {
       "command": "npx",
-      "args": ["-y", "@klyro/mcp-server"],
+      "args": ["-y", "@nebula/mcp-server"],
       "env": {
-        "KLYRO_API_KEY": "${apiKey}"
+        "NEBULA_API_KEY": "${apiKey}"
       }
     }
   }
@@ -42,7 +42,7 @@ export default function Account() {
           API Key
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Use this API key to authenticate requests to the Klyro DeFi intelligence API. Keep your key secure and do not share it publicly.
+          Use this API key to authenticate requests to the Nebula DeFi intelligence API. Keep your key secure and do not share it publicly.
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           <TextField
@@ -67,7 +67,7 @@ export default function Account() {
           MCP Server Configuration
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Add this to your Claude Desktop config (<code>claude_desktop_config.json</code>) or Cursor config to enable the Klyro Model Context Protocol server. This allows your AI assistant to directly query DeFi yields, simulate transactions, and manage your portfolio.
+          Add this to your Claude Desktop config (<code>claude_desktop_config.json</code>) or Cursor config to enable the Nebula Model Context Protocol server. This allows your AI assistant to directly query DeFi yields, simulate transactions, and manage your portfolio.
         </Typography>
         <Box sx={{ position: "relative" }}>
           <TextField

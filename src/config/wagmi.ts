@@ -11,21 +11,18 @@ import {
 } from "@reown/appkit/networks";
 
 /**
- * WalletConnect/Reown project id (required).
+ * WalletConnect/Reown project id.
  *
- * Reown project ids are often restricted by origin in the dashboard. If the
- * id is missing or not configured for the current origin, WalletConnect URI
- * generation fails and the QR area can render blank.
+ * In hosted builders (e.g. Lovable), env vars can be absent at build time.
+ * Use env when provided, otherwise fall back to a known project id so builds
+ * do not fail during module evaluation.
  */
-const configuredProjectId = import.meta.env.WALLETCONNECT_PROJECT_ID;
+const fallbackProjectId = "d1a01c7977c04f18c87214e3e8887b49";
 
-if (!configuredProjectId) {
-  throw new Error(
-    "Missing WALLETCONNECT_PROJECT_ID. Configure a Reown/WalletConnect project ID for this deployment.",
-  );
-}
-
-export const projectId = configuredProjectId;
+export const projectId =
+  import.meta.env.VITE_PROJECT_ID ??
+  import.meta.env.WALLETCONNECT_PROJECT_ID ??
+  fallbackProjectId;
 
 export const networks = [mainnet, optimism, arbitrum, base, polygon, bsc, avalanche] as [AppKitNetwork, ...AppKitNetwork[]];
 

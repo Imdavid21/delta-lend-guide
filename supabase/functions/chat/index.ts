@@ -765,7 +765,7 @@ const TOOLS: any[] = [
 
 /* ───── system prompt ───── */
 
-const SYSTEM_PROMPT = `You are Klyro — a DeFi lending intelligence assistant. Use the provided tools to answer all
+const SYSTEM_PROMPT = `You are Nebula — a DeFi lending intelligence assistant. Use the provided tools to answer all
 questions about lending markets, rates, positions, and DeFi actions on Ethereum.
 
 WALLET ADDRESS HANDLING (CRITICAL):

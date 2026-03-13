@@ -1,4 +1,4 @@
-# 📘 Klyro — Technical Documentation
+# 📘 Nebula — Technical Documentation
 
 > **DeFi Yield Intelligence Platform**
 > A real-time aggregator and AI-powered assistant for DeFi lending, vaults, and fixed-yield markets.
@@ -7,14 +7,14 @@
 
 ## 🎯 Purpose
 
-Klyro solves a core problem in DeFi: **yield fragmentation**. Lending rates, vault APYs, and fixed-yield opportunities are scattered across dozens of protocols (Aave, Compound, Morpho Blue, Euler, Pendle, etc.) on multiple chains. Users have no single place to:
+Nebula solves a core problem in DeFi: **yield fragmentation**. Lending rates, vault APYs, and fixed-yield opportunities are scattered across dozens of protocols (Aave, Compound, Morpho Blue, Euler, Pendle, etc.) on multiple chains. Users have no single place to:
 
 1. **Compare yields** across protocols in real time
 2. **Discover opportunities** like looping strategies or high-APY vaults
 3. **Execute transactions** (deposit, borrow, leverage) without leaving the interface
 4. **Ask natural-language questions** about DeFi markets and get actionable answers
 
-Klyro unifies all of this into a single dashboard with an AI chat assistant that can both inform and execute.
+Nebula unifies all of this into a single dashboard with an AI chat assistant that can both inform and execute.
 
 ---
 
@@ -314,7 +314,8 @@ supabase/
 |----------|----------|---------|
 | `VITE_SUPABASE_URL` | `.env` (auto) | Backend URL for edge functions |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env` (auto) | Anon key for edge function auth |
-| `WALLETCONNECT_PROJECT_ID` | `.env` (required) | WalletConnect/Reown project ID (must allow your app origin for QR generation) |
+| `VITE_PROJECT_ID` | `.env` (recommended) | Primary WalletConnect/Reown project ID (must allow your app origin for QR generation) |
+| `WALLETCONNECT_PROJECT_ID` | `.env` (optional legacy) | Backward-compatible alias if older branches still reference this variable (used if `VITE_PROJECT_ID` is unset) |
 | `OPENAI_API_KEY` | Edge function secret | GPT-4o API access |
 | `ONEDELTA_API_KEY` | Edge function secret | 1delta Portal API access |
 

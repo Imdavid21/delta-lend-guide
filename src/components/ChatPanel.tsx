@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { Box, Typography, Paper, Chip, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import MessageBubble from "./MessageBubble";
-import klyroLogo from "@/assets/klyro-logo.png";
+import nebulaLogo from "@/assets/nebula-logo.png";
 import type { Chat } from "../hooks/useChats";
 
 const SUGGESTIONS = [
@@ -49,8 +49,8 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
         <Box sx={{ mb: 3 }}>
           <Box
             component="img"
-            src={klyroLogo}
-            alt="Klyro"
+            src={nebulaLogo}
+            alt="Nebula"
             sx={{
               width: 56,
               height: 56,
