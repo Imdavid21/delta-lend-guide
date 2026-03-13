@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_PROJECT_ID?: string;
+  readonly WALLETCONNECT_PROJECT_ID?: string;
 }
 
 interface ImportMeta {

@@ -314,7 +314,8 @@ supabase/
 |----------|----------|---------|
 | `VITE_SUPABASE_URL` | `.env` (auto) | Backend URL for edge functions |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env` (auto) | Anon key for edge function auth |
-| `VITE_PROJECT_ID` | `.env` (required) | WalletConnect/Reown project ID (must allow your app origin for QR generation) |
+| `VITE_PROJECT_ID` | `.env` (required) | Primary WalletConnect/Reown project ID (must allow your app origin for QR generation) |
+| `WALLETCONNECT_PROJECT_ID` | `.env` (optional legacy) | Backward-compatible alias if older branches still reference this variable |
 | `OPENAI_API_KEY` | Edge function secret | GPT-4o API access |
 | `ONEDELTA_API_KEY` | Edge function secret | 1delta Portal API access |
 

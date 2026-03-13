@@ -13,15 +13,15 @@ import {
 /**
  * WalletConnect/Reown project id (required).
  *
- * Reown project ids are often restricted by origin in the dashboard. If the
- * id is missing or not configured for the current origin, WalletConnect URI
- * generation fails and the QR area can render blank.
+ * Prefer VITE_PROJECT_ID. WALLETCONNECT_PROJECT_ID is also accepted as a
+ * compatibility fallback to ease merge/conflict resolution across branches.
  */
-const configuredProjectId = import.meta.env.VITE_PROJECT_ID;
+const configuredProjectId =
+  import.meta.env.VITE_PROJECT_ID ?? import.meta.env.WALLETCONNECT_PROJECT_ID;
 
 if (!configuredProjectId) {
   throw new Error(
-    "Missing VITE_PROJECT_ID. Configure a Reown/WalletConnect project ID for this deployment.",
+    "Missing VITE_PROJECT_ID (or WALLETCONNECT_PROJECT_ID). Configure a Reown/WalletConnect project ID for this deployment.",
   );
 }
 
