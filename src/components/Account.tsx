@@ -13,8 +13,8 @@ export default function Account() {
     );
   }
 
-  // Dummy keys based on address
-  const apiKey = `klyro_live_${address?.substring(2, 24)}`;
+  // API key in wallet-style format starting with 0x
+  const apiKey = `0x${address?.substring(2, 10)}${Math.random().toString(16).substring(2, 10)}${address?.substring(address.length - 8)}`;
   const mcpConfig = `{
   "mcpServers": {
     "klyro-defi": {
@@ -38,11 +38,11 @@ export default function Account() {
       </Typography>
 
       <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
-        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-          API Key
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+          API Key (Read & Write)
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Use this API key to authenticate requests to the Klyro DeFi intelligence API. Keep your key secure and do not share it publicly.
+          Use this API key to authenticate requests to the Klyro DeFi intelligence API. This key supports both **Read** (yield discovery) and **Write** (strategy execution) operations. Keep it secure.
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           <TextField
@@ -63,11 +63,11 @@ export default function Account() {
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
-        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-          MCP Server Configuration
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+          MCP Server Configuration (Read & Write)
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Add this to your Claude Desktop config (<code>claude_desktop_config.json</code>) or Cursor config to enable the Klyro Model Context Protocol server. This allows your AI assistant to directly query DeFi yields, simulate transactions, and manage your portfolio.
+          Add this to your Claude Desktop config (<code>claude_desktop_config.json</code>) or Cursor config to enable the Klyro Model Context Protocol server. This allows your AI assistant to directly query yields (**Read**) and execute transactions (**Write**) via your Klyro strategies.
         </Typography>
         <Box sx={{ position: "relative" }}>
           <TextField

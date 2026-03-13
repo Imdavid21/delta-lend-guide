@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { getTheme } from "./theme";
 import { config } from "./config/wagmi";
 import AppShell from "./components/AppShell";
+import { WalletProvider } from "./hooks/useWalletMode";
 
 const queryClient = new QueryClient();
 
@@ -36,12 +37,14 @@ export default function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <BrowserRouter>
-            <AppShell mode={mode} onToggle={toggle} />
-          </BrowserRouter>
-        </ThemeProvider>
+        <WalletProvider>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <BrowserRouter>
+              <AppShell mode={mode} onToggle={toggle} />
+            </BrowserRouter>
+          </ThemeProvider>
+        </WalletProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
