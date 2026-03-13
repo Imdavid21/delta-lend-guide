@@ -182,13 +182,13 @@ export default function AppShell({ mode, onToggle }: Props) {
                 <DashboardContainer viewMode="borrow" submitAction={submitAction} />
               } />
               <Route path="/lending/markets" element={
-                <MarketPage title="Lending Markets"><LendingTable viewMode="lending" /></MarketPage>
+                <MarketPage><LendingTable viewMode="lending" /></MarketPage>
               } />
               <Route path="/lending/vaults" element={
-                <MarketPage title="Vaults"><VaultsTable /></MarketPage>
+                <MarketPage><VaultsTable /></MarketPage>
               } />
               <Route path="/lending/fixed" element={
-                <MarketPage title="Fixed Yield"><FixedYieldTable /></MarketPage>
+                <MarketPage><FixedYieldTable /></MarketPage>
               } />
               <Route path="/account" element={<Account />} />
             </Routes>
