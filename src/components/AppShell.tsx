@@ -136,10 +136,11 @@ export default function AppShell({ mode, onToggle }: Props) {
   const submitAction = useCallback(
     (prompt: string) => {
       setChatOpen(true);
-      const cid = createChat();
+      // Continue in the current chat if one exists, otherwise create a new one
+      const cid = activeChatId ?? createChat();
       setTimeout(() => sendMessage(prompt, cid), 100);
     },
-    [createChat, sendMessage],
+    [activeChatId, createChat, sendMessage],
   );
 
   const ctx = useMemo(() => ({ submitAction }), [submitAction]);
