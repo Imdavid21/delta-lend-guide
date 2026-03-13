@@ -34,7 +34,7 @@ function YieldCard({
         bgcolor: "background.default",
       }}
     >
-      <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider" }}>
+      <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography
           variant="caption"
           sx={{
@@ -47,6 +47,15 @@ function YieldCard({
         >
           {title}
         </Typography>
+        {onSeeAll && (
+          <Button
+            size="small"
+            onClick={onSeeAll}
+            sx={{ fontSize: 10, fontWeight: 600, textTransform: "none", minWidth: 0, px: 1, py: 0, color: "text.secondary" }}
+          >
+            See All →
+          </Button>
+        )}
       </Box>
       <List dense disablePadding>
         {loading
