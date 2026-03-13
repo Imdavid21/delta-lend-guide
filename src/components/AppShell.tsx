@@ -171,7 +171,6 @@ export default function AppShell({ mode, onToggle }: Props) {
             }}
           >
             <Routes>
-<<<<<<< HEAD
               <Route path="/" element={<Navigate to="/lending" replace />} />
               <Route path="/lending" element={
                 <DashboardContainer
@@ -184,26 +183,6 @@ export default function AppShell({ mode, onToggle }: Props) {
                   viewMode="borrow"
                   submitAction={submitAction}
                 />
-=======
-              <Route path="/" element={
-                <>
-                  <Box sx={{ mb: 2.5 }}>
-                    <HeroStats />
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
-                      gap: 2,
-                      mb: 2.5,
-                    }}
-                  >
-                    <TopYields onAction={submitAction} />
-                    <PositionsPanel onAskChat={submitAction} />
-                  </Box>
-                  <MarketExplorer />
-                </>
->>>>>>> 5e652cceef9270da76c11ec338cb7d8886c9b578
               } />
               <Route path="/account" element={<Account />} />
             </Routes>
