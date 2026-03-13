@@ -14,7 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      wallet_users: {
+        Row: {
+          chain_id: number | null
+          created_at: string
+          id: string
+          last_connected_at: string
+          wallet_address: string
+        }
+        Insert: {
+          chain_id?: number | null
+          created_at?: string
+          id?: string
+          last_connected_at?: string
+          wallet_address: string
+        }
+        Update: {
+          chain_id?: number | null
+          created_at?: string
+          id?: string
+          last_connected_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
