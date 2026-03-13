@@ -1,6 +1,7 @@
 import { useState, useMemo, createContext, useContext, useCallback } from "react";
 import { Box, IconButton, Tooltip, Fab, Dialog, Slide, InputBase } from "@mui/material";
 import { useAccount } from "wagmi";
+import { useWalletAuth } from "../hooks/useWalletAuth";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
