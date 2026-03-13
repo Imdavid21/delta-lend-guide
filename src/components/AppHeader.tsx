@@ -1,13 +1,10 @@
-import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Badge, Tooltip } from "@mui/material";
+import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Badge } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAccount } from "wagmi";
-import { useWalletMode } from "../hooks/useWalletMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import BusinessIcon from "@mui/icons-material/Business";
-import PersonIcon from "@mui/icons-material/Person";
 import HomeIcon from "@mui/icons-material/Home";
 import WalletButton from "./WalletButton";
 import klyroLogo from "@/assets/klyro-logo.png";
@@ -21,7 +18,6 @@ interface Props {
 
 export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Props) {
   const { isConnected } = useAccount();
-  const { mode: walletMode, setMode: setWalletMode } = useWalletMode();
   const navigate = useNavigate();
   const location = useLocation();
   return (
@@ -46,37 +42,6 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
         <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11 }}>
           DeFi Yield Intelligence
         </Typography>
-
-        <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
-
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-          <IconButton
-            size="small"
-            onClick={() => setWalletMode("retail")}
-            sx={{
-              color: walletMode === "retail" ? "primary.main" : "text.secondary",
-              bgcolor: walletMode === "retail" ? "action.selected" : "transparent",
-              borderRadius: 2,
-            }}
-          >
-            <Tooltip title="Retail Mode">
-              <PersonIcon fontSize="small" />
-            </Tooltip>
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => setWalletMode("institutional")}
-            sx={{
-              color: walletMode === "institutional" ? "primary.main" : "text.secondary",
-              bgcolor: walletMode === "institutional" ? "action.selected" : "transparent",
-              borderRadius: 2,
-            }}
-          >
-            <Tooltip title="Institutional Mode (BitGo)">
-              <BusinessIcon fontSize="small" />
-            </Tooltip>
-          </IconButton>
-        </Box>
 
         <Box sx={{ flex: 1 }} />
 

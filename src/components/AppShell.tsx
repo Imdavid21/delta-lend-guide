@@ -14,10 +14,7 @@ import HeroStats from "./dashboard/HeroStats";
 import TopYields from "./dashboard/TopYields";
 import MarketExplorer from "./dashboard/MarketExplorer";
 import PositionsPanel from "./dashboard/PositionsPanel";
-import BitGoLogin from "./dashboard/BitGoLogin";
-import InstitutionalDashboard from "./dashboard/InstitutionalDashboard";
 import Account from "./Account";
-import { useWalletMode } from "../hooks/useWalletMode";
 import { useChats, type ChatMessage } from "../hooks/useChats";
 import type { TransitionProps } from "@mui/material/transitions";
 
@@ -44,7 +41,6 @@ const SlideUp = forwardRef(function SlideUp(
 export default function AppShell({ mode, onToggle }: Props) {
   const [chatInput, setChatInput] = useState("");
   const { address: walletAddress, isConnected: walletConnected } = useAccount();
-  const { mode: walletMode, bitgoToken } = useWalletMode();
   useWalletAuth(); // Register/update wallet in DB on connect
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
     useChats();
@@ -176,31 +172,23 @@ export default function AppShell({ mode, onToggle }: Props) {
           >
             <Routes>
               <Route path="/" element={
-                walletMode === "institutional" ? (
-                  !bitgoToken ? (
-                    <BitGoLogin />
-                  ) : (
-                    <InstitutionalDashboard />
-                  )
-                ) : (
-                  <>
-                    <Box sx={{ mb: 2.5 }}>
-                      <HeroStats />
-                    </Box>
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
-                        gap: 2,
-                        mb: 2.5,
-                      }}
-                    >
-                      <TopYields onAction={submitAction} />
-                      <PositionsPanel onAskChat={submitAction} />
-                    </Box>
-                    <MarketExplorer />
-                  </>
-                )
+                <>
+                  <Box sx={{ mb: 2.5 }}>
+                    <HeroStats />
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
+                      gap: 2,
+                      mb: 2.5,
+                    }}
+                  >
+                    <TopYields onAction={submitAction} />
+                    <PositionsPanel onAskChat={submitAction} />
+                  </Box>
+                  <MarketExplorer />
+                </>
               } />
               <Route path="/account" element={<Account />} />
             </Routes>
