@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import {
-  Box, Paper, Typography, Skeleton, List, ListItemButton, ListItemText, Chip,
+  Box, Paper, Typography, Skeleton, List, ListItemButton, ListItemText, Button,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
