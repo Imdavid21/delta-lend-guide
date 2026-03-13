@@ -1,6 +1,7 @@
-import { useState, useMemo, createContext, useContext, useCallback } from "react";
+import { useState, useMemo, createContext, useContext, useCallback, forwardRef } from "react";
 import { Box, IconButton, Tooltip, Fab, Dialog, Slide, InputBase } from "@mui/material";
 import { useAccount } from "wagmi";
+import { Routes, Route } from "react-router-dom";
 import { useWalletAuth } from "../hooks/useWalletAuth";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import SendIcon from "@mui/icons-material/Send";
@@ -13,8 +14,8 @@ import HeroStats from "./dashboard/HeroStats";
 import TopYields from "./dashboard/TopYields";
 import MarketExplorer from "./dashboard/MarketExplorer";
 import PositionsPanel from "./dashboard/PositionsPanel";
+import Account from "./Account";
 import { useChats, type ChatMessage } from "../hooks/useChats";
-import { forwardRef } from "react";
 import type { TransitionProps } from "@mui/material/transitions";
 
 export type TabId = "overview" | "lending" | "vaults" | "fixed" | "chat";
@@ -169,21 +170,28 @@ export default function AppShell({ mode, onToggle }: Props) {
               width: "100%",
             }}
           >
-            <Box sx={{ mb: 2.5 }}>
-              <HeroStats />
-            </Box>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
-                gap: 2,
-                mb: 2.5,
-              }}
-            >
-              <TopYields onAction={submitAction} />
-              <PositionsPanel onAskChat={submitAction} />
-            </Box>
-            <MarketExplorer />
+            <Routes>
+              <Route path="/" element={
+                <>
+                  <Box sx={{ mb: 2.5 }}>
+                    <HeroStats />
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
+                      gap: 2,
+                      mb: 2.5,
+                    }}
+                  >
+                    <TopYields onAction={submitAction} />
+                    <PositionsPanel onAskChat={submitAction} />
+                  </Box>
+                  <MarketExplorer />
+                </>
+              } />
+              <Route path="/account" element={<Account />} />
+            </Routes>
           </Box>
 
           <CommandBar

@@ -1,7 +1,11 @@
 import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Badge } from "@mui/material";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAccount } from "wagmi";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import HomeIcon from "@mui/icons-material/Home";
 import WalletButton from "./WalletButton";
 import klyroLogo from "@/assets/klyro-logo.png";
 
@@ -13,6 +17,9 @@ interface Props {
 }
 
 export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Props) {
+  const { isConnected } = useAccount();
+  const navigate = useNavigate();
+  const location = useLocation();
   return (
     <AppBar
       position="sticky"
@@ -38,6 +45,25 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
 
         <Box sx={{ flex: 1 }} />
 
+        {isConnected && (
+          <IconButton
+            size="small"
+            onClick={() => navigate(location.pathname === "/account" ? "/" : "/account")}
+            sx={{
+              color: location.pathname === "/account" ? "text.primary" : "text.secondary",
+              bgcolor: location.pathname === "/account" ? "action.selected" : "transparent",
+              borderRadius: 2,
+              "&:hover": { bgcolor: "action.hover" },
+              mr: 1
+            }}
+          >
+            {location.pathname === "/account" ? (
+              <HomeIcon fontSize="small" />
+            ) : (
+              <AccountCircleIcon fontSize="small" />
+            )}
+          </IconButton>
+        )}
         <WalletButton />
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <IconButton
