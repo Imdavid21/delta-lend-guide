@@ -7,10 +7,12 @@ import type { Chat } from "../hooks/useChats";
 
 const SUGGESTIONS = [
   "Best USDC lending rates on Ethereum",
+  "Lowest USDC borrow APR on Ethereum",
   "Compare ETH supply APY across protocols",
   "Show Morpho Blue vault yields",
   "What Pendle fixed yields are available?",
   "Top 5 markets by TVL",
+  "Show my borrowing positions",
   "Show my positions",
 ];
 
@@ -60,7 +62,7 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
           How can I help?
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Ask about lending markets, vault yields, fixed rates, or execute DeFi actions.
+          Ask about lending and borrowing markets, vault yields, fixed rates, or execute DeFi actions.
         </Typography>
 
         {/* Quick Actions */}
