@@ -170,11 +170,11 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         gap: 1.5,
       }}
     >
-      <YieldCard title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"} items={topLending} loading={ll} />
+      <YieldCard title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"} items={topLending} loading={ll} onSeeAll={() => navigate("/lending/markets")} />
       {isLending && (
         <>
-          <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} />
-          <YieldCard title="Top Fixed Yields" items={topFixed} loading={pl} />
+          <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} onSeeAll={() => navigate("/lending/vaults")} />
+          <YieldCard title="Top Fixed Yields" items={topFixed} loading={pl} onSeeAll={() => navigate("/lending/fixed")} />
         </>
       )}
     </Box>

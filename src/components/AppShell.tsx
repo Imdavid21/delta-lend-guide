@@ -357,10 +357,9 @@ function DashboardContainer({ viewMode, submitAction }: {
           mb: 2.5,
         }}
       >
-        <TopYields viewMode={viewMode} onAction={submitAction} />
+      <TopYields viewMode={viewMode} onAction={submitAction} />
         <PositionsPanel onAskChat={submitAction} />
       </Box>
-      <MarketExplorer viewMode={viewMode} />
     </>
   );
 }
