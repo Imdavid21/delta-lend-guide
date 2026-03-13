@@ -76,8 +76,6 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
           </Button>
         </Box>
 
-
-
         <Box sx={{ flex: 1 }} />
 
         {isConnected && (
