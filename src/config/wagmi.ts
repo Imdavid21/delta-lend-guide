@@ -1,4 +1,4 @@
-import { http, createConfig } from "wagmi";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import {
   mainnet,
   optimism,
@@ -7,54 +7,15 @@ import {
   polygon,
   bsc,
   avalanche,
-  mantle,
-  linea,
-  scroll,
-  blast,
-  mode,
-  gnosis,
-  metis,
-  manta,
-  fantom,
-} from "wagmi/chains";
-import { injected } from "wagmi/connectors";
+} from "@reown/appkit/networks";
 
-export const config = createConfig({
-  chains: [
-    mainnet,
-    optimism,
-    arbitrum,
-    base,
-    polygon,
-    bsc,
-    avalanche,
-    mantle,
-    linea,
-    scroll,
-    blast,
-    mode,
-    gnosis,
-    metis,
-    manta,
-    fantom,
-  ],
-  connectors: [injected({ shimDisconnect: true })],
-  transports: {
-    [mainnet.id]: http(),
-    [optimism.id]: http(),
-    [arbitrum.id]: http(),
-    [base.id]: http(),
-    [polygon.id]: http(),
-    [bsc.id]: http(),
-    [avalanche.id]: http(),
-    [mantle.id]: http(),
-    [linea.id]: http(),
-    [scroll.id]: http(),
-    [blast.id]: http(),
-    [mode.id]: http(),
-    [gnosis.id]: http(),
-    [metis.id]: http(),
-    [manta.id]: http(),
-    [fantom.id]: http(),
-  },
+export const projectId = "d1a01c7977c04f18c87214e3e8887b49";
+
+export const networks = [mainnet, optimism, arbitrum, base, polygon, bsc, avalanche];
+
+export const wagmiAdapter = new WagmiAdapter({
+  projectId,
+  networks,
 });
+
+export const config = wagmiAdapter.wagmiConfig;
