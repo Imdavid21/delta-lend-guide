@@ -219,7 +219,7 @@ AI returns transactions array
 
 | Source | Endpoint | Data |
 |--------|----------|------|
-| 1delta Portal | `/v1/data/lending/pools?chainId=1&count=200` | All lending pool rates, TVL, utilization |
+| 1delta Portal | `/v1/data/lending/pools?chainId=1|8453&count=200` | All lending pool rates, TVL, utilization |
 | Morpho Blue GraphQL | `https://blue-api.morpho.org/graphql` | Vault names, curator info, market pairs |
 | Pendle Finance | `https://api-v2.pendle.finance/core/v1/markets/all?chainId=1` | Fixed yield markets, implied APY, expiry |
 

@@ -17,40 +17,26 @@ const fetcher = async (url: string) => {
 
 const opts = { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 30_000 };
 
-const STABLECOINS = ["USDC", "USDT", "DAI", "USDE", "SUSDE", "FRAX", "GHO", "EUSD", "CRVUSD", "LUSD", "PYUSD", "USDC.E"];
-
 export function useMarkets() {
-  const res = useSWR<Market[]>(
+  return useSWR<Market[]>(
     `${SUPABASE_URL}/functions/v1/markets?type=lending`,
     fetcher,
     opts,
   );
-  return {
-    ...res,
-    data: res.data ? res.data.filter((m) => STABLECOINS.includes(m.asset.toUpperCase())) : undefined,
-  };
 }
 
 export function useVaults() {
-  const res = useSWR<Vault[]>(
+  return useSWR<Vault[]>(
     `${SUPABASE_URL}/functions/v1/markets?type=vaults`,
     fetcher,
     opts,
   );
-  return {
-    ...res,
-    data: res.data ? res.data.filter((m) => STABLECOINS.includes(m.asset.toUpperCase())) : undefined,
-  };
 }
 
 export function usePendle() {
-  const res = useSWR<PendleMarket[]>(
+  return useSWR<PendleMarket[]>(
     `${SUPABASE_URL}/functions/v1/markets?type=pendle`,
     fetcher,
     opts,
   );
-  return {
-    ...res,
-    data: res.data ? res.data.filter((m) => STABLECOINS.includes(m.asset.toUpperCase())) : undefined,
-  };
 }
