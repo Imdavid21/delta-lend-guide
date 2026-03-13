@@ -116,6 +116,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
   const { data: lending, isLoading: ll } = useMarkets();
   const { data: vaults, isLoading: vl } = useVaults();
   const { data: pendle, isLoading: pl } = usePendle();
+  const navigate = useNavigate();
 
   const isLending = viewMode === "lending";
 
