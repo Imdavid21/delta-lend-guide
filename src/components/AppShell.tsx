@@ -12,7 +12,10 @@ import ChatSidebar from "./ChatSidebar";
 import ChatPanel from "./ChatPanel";
 import HeroStats from "./dashboard/HeroStats";
 import TopYields from "./dashboard/TopYields";
-import MarketExplorer from "./dashboard/MarketExplorer";
+import MarketPage from "./dashboard/MarketPage";
+import LendingTable from "./markets/LendingTable";
+import VaultsTable from "./markets/VaultsTable";
+import FixedYieldTable from "./markets/FixedYieldTable";
 import PositionsPanel from "./dashboard/PositionsPanel";
 import Account from "./Account";
 import { useChats, type ChatMessage } from "../hooks/useChats";
@@ -173,16 +176,19 @@ export default function AppShell({ mode, onToggle }: Props) {
             <Routes>
               <Route path="/" element={<Navigate to="/lending" replace />} />
               <Route path="/lending" element={
-                <DashboardContainer
-                  viewMode="lending"
-                  submitAction={submitAction}
-                />
+                <DashboardContainer viewMode="lending" submitAction={submitAction} />
               } />
               <Route path="/borrow" element={
-                <DashboardContainer
-                  viewMode="borrow"
-                  submitAction={submitAction}
-                />
+                <DashboardContainer viewMode="borrow" submitAction={submitAction} />
+              } />
+              <Route path="/lending/markets" element={
+                <MarketPage title="Lending Markets"><LendingTable viewMode="lending" /></MarketPage>
+              } />
+              <Route path="/lending/vaults" element={
+                <MarketPage title="Vaults"><VaultsTable /></MarketPage>
+              } />
+              <Route path="/lending/fixed" element={
+                <MarketPage title="Fixed Yield"><FixedYieldTable /></MarketPage>
               } />
               <Route path="/account" element={<Account />} />
             </Routes>
@@ -351,10 +357,9 @@ function DashboardContainer({ viewMode, submitAction }: {
           mb: 2.5,
         }}
       >
-        <TopYields viewMode={viewMode} onAction={submitAction} />
+      <TopYields viewMode={viewMode} onAction={submitAction} />
         <PositionsPanel onAskChat={submitAction} />
       </Box>
-      <MarketExplorer viewMode={viewMode} />
     </>
   );
 }

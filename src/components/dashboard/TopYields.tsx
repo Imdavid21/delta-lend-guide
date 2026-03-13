@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import {
-  Box, Paper, Typography, Skeleton, List, ListItemButton, ListItemText, Chip,
+  Box, Paper, Typography, Skeleton, List, ListItemButton, ListItemText, Button,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
@@ -15,10 +16,12 @@ function YieldCard({
   title,
   items,
   loading,
+  onSeeAll,
 }: {
   title: string;
   items: { id: string; label: string; sub: string; apy: string; icon: React.ReactNode }[] | null;
   loading: boolean;
+  onSeeAll?: () => void;
 }) {
   return (
     <Paper
@@ -31,7 +34,7 @@ function YieldCard({
         bgcolor: "background.default",
       }}
     >
-      <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider" }}>
+      <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography
           variant="caption"
           sx={{
@@ -44,6 +47,15 @@ function YieldCard({
         >
           {title}
         </Typography>
+        {onSeeAll && (
+          <Button
+            size="small"
+            onClick={onSeeAll}
+            sx={{ fontSize: 10, fontWeight: 600, textTransform: "none", minWidth: 0, px: 1, py: 0, color: "text.secondary" }}
+          >
+            See All →
+          </Button>
+        )}
       </Box>
       <List dense disablePadding>
         {loading
@@ -104,6 +116,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
   const { data: lending, isLoading: ll } = useMarkets();
   const { data: vaults, isLoading: vl } = useVaults();
   const { data: pendle, isLoading: pl } = usePendle();
+  const navigate = useNavigate();
 
   const isLending = viewMode === "lending";
 
@@ -157,11 +170,11 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         gap: 1.5,
       }}
     >
-      <YieldCard title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"} items={topLending} loading={ll} />
+      <YieldCard title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"} items={topLending} loading={ll} onSeeAll={() => navigate("/lending/markets")} />
       {isLending && (
         <>
-          <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} />
-          <YieldCard title="Top Fixed Yields" items={topFixed} loading={pl} />
+          <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} onSeeAll={() => navigate("/lending/vaults")} />
+          <YieldCard title="Top Fixed Yields" items={topFixed} loading={pl} onSeeAll={() => navigate("/lending/fixed")} />
         </>
       )}
     </Box>
