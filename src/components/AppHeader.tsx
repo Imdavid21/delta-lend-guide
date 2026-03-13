@@ -1,13 +1,10 @@
-import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Badge, Tooltip } from "@mui/material";
-import { useNavigate, useLocation } from "react-router-dom";
+import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Badge, Tooltip, Button } from "@mui/material";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAccount } from "wagmi";
-import { useWalletMode } from "../hooks/useWalletMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import BusinessIcon from "@mui/icons-material/Business";
-import PersonIcon from "@mui/icons-material/Person";
 import HomeIcon from "@mui/icons-material/Home";
 import WalletButton from "./WalletButton";
 import klyroLogo from "@/assets/klyro-logo.png";
@@ -21,7 +18,6 @@ interface Props {
 
 export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Props) {
   const { isConnected } = useAccount();
-  const { mode: walletMode, setMode: setWalletMode } = useWalletMode();
   const navigate = useNavigate();
   const location = useLocation();
   return (
@@ -35,48 +31,52 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 2 }}>
           <img src={klyroLogo} alt="Klyro" style={{ width: 24, height: 24, filter: mode === "dark" ? "none" : "invert(1)" }} />
           <Typography
-            variant="subtitle1"
-            fontWeight={800}
-            sx={{ letterSpacing: "-0.03em", fontSize: "1.1rem" }}
+            variant="h6"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: -0.5,
+              background: (t) => `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.primary.light})`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              mr: 2
+            }}
           >
-            Klyro
+            Financial Intelligence
           </Typography>
         </Box>
 
-        <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 11 }}>
-          DeFi Yield Intelligence
-        </Typography>
-
-        <Divider orientation="vertical" flexItem sx={{ mx: 2 }} />
-
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-          <IconButton
+        <Box sx={{ display: "flex", ml: 4, gap: 1 }}>
+          <Button
+            component={Link}
+            to="/lending"
             size="small"
-            onClick={() => setWalletMode("retail")}
             sx={{
-              color: walletMode === "retail" ? "primary.main" : "text.secondary",
-              bgcolor: walletMode === "retail" ? "action.selected" : "transparent",
-              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              color: location.pathname.startsWith("/lending") || location.pathname === "/" ? "primary.main" : "text.secondary",
+              bgcolor: location.pathname.startsWith("/lending") || location.pathname === "/" ? "action.selected" : "transparent",
+              "&:hover": { bgcolor: "action.hover" }
             }}
           >
-            <Tooltip title="Retail Mode">
-              <PersonIcon fontSize="small" />
-            </Tooltip>
-          </IconButton>
-          <IconButton
+            Lending
+          </Button>
+          <Button
+            component={Link}
+            to="/borrow"
             size="small"
-            onClick={() => setWalletMode("institutional")}
             sx={{
-              color: walletMode === "institutional" ? "primary.main" : "text.secondary",
-              bgcolor: walletMode === "institutional" ? "action.selected" : "transparent",
-              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              color: location.pathname.startsWith("/borrow") ? "primary.main" : "text.secondary",
+              bgcolor: location.pathname.startsWith("/borrow") ? "action.selected" : "transparent",
+              "&:hover": { bgcolor: "action.hover" }
             }}
           >
-            <Tooltip title="Institutional Mode (BitGo)">
-              <BusinessIcon fontSize="small" />
-            </Tooltip>
-          </IconButton>
+            Borrow
+          </Button>
         </Box>
+
+
 
         <Box sx={{ flex: 1 }} />
 

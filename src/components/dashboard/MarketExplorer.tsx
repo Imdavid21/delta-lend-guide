@@ -8,8 +8,9 @@ import LoopingStrategies from "./LoopingStrategies";
 
 type MarketTab = "lending" | "vaults" | "fixed" | "looping";
 
-export default function MarketExplorer() {
+export default function MarketExplorer({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
   const [tab, setTab] = useState<MarketTab>("lending");
+  const isLending = viewMode === "lending";
 
   return (
     <Box>
@@ -34,15 +35,15 @@ export default function MarketExplorer() {
           },
         }}
       >
-        <Tab label="Lending" value="lending" />
-        <Tab label="Vaults" value="vaults" />
-        <Tab label="Fixed Yield" value="fixed" />
+        <Tab label={isLending ? "Lending" : "Markets"} value="lending" />
+        {isLending && <Tab label="Vaults" value="vaults" />}
+        {isLending && <Tab label="Fixed Yield" value="fixed" />}
         <Tab label="Looping" value="looping" />
       </Tabs>
       <Box>
-        {tab === "lending" && <LendingTable />}
-        {tab === "vaults" && <VaultsTable />}
-        {tab === "fixed" && <FixedYieldTable />}
+        {tab === "lending" && <LendingTable viewMode={viewMode} />}
+        {isLending && tab === "vaults" && <VaultsTable />}
+        {isLending && tab === "fixed" && <FixedYieldTable />}
         {tab === "looping" && <LoopingStrategies />}
       </Box>
     </Box>

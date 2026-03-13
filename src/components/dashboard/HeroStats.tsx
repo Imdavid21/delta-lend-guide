@@ -65,14 +65,20 @@ function Stat({ label, value, sub, accent }: StatProps) {
   );
 }
 
-export default function HeroStats() {
+export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
   const { data: lending } = useMarkets();
   const { data: vaults } = useVaults();
   const { data: pendle } = usePendle();
 
+  const isLending = viewMode === "lending";
+
   const bestLending = lending?.length
-    ? lending.reduce((a, b) => (a.supplyAPY > b.supplyAPY ? a : b))
+    ? lending.reduce((a, b) => {
+        if (isLending) return a.supplyAPY > b.supplyAPY ? a : b;
+        return (a.borrowAPR ?? 999) < (b.borrowAPR ?? 999) ? a : b;
+      })
     : null;
+
   const bestVault = vaults?.length
     ? vaults.reduce((a, b) => (a.apy > b.apy ? a : b))
     : null;
@@ -103,8 +109,8 @@ export default function HeroStats() {
       }}
     >
       <Stat
-        label="Best Lending APY"
-        value={bestLending ? formatPercent(bestLending.supplyAPY) : null}
+        label={isLending ? "Best Lending APY" : "Lowest Borrow APR"}
+        value={bestLending ? formatPercent(isLending ? bestLending.supplyAPY : bestLending.borrowAPR) : null}
         sub={bestLending ? `${bestLending.asset} · ${bestLending.protocolName}` : undefined}
         accent
       />
@@ -121,14 +127,14 @@ export default function HeroStats() {
         accent
       />
       <Stat
-        label="Total TVL"
+        label={isLending ? "Total TVL" : "Aggregate Liquidity"}
         value={totalTVL !== null ? formatUSD(totalTVL) : null}
         sub="Across all protocols"
       />
       <Stat
         label="Markets Tracked"
         value={marketCount !== null ? String(marketCount) : null}
-        sub="Lending · Vaults · Fixed"
+        sub={isLending ? "Lending · Vaults · Fixed" : "Borrow Markets"}
       />
     </Box>
   );

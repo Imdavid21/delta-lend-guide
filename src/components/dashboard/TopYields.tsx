@@ -7,6 +7,7 @@ import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 
 interface Props {
+  viewMode?: "lending" | "borrow";
   onAction: (prompt: string) => void;
 }
 
@@ -99,24 +100,26 @@ function YieldCard({
   );
 }
 
-export default function TopYields({ onAction }: Props) {
+export default function TopYields({ viewMode = "lending", onAction }: Props) {
   const { data: lending, isLoading: ll } = useMarkets();
   const { data: vaults, isLoading: vl } = useVaults();
   const { data: pendle, isLoading: pl } = usePendle();
 
+  const isLending = viewMode === "lending";
+
   const topLending = useMemo(() => {
     if (!lending) return null;
     return [...lending]
-      .sort((a, b) => b.supplyAPY - a.supplyAPY)
+      .sort((a, b) => isLending ? (b.supplyAPY - a.supplyAPY) : ((a.borrowAPR ?? 999) - (b.borrowAPR ?? 999)))
       .slice(0, 5)
       .map((m) => ({
         id: m.id,
         label: `${m.asset} · ${m.protocolName}`,
         sub: `${formatUSD(m.totalSupplyUSD)} TVL`,
-        apy: formatPercent(m.supplyAPY),
+        apy: formatPercent(isLending ? m.supplyAPY : m.borrowAPR),
         icon: <AssetIcon symbol={m.asset} size={18} />,
       }));
-  }, [lending]);
+  }, [lending, isLending]);
 
   const topVaults = useMemo(() => {
     if (!vaults) return null;
@@ -150,13 +153,17 @@ export default function TopYields({ onAction }: Props) {
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" },
+        gridTemplateColumns: isLending ? { xs: "1fr", md: "1fr 1fr 1fr" } : { xs: "1fr", md: "1fr" },
         gap: 1.5,
       }}
     >
-      <YieldCard title="Top Lending Yields" items={topLending} loading={ll} />
-      <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} />
-      <YieldCard title="Top Fixed Yields" items={topFixed} loading={pl} />
+      <YieldCard title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"} items={topLending} loading={ll} />
+      {isLending && (
+        <>
+          <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} />
+          <YieldCard title="Top Fixed Yields" items={topFixed} loading={pl} />
+        </>
+      )}
     </Box>
   );
 }

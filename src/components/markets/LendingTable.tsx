@@ -11,11 +11,12 @@ import MarketActionButton from "./MarketActionButton";
 
 type SortKey = "asset" | "protocolName" | "supplyAPY" | "borrowAPR" | "totalSupplyUSD" | "utilizationRate";
 
-export default function LendingTable() {
+export default function LendingTable({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
   const { data, isLoading, error } = useMarkets();
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("supplyAPY");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const isLending = viewMode === "lending";
+  const [sortKey, setSortKey] = useState<SortKey>(isLending ? "supplyAPY" : "borrowAPR");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(isLending ? "desc" : "asc");
 
   const assets = useMemo(() => {
     if (!data) return [];
@@ -50,7 +51,7 @@ export default function LendingTable() {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h6" fontWeight={800}>Lending Markets</Typography>
+        <Typography variant="h6" fontWeight={800}>{isLending ? "Lending Markets" : "Borrow Markets"}</Typography>
         <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load markets</Typography>}
@@ -121,8 +122,8 @@ export default function LendingTable() {
                     </TableCell>
                     <TableCell align="right">
                       <MarketActionButton
-                        label="Deposit"
-                        prompt={`Deposit into ${m.protocolName} ${m.asset} market (marketUid: ${m.marketUid})`}
+                        label={isLending ? "Deposit" : "Borrow"}
+                        prompt={`${isLending ? "Deposit into" : "Borrow from"} ${m.protocolName} ${m.asset} market (marketUid: ${m.marketUid})`}
                       />
                     </TableCell>
                   </TableRow>
