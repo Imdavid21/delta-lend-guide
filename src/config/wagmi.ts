@@ -10,7 +10,19 @@ import {
   avalanche,
 } from "@reown/appkit/networks";
 
-export const projectId = "d1a01c7977c04f18c87214e3e8887b49";
+/**
+ * WalletConnect/Reown project id.
+ *
+ * In hosted builders (e.g. Lovable), env vars can be absent at build time.
+ * Use env when provided, otherwise fall back to a known project id so builds
+ * do not fail during module evaluation.
+ */
+const fallbackProjectId = "d1a01c7977c04f18c87214e3e8887b49";
+
+export const projectId =
+  import.meta.env.VITE_PROJECT_ID ??
+  import.meta.env.WALLETCONNECT_PROJECT_ID ??
+  fallbackProjectId;
 
 export const networks = [mainnet, optimism, arbitrum, base, polygon, bsc, avalanche] as [AppKitNetwork, ...AppKitNetwork[]];
 
