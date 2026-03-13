@@ -46,3 +46,43 @@ export function formatUSD(v: number | null | undefined): string {
   if (v >= 1e3) return `$${(v / 1e3).toFixed(2)}K`;
   return `$${v.toFixed(2)}`;
 }
+
+
+const CHAIN_NAMES: Record<number, string> = {
+  1: "Ethereum",
+  8453: "Base",
+};
+
+function parseChainIdFromMarketUid(marketUid?: string): number | undefined {
+  if (!marketUid) return undefined;
+  const parts = marketUid.split(":");
+  if (parts.length < 2) return undefined;
+  const n = Number(parts[1]);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function resolveProtocolInstance(protocol: string, poolName?: string): string | null {
+  const isHorizon = /horizon/i.test(poolName ?? "") || /HORIZON/i.test(protocol);
+  const isPrime = /prime/i.test(poolName ?? "") || /PRIME/i.test(protocol);
+
+  if (protocol.startsWith("AAVE_V3")) return isHorizon ? "Horizon" : isPrime ? "Prime" : "Core";
+  if (protocol.startsWith("COMPOUND_V3")) return isPrime ? "Prime" : "Blue";
+  return null;
+}
+
+export function formatProtocolLabel(market: Pick<Market, "protocol" | "protocolName" | "poolName" | "marketUid">): string {
+  const chainId = parseChainIdFromMarketUid(market.marketUid);
+  const chain = chainId ? CHAIN_NAMES[chainId] ?? `Chain ${chainId}` : null;
+
+  // If backend already appended chain info, trust it.
+  if (/\(.+\)$/.test(market.protocolName)) return market.protocolName;
+
+  const instance = resolveProtocolInstance(market.protocol, market.poolName);
+
+  let base = market.protocolName;
+  if (market.protocol.startsWith("AAVE_V3")) base = `Aave V3${instance ? ` ${instance}` : ""}`;
+  else if (market.protocol.startsWith("AAVE_V2")) base = "Aave V2";
+  else if (market.protocol.startsWith("COMPOUND_V3")) base = `Compound ${instance ?? "Blue"}`;
+
+  return chain ? `${base} (${chain})` : base;
+}
