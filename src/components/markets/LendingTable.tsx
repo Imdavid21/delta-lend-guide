@@ -4,7 +4,7 @@ import {
   Typography, Skeleton, TableSortLabel, Chip,
 } from "@mui/material";
 import { useMarkets } from "@/hooks/useMarkets";
-import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import AssetFilter from "./AssetFilter";
 import MarketActionButton from "./MarketActionButton";
@@ -94,7 +94,7 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <ProtocolIcon name={m.protocolName} size={16} />
-                        <Chip label={m.protocolName} size="small" variant="outlined" sx={{ fontSize: 11, height: 22, borderColor: "divider" }} />
+                        <Chip label={formatProtocolLabel(m)} size="small" variant="outlined" sx={{ fontSize: 11, height: 22, borderColor: "divider" }} />
                       </Box>
                     </TableCell>
                     <TableCell align="right">
@@ -123,7 +123,7 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
                     <TableCell align="right">
                       <MarketActionButton
                         label={isLending ? "Deposit" : "Borrow"}
-                        prompt={`${isLending ? "Deposit into" : "Borrow from"} ${m.protocolName} ${m.asset} market (marketUid: ${m.marketUid})`}
+                        prompt={`${isLending ? "Deposit into" : "Borrow from"} ${formatProtocolLabel(m)} ${m.asset} market (marketUid: ${m.marketUid})`}
                       />
                     </TableCell>
                   </TableRow>

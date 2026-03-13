@@ -8,7 +8,7 @@ import { useShell } from "./AppShell";
 import type { ChatMessage } from "../hooks/useChats";
 import type { Components } from "react-markdown";
 
-/** Parse {{market:ID;;PROTOCOL;;ASSET;;APY;;TVL|Label}} segments */
+/** Parse {{market:ID;;PROTOCOL;;ASSET;;APY;;TVL;;ACTION|Label}} segments */
 interface MarketSegment {
   type: "market";
   id: string;
@@ -17,6 +17,7 @@ interface MarketSegment {
   apy: string;
   tvl: string;
   label: string;
+  action: "deposit" | "borrow";
 }
 
 interface TextSegment {
@@ -40,6 +41,8 @@ function parseContent(content: string): ContentSegment[] {
     }
     const parts = match[1].split(";;");
     if (parts.length >= 5) {
+      const rawAction = (parts[5] || "").toLowerCase();
+      const action = rawAction === "borrow" ? "borrow" : "deposit";
       segments.push({
         type: "market",
         id: parts[0],
@@ -48,6 +51,7 @@ function parseContent(content: string): ContentSegment[] {
         apy: parts[3],
         tvl: parts[4],
         label: match[2],
+        action,
       });
     } else {
       // Fallback: render as text
@@ -59,6 +63,15 @@ function parseContent(content: string): ContentSegment[] {
     segments.push({ type: "text", value: content.slice(lastIndex) });
   }
   return segments;
+}
+
+
+function inferMarketAction(text: string): "deposit" | "borrow" {
+  return /\b(borrow|debt|apr)\b/i.test(text) ? "borrow" : "deposit";
+}
+
+function buildMarketPrompt(label: string, marketId: string, action: "deposit" | "borrow") {
+  return `Tell me more about ${label} and help me ${action} (market id: ${marketId})`;
 }
 
 function useMdComponents(): Components {
@@ -75,12 +88,13 @@ function useMdComponents(): Components {
       }
       if (href?.startsWith("market:")) {
         const marketId = href.replace("market:", "");
+        const action = inferMarketAction(text);
         return (
           <EntityChip
             kind="market"
             value={marketId}
             label={text}
-            onClick={() => submitAction(`Tell me more about ${text} and help me deposit (market id: ${marketId})`)}
+            onClick={() => submitAction(buildMarketPrompt(text, marketId, action))}
           />
         );
       }
@@ -155,7 +169,8 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
                 asset={seg.asset}
                 apy={seg.apy}
                 tvl={seg.tvl}
-                onClick={() => submitAction(`Tell me more about ${seg.label} and help me deposit (market id: ${seg.id})`)}
+                actionLabel={seg.action === "borrow" ? "Borrow" : "Deposit"}
+                onClick={() => submitAction(buildMarketPrompt(seg.label, seg.id, seg.action))}
               />
             ) : (
               <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={mdComponents}>

@@ -16,7 +16,7 @@ createAppKit({
   projectId,
   networks,
   metadata: {
-    name: "Klyro",
+    name: "Nebula",
     description: "DeFi Intelligence Platform",
     url: window.location.origin,
     icons: [],

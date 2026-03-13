@@ -21,17 +21,62 @@ const LENDER_NAMES: Record<string, string> = {
   MENDI: "Mendi Finance", SILO: "Silo Finance", EULER: "Euler",
 };
 
-function resolveLenderName(key: string): string {
-  if (LENDER_NAMES[key]) return LENDER_NAMES[key];
-  if (key.startsWith("MORPHO_BLUE")) return "Morpho Blue";
-  if (key.startsWith("COMPOUND_V3")) return "Compound V3";
-  if (key.startsWith("AAVE_V3")) return "Aave V3";
-  if (key.startsWith("AAVE_V2")) return "Aave V2";
-  if (key.startsWith("SILO")) return "Silo Finance";
-  if (key.startsWith("EULER")) return "Euler";
-  if (key.startsWith("BENQI")) return "Benqi";
+const CHAIN_NAMES: Record<number, string> = {
+  1: "Ethereum",
+  8453: "Base",
+};
+
+function parseChainIdFromMarketUid(marketUid?: string): number | undefined {
+  if (!marketUid) return undefined;
+  const parts = marketUid.split(":");
+  if (parts.length < 2) return undefined;
+  const n = Number(parts[1]);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function resolveChainId(pool: any): number | undefined {
+  const direct = Number(pool?.chainId ?? pool?.chain ?? pool?.__chainId);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  return parseChainIdFromMarketUid(pool?.marketUid);
+}
+
+function resolveLenderName(key: string, poolName = "", chainId?: number): string {
+  const withChain = (name: string) =>
+    chainId ? `${name} (${CHAIN_NAMES[chainId] ?? `Chain ${chainId}`})` : name;
+
+  const isHorizon = /horizon/i.test(poolName) || /HORIZON/i.test(key);
+  const isPrime = /prime/i.test(poolName) || /PRIME/i.test(key);
+
+  if (key.startsWith("AAVE_V3")) {
+    if (isHorizon) return withChain("Aave V3 Horizon");
+    if (isPrime) return withChain("Aave V3 Prime");
+    return withChain("Aave V3 Core");
+  }
+  if (key.startsWith("AAVE_V2")) return withChain("Aave V2");
+  if (key.startsWith("COMPOUND_V3")) return withChain(isPrime ? "Compound Prime" : "Compound Blue");
+
+  if (LENDER_NAMES[key]) return withChain(LENDER_NAMES[key]);
+  if (key.startsWith("MORPHO_BLUE")) return withChain("Morpho Blue");
+  if (key.startsWith("SILO")) return withChain("Silo Finance");
+  if (key.startsWith("EULER")) return withChain("Euler");
+  if (key.startsWith("BENQI")) return withChain("Benqi");
+
   const base = key.replace(/_[A-F0-9]{8,}$/i, "");
-  return base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return withChain(base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+}
+
+function normalizeRatePercent(raw: unknown): number | null {
+  const n = typeof raw === "number" ? raw : parseFloat(String(raw));
+  if (!Number.isFinite(n)) return null;
+  // Upstreams are inconsistent: some emit decimal annual rates (0.052),
+  // others emit percent rates (5.2). Normalize to percent for UI.
+  return Math.abs(n) <= 1 ? n * 100 : n;
+}
+
+function normalizePercent(raw: unknown): number | null {
+  const n = typeof raw === "number" ? raw : parseFloat(String(raw));
+  if (!Number.isFinite(n)) return null;
+  return Math.abs(n) <= 1 ? n * 100 : n;
 }
 
 function extractAsset(pool: any): string {
@@ -65,12 +110,25 @@ async function fetchJSON(url: string, headers: Record<string, string> = {}, time
 }
 
 async function fetch1DeltaPools(hdrs: Record<string, string>) {
-  const url = new URL(BASE + "/data/lending/pools");
-  url.searchParams.set("chainId", "1");
-  url.searchParams.set("count", "200");
-  const raw = await fetchJSON(url.toString(), hdrs);
-  if (!raw) return [];
-  return raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+  const chainIds = ["1", "8453"];
+  const all: any[] = [];
+
+  for (const chainId of chainIds) {
+    const url = new URL(BASE + "/data/lending/pools");
+    url.searchParams.set("chainId", chainId);
+    url.searchParams.set("count", "200");
+    const raw = await fetchJSON(url.toString(), hdrs);
+    if (!raw) continue;
+    const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
+    all.push(
+      ...items.map((item: any) => ({
+        ...item,
+        __chainId: item?.chainId ?? Number(chainId),
+      })),
+    );
+  }
+
+  return all;
 }
 
 async function fetchLending(hdrs: Record<string, string>) {
@@ -80,26 +138,25 @@ async function fetchLending(hdrs: Record<string, string>) {
       const lenderKey = pool.lenderKey ?? pool.lender ?? "";
       if (lenderKey.startsWith("MORPHO_BLUE")) return null;
 
+      const chainId = resolveChainId(pool) ?? 1;
       const asset = extractAsset(pool);
       const tvl = parseFloat(pool.totalDepositsUsd) || 0;
       if (tvl < 10000) return null;
-      const util = parseFloat(pool.utilization) || 0;
+      const utilPct = normalizePercent(pool.utilization);
+      const util = utilPct != null ? utilPct / 100 : 0;
 
       return {
-        id: pool.marketUid ?? `${lenderKey}:1:${asset}`,
-        marketUid: pool.marketUid ?? "",
+        id: pool.marketUid ?? `${lenderKey}:${chainId}:${asset}`,
+        marketUid: pool.marketUid ?? `${lenderKey}:${chainId}:${asset}`,
         protocol: lenderKey,
-        protocolName: resolveLenderName(lenderKey),
+        protocolName: resolveLenderName(lenderKey, pool.name ?? "", chainId),
         poolName: pool.name ?? "",
         asset,
-        supplyAPY: parseFloat(pool.depositRate) || 0,
-        borrowAPR:
-          pool.variableBorrowRate != null
-            ? parseFloat(pool.variableBorrowRate) || 0
-            : null,
+        supplyAPY: normalizeRatePercent(pool.depositRate) ?? 0,
+        borrowAPR: normalizeRatePercent(pool.variableBorrowRate),
         totalSupplyUSD: tvl,
         availableLiquidityUSD: Math.round(tvl * (1 - util) * 100) / 100,
-        utilizationRate: util * 100,
+        utilizationRate: utilPct,
       };
     })
     .filter(Boolean);
@@ -191,14 +248,16 @@ async function fetchVaults(hdrs: Record<string, string>) {
     if (!lk.startsWith("EULER")) continue;
     const tvl = parseFloat(pool.totalDepositsUsd) || 0;
     if (tvl < 10000) continue;
+    const chainId = resolveChainId(pool) ?? 1;
+    const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
     const asset = extractAsset(pool);
     eulerVaults.push({
-      id: pool.marketUid ?? `euler:1:${asset}`,
-      marketUid: pool.marketUid ?? "",
-      name: pool.name || `Euler ${asset}`,
-      protocol: "Euler",
+      id: pool.marketUid ?? `euler:${chainId}:${asset}`,
+      marketUid: pool.marketUid ?? `euler:${chainId}:${asset}`,
+      name: pool.name || `Euler ${asset}${chainLabel}`,
+      protocol: `Euler${chainLabel}`,
       asset,
-      apy: parseFloat(pool.depositRate) || 0,
+      apy: normalizeRatePercent(pool.depositRate) ?? 0,
       tvl,
       source: "euler",
     });
@@ -245,7 +304,7 @@ async function fetchPendle() {
         id: m.address ?? `pendle:${m.name}`,
         name: m.name ?? "",
         asset,
-        impliedAPY: (details.impliedApy ?? 0) * 100,
+        impliedAPY: normalizeRatePercent(details.impliedApy) ?? 0,
         expiry: m.expiry ?? "",
         daysToMaturity,
         tvl: details.liquidity ?? details.totalTvl ?? 0,

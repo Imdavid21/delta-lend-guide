@@ -1,6 +1,6 @@
 import { Box, Paper, Typography, Skeleton } from "@mui/material";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
-import { formatUSD, formatPercent } from "@/lib/marketTypes";
+import { formatUSD, formatPercent, formatProtocolLabel } from "@/lib/marketTypes";
 
 interface StatProps {
   label: string;
@@ -111,7 +111,7 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
       <Stat
         label={isLending ? "Best Lending APY" : "Lowest Borrow APR"}
         value={bestLending ? formatPercent(isLending ? bestLending.supplyAPY : bestLending.borrowAPR) : null}
-        sub={bestLending ? `${bestLending.asset} · ${bestLending.protocolName}` : undefined}
+        sub={bestLending ? `${bestLending.asset} · ${formatProtocolLabel(bestLending)}` : undefined}
         accent
       />
       <Stat

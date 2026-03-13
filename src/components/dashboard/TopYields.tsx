@@ -4,7 +4,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
-import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 
 interface Props {
@@ -127,7 +127,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
       .slice(0, 5)
       .map((m) => ({
         id: m.id,
-        label: `${m.asset} · ${m.protocolName}`,
+        label: `${m.asset} · ${formatProtocolLabel(m)}`,
         sub: `${formatUSD(m.totalSupplyUSD)} TVL`,
         apy: formatPercent(isLending ? m.supplyAPY : m.borrowAPR),
         icon: <AssetIcon symbol={m.asset} size={18} />,
@@ -170,7 +170,12 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         gap: 1.5,
       }}
     >
-      <YieldCard title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"} items={topLending} loading={ll} onSeeAll={() => navigate("/lending/markets")} />
+      <YieldCard
+        title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"}
+        items={topLending}
+        loading={ll}
+        onSeeAll={() => navigate(isLending ? "/lending/markets" : "/borrow/markets")}
+      />
       {isLending && (
         <>
           <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} onSeeAll={() => navigate("/lending/vaults")} />
