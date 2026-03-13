@@ -11,7 +11,7 @@ import {
 
 export const projectId = "d1a01c7977c04f18c87214e3e8887b49";
 
-export const networks = [mainnet, optimism, arbitrum, base, polygon, bsc, avalanche];
+export const networks = [mainnet, optimism, arbitrum, base, polygon, bsc, avalanche] as const;
 
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
