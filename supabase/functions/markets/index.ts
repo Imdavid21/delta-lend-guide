@@ -26,15 +26,34 @@ const CHAIN_NAMES: Record<number, string> = {
   8453: "Base",
 };
 
+function parseChainIdFromMarketUid(marketUid?: string): number | undefined {
+  if (!marketUid) return undefined;
+  const parts = marketUid.split(":");
+  if (parts.length < 2) return undefined;
+  const n = Number(parts[1]);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function resolveChainId(pool: any): number | undefined {
+  const direct = Number(pool?.chainId ?? pool?.chain ?? pool?.__chainId);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  return parseChainIdFromMarketUid(pool?.marketUid);
+}
+
 function resolveLenderName(key: string, poolName = "", chainId?: number): string {
   const withChain = (name: string) =>
-    chainId && CHAIN_NAMES[chainId] ? `${name} (${CHAIN_NAMES[chainId]})` : name;
+    chainId ? `${name} (${CHAIN_NAMES[chainId] ?? `Chain ${chainId}`})` : name;
 
   const isHorizon = /horizon/i.test(poolName) || /HORIZON/i.test(key);
+  const isPrime = /prime/i.test(poolName) || /PRIME/i.test(key);
 
-  if (key.startsWith("AAVE_V3")) return withChain(isHorizon ? "Aave V3 Horizon" : "Aave V3 Core");
+  if (key.startsWith("AAVE_V3")) {
+    if (isHorizon) return withChain("Aave V3 Horizon");
+    if (isPrime) return withChain("Aave V3 Prime");
+    return withChain("Aave V3 Core");
+  }
   if (key.startsWith("AAVE_V2")) return withChain("Aave V2");
-  if (key.startsWith("COMPOUND_V3")) return withChain("Compound Blue");
+  if (key.startsWith("COMPOUND_V3")) return withChain(isPrime ? "Compound Prime" : "Compound Blue");
 
   if (LENDER_NAMES[key]) return withChain(LENDER_NAMES[key]);
   if (key.startsWith("MORPHO_BLUE")) return withChain("Morpho Blue");
@@ -101,7 +120,12 @@ async function fetch1DeltaPools(hdrs: Record<string, string>) {
     const raw = await fetchJSON(url.toString(), hdrs);
     if (!raw) continue;
     const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
-    all.push(...items);
+    all.push(
+      ...items.map((item: any) => ({
+        ...item,
+        __chainId: item?.chainId ?? Number(chainId),
+      })),
+    );
   }
 
   return all;
@@ -114,7 +138,7 @@ async function fetchLending(hdrs: Record<string, string>) {
       const lenderKey = pool.lenderKey ?? pool.lender ?? "";
       if (lenderKey.startsWith("MORPHO_BLUE")) return null;
 
-      const chainId = Number(pool.chainId ?? pool.chain ?? 1) || 1;
+      const chainId = resolveChainId(pool) ?? 1;
       const asset = extractAsset(pool);
       const tvl = parseFloat(pool.totalDepositsUsd) || 0;
       if (tvl < 10000) return null;
@@ -224,7 +248,7 @@ async function fetchVaults(hdrs: Record<string, string>) {
     if (!lk.startsWith("EULER")) continue;
     const tvl = parseFloat(pool.totalDepositsUsd) || 0;
     if (tvl < 10000) continue;
-    const chainId = Number(pool.chainId ?? pool.chain ?? 1) || 1;
+    const chainId = resolveChainId(pool) ?? 1;
     const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
     const asset = extractAsset(pool);
     eulerVaults.push({
