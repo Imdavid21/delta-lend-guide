@@ -1,5 +1,5 @@
-import { AppBar, Toolbar, Typography, Box, IconButton, Divider, Badge, Tooltip, Button } from "@mui/material";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { AppBar, Toolbar, Typography, Box, IconButton, Divider, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAccount } from "wagmi";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -20,74 +20,111 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
   const { isConnected } = useAccount();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const activeSection =
+    location.pathname.startsWith("/borrow") ? "borrow" : "lending";
+
   return (
     <AppBar
       position="sticky"
       color="default"
       elevation={0}
-      sx={{ zIndex: (t) => t.zIndex.drawer + 1, backdropFilter: "blur(12px)", bgcolor: "background.default" }}
+      sx={{
+        zIndex: (t) => t.zIndex.drawer + 1,
+        backdropFilter: "blur(12px)",
+        bgcolor: "background.default",
+      }}
     >
-      <Toolbar variant="dense" sx={{ gap: 0.5, minHeight: 48 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 2 }}>
-          <img src={klyroLogo} alt="Klyro" style={{ width: 24, height: 24, filter: mode === "dark" ? "none" : "invert(1)" }} />
+      <Toolbar
+        variant="dense"
+        sx={{ gap: 0.5, minHeight: 48, position: "relative" }}
+      >
+        {/* Left: Logo + Brand */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <img
+            src={klyroLogo}
+            alt="Klyro"
+            style={{ width: 24, height: 24, filter: mode === "dark" ? "none" : "invert(1)" }}
+          />
           <Typography
             variant="h6"
             sx={{
               fontWeight: 800,
               letterSpacing: -0.5,
-              background: (t) => `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.primary.light})`,
+              background: (t) =>
+                `linear-gradient(45deg, ${t.palette.primary.main}, ${t.palette.primary.light})`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              mr: 2
             }}
           >
             Financial Intelligence
           </Typography>
         </Box>
 
-        <Box sx={{ display: "flex", ml: 4, gap: 1 }}>
-          <Button
-            component={Link}
-            to="/lending"
+        {/* Centre: Toggle navigation */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+          }}
+        >
+          <ToggleButtonGroup
+            value={activeSection}
+            exclusive
+            onChange={(_, val) => {
+              if (val) navigate(`/${val}`);
+            }}
             size="small"
             sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              color: location.pathname.startsWith("/lending") || location.pathname === "/" ? "primary.main" : "text.secondary",
-              bgcolor: location.pathname.startsWith("/lending") || location.pathname === "/" ? "action.selected" : "transparent",
-              "&:hover": { bgcolor: "action.hover" }
+              bgcolor: "action.hover",
+              borderRadius: "999px",
+              p: "3px",
+              "& .MuiToggleButtonGroup-grouped": {
+                border: "none",
+                borderRadius: "999px !important",
+                px: 2,
+                py: 0.4,
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                lineHeight: 1.5,
+                color: "text.secondary",
+                transition: "all 0.2s ease",
+                "&.Mui-selected": {
+                  bgcolor: "background.paper",
+                  color: "text.primary",
+                  boxShadow: 1,
+                  "&:hover": { bgcolor: "background.paper" },
+                },
+                "&:hover": { bgcolor: "action.selected" },
+              },
             }}
           >
-            Lending
-          </Button>
-          <Button
-            component={Link}
-            to="/borrow"
-            size="small"
-            sx={{
-              textTransform: "none",
-              fontWeight: 700,
-              color: location.pathname.startsWith("/borrow") ? "primary.main" : "text.secondary",
-              bgcolor: location.pathname.startsWith("/borrow") ? "action.selected" : "transparent",
-              "&:hover": { bgcolor: "action.hover" }
-            }}
-          >
-            Borrow
-          </Button>
+            <ToggleButton value="lending" disableRipple>
+              Lending
+            </ToggleButton>
+            <ToggleButton value="borrow" disableRipple>
+              Borrow
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
 
+        {/* Right: Actions */}
         <Box sx={{ flex: 1 }} />
 
         {isConnected && (
           <IconButton
             size="small"
-            onClick={() => navigate(location.pathname === "/account" ? "/" : "/account")}
+            onClick={() =>
+              navigate(location.pathname === "/account" ? "/" : "/account")
+            }
             sx={{
               color: location.pathname === "/account" ? "text.primary" : "text.secondary",
               bgcolor: location.pathname === "/account" ? "action.selected" : "transparent",
               borderRadius: 2,
               "&:hover": { bgcolor: "action.hover" },
-              mr: 1
+              mr: 1,
             }}
           >
             {location.pathname === "/account" ? (
@@ -112,7 +149,11 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
           <ChatBubbleOutlineIcon fontSize="small" />
         </IconButton>
         <IconButton size="small" onClick={onToggle} sx={{ color: "text.secondary" }}>
-          {mode === "dark" ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+          {mode === "dark" ? (
+            <LightModeIcon fontSize="small" />
+          ) : (
+            <DarkModeIcon fontSize="small" />
+          )}
         </IconButton>
       </Toolbar>
     </AppBar>
