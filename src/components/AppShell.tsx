@@ -40,6 +40,7 @@ const SlideUp = forwardRef(function SlideUp(
 export default function AppShell({ mode, onToggle }: Props) {
   const [chatInput, setChatInput] = useState("");
   const { address: walletAddress, isConnected: walletConnected } = useAccount();
+  useWalletAuth(); // Register/update wallet in DB on connect
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
     useChats();
   const [loading, setLoading] = useState(false);
