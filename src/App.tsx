@@ -1,13 +1,31 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { BrowserRouter } from "react-router-dom";
+import { createAppKit } from "@reown/appkit/react";
 import { getTheme } from "./theme";
-import { config } from "./config/wagmi";
+import { config, wagmiAdapter, projectId, networks } from "./config/wagmi";
 import AppShell from "./components/AppShell";
 
 const queryClient = new QueryClient();
+
+// Create AppKit instance
+createAppKit({
+  adapters: [wagmiAdapter],
+  projectId,
+  networks,
+  metadata: {
+    name: "Klyro",
+    description: "DeFi Intelligence Platform",
+    url: window.location.origin,
+    icons: [],
+  },
+  themeMode: "dark",
+  features: {
+    analytics: false,
+  },
+});
 
 type Mode = "light" | "dark";
 
@@ -28,7 +46,6 @@ export default function App() {
     document.documentElement.classList.toggle("dark", next === "dark");
   };
 
-  // Sync class on mount
   useMemo(() => {
     document.documentElement.classList.toggle("dark", mode === "dark");
   }, [mode]);
