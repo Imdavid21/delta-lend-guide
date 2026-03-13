@@ -821,15 +821,17 @@ FORMATTING — render entities as special markdown links (the UI converts these 
 - Token:    [SYMBOL](token:SYMBOL)               e.g. [USDC](token:USDC)
 - Chain:    [Name](chain:CHAIN_ID)               e.g. [Ethereum](chain:1)
 - Market:   Use this EXACT custom syntax (NOT a markdown link):
-  {{market:ID;;PROTOCOL;;ASSET;;APY;;TVL|Label}}
-  Example: {{market:MORPHO_BLUE_xxx:1:0xabc;;Morpho Blue;;USDC;;5.96;;8265748|Gauntlet USDC/wstETH}}
+  {{market:ID;;PROTOCOL;;ASSET;;APY;;TVL;;ACTION|Label}}
+  Example: {{market:MORPHO_BLUE_xxx:1:0xabc;;Morpho Blue;;USDC;;5.96;;8265748;;deposit|Gauntlet USDC/wstETH}}
+  Borrow example: {{market:AAVE_V3:1:0xabc;;Aave V3;;USDC;;4.12;;1200000000;;borrow|USDC · Aave V3}}
   - ID = the market's \`id\` field
   - PROTOCOL = protocolName or protocol field (e.g. "Morpho Blue", "Aave V3")
   - ASSET = asset symbol (e.g. "USDC", "ETH")
   - APY = the APY/yield number WITHOUT % sign (e.g. "5.96")
   - TVL = total TVL in USD as number WITHOUT $ sign (e.g. "8265748")
+  - ACTION = \`deposit\` or \`borrow\` (required; use \`borrow\` for lowest borrow rate recommendations)
   - Label = human-readable name (e.g. "Gauntlet USDC/wstETH")
-  Use double-semicolon (;;) to separate fields inside the market: part. All 5 fields are REQUIRED.
+  Use double-semicolon (;;) to separate fields inside the market: part. All 6 fields are REQUIRED.
   The double curly brace syntax is CRITICAL — do NOT use markdown link syntax [text](market:...) for markets.
   The UI renders these as rich clickable pill buttons with protocol icons.
   NEVER use plain text for markets — always use the {{market:...}} format.
@@ -840,6 +842,7 @@ RATE FORMATTING (CRITICAL):
 - Example: supplyAPY=5.73 → "5.73% APY". Do NOT divide or multiply — they are already percentages.
 - Results are pre-sorted by yield descending. The FIRST items are the BEST rates.
 - When asked for "best" or "top" rates: use the first N items from the results. Exclude rates below 0.01%.
+- When asked for lowest borrow rates: sort by borrow APR ascending and emit market tags with ACTION set to `borrow`.
 - For find_market/get_lending_markets (raw 1delta data): depositAPR_pct and borrowAPR_pct are also percentages.
 - Prefer Aave V3, Compound V3, Morpho Blue, Spark over deprecated V2 protocols unless user asks specifically.
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
@@ -890,7 +893,7 @@ VAULT vs LENDING DEPOSITS (CRITICAL — READ CAREFULLY):
 - Pendle fixed-yield markets are displayed in the UI and available via search_markets for informational queries (APY, TVL, maturity). However, Pendle PT/YT trading execution is NOT supported yet via action tools. If a user asks to buy a Pendle PT or trade on Pendle, explain that execution isn't available yet but show them the market data.
 
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
-Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on [Aave V3](market:AAVE_V3:1)."
+Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on [Aave V3](market:AAVE_V3:1)." or "Preparing to borrow [USDC](token:USDC) on [Aave V3](market:AAVE_V3:1)."
 No summaries, no tables, no bullet points after actions.`;
 
 /* ───── agent loop ───── */

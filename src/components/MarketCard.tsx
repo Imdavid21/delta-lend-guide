@@ -8,6 +8,7 @@ interface MarketCardProps {
   asset: string;
   apy: string;
   tvl: string;
+  actionLabel?: "Deposit" | "Borrow";
   onClick: () => void;
 }
 
@@ -20,7 +21,7 @@ function formatTVL(raw: string): string {
   return `$${n.toFixed(0)}`;
 }
 
-export default function MarketCard({ label, marketId, protocol, asset, apy, tvl, onClick }: MarketCardProps) {
+export default function MarketCard({ label, marketId, protocol, asset, apy, tvl, actionLabel = "Deposit", onClick }: MarketCardProps) {
   return (
     <ButtonBase
       onClick={onClick}
@@ -67,6 +68,22 @@ export default function MarketCard({ label, marketId, protocol, asset, apy, tvl,
         }}
       >
         {label}
+      </Typography>
+
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 700,
+          fontSize: 10,
+          color: actionLabel === "Borrow" ? "#60a5fa" : "#22c55e",
+          bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+          px: 0.8,
+          py: 0.2,
+          borderRadius: 10,
+          lineHeight: 1,
+        }}
+      >
+        {actionLabel}
       </Typography>
 
       {/* APY badge */}
