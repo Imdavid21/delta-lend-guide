@@ -16,10 +16,12 @@ function YieldCard({
   title,
   items,
   loading,
+  onSeeAll,
 }: {
   title: string;
   items: { id: string; label: string; sub: string; apy: string; icon: React.ReactNode }[] | null;
   loading: boolean;
+  onSeeAll?: () => void;
 }) {
   return (
     <Paper
