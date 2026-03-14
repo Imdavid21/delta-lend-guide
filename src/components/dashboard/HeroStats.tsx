@@ -1,5 +1,5 @@
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
-import { formatUSD, formatPercent, formatProtocolLabel } from "@/lib/marketTypes";
+import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
 
 function SkeletonRect({ width, height }: { width: number; height: number }) {
   return (
@@ -93,18 +93,15 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
 
   const isLending = viewMode === "lending";
 
-  const bestLending = lending?.length
-    ? lending
-        .filter((m) => isLending ? true : (m.borrowAPR != null && m.borrowAPR > 0))
-        .reduce((a, b) => {
-          if (isLending) return a.supplyAPY > b.supplyAPY ? a : b;
-          return (a.borrowAPR ?? 999) < (b.borrowAPR ?? 999) ? a : b;
-        }, lending[0])
+  // ── Lending-specific ──────────────────────────────────────
+  const bestSupply = lending?.length
+    ? lending.reduce((a, b) => (a.supplyAPY > b.supplyAPY ? a : b))
     : null;
 
   const bestVault = vaults?.length
     ? vaults.reduce((a, b) => (a.apy > b.apy ? a : b))
     : null;
+
   const bestFixed = pendle?.length
     ? pendle.reduce((a, b) => (a.impliedAPY > b.impliedAPY ? a : b))
     : null;
@@ -115,47 +112,102 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
         vaults.reduce((s, v) => s + v.tvl, 0)
       : null;
 
-  const marketCount =
+  const lendingMarketCount =
     lending && vaults && pendle
       ? lending.length + vaults.length + pendle.length
+      : null;
+
+  // ── Borrow-specific ───────────────────────────────────────
+  const borrowMarkets = lending?.filter((m) => m.borrowAPR != null && m.borrowAPR > 0) ?? [];
+
+  const lowestBorrow = borrowMarkets.length
+    ? borrowMarkets.reduce((a, b) => ((a.borrowAPR ?? 999) < (b.borrowAPR ?? 999) ? a : b))
+    : null;
+
+  const avgBorrowAPR =
+    borrowMarkets.length
+      ? borrowMarkets.reduce((s, m) => s + (m.borrowAPR ?? 0), 0) / borrowMarkets.length
+      : null;
+
+  // Most liquid = highest available liquidity for borrowing
+  const mostLiquid = borrowMarkets.length
+    ? borrowMarkets.reduce((a, b) =>
+        (a.availableLiquidityUSD ?? 0) > (b.availableLiquidityUSD ?? 0) ? a : b
+      )
+    : null;
+
+  const totalBorrowLiquidity = borrowMarkets.length
+    ? borrowMarkets.reduce((s, m) => s + (m.availableLiquidityUSD ?? 0), 0)
+    : null;
+
+  const avgUtilization =
+    borrowMarkets.length
+      ? borrowMarkets.reduce((s, m) => s + (m.utilizationRate ?? 0), 0) / borrowMarkets.length
       : null;
 
   return (
     <>
       <style>{`@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }`}</style>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gap: 12,
-        }}
-      >
-        <Stat
-          label={isLending ? "Best Lending APY" : "Lowest Borrow APR"}
-          value={bestLending ? formatPercent(isLending ? bestLending.supplyAPY : bestLending.borrowAPR) : null}
-          sub={bestLending ? `${bestLending.asset} · ${formatProtocolLabel(bestLending)}` : undefined}
-          accent
-        />
-        <Stat
-          label="Best Vault APY"
-          value={bestVault ? formatPercent(bestVault.apy) : null}
-          sub={bestVault ? bestVault.name : undefined}
-        />
-        <Stat
-          label="Best Fixed Yield"
-          value={bestFixed ? formatPercent(bestFixed.impliedAPY) : null}
-          sub={bestFixed ? bestFixed.name : undefined}
-        />
-        <Stat
-          label={isLending ? "Total TVL" : "Aggregate Liquidity"}
-          value={totalTVL !== null ? formatUSD(totalTVL) : null}
-          sub="Across all tracked protocols"
-        />
-        <Stat
-          label="Markets Tracked"
-          value={marketCount !== null ? String(marketCount) : null}
-          sub={isLending ? "Lending · Vaults · Fixed Yield" : "Borrow Markets"}
-        />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+        {isLending ? (
+          <>
+            <Stat
+              label="Best Lending APY"
+              value={bestSupply ? formatPercent(bestSupply.supplyAPY) : null}
+              sub={bestSupply ? `${bestSupply.asset} · ${formatProtocolLabel(bestSupply)}` : undefined}
+              accent
+            />
+            <Stat
+              label="Best Vault APY"
+              value={bestVault ? formatPercent(bestVault.apy) : null}
+              sub={bestVault ? bestVault.name : undefined}
+            />
+            <Stat
+              label="Best Fixed Yield"
+              value={bestFixed ? formatPercent(bestFixed.impliedAPY) : null}
+              sub={bestFixed ? bestFixed.name : undefined}
+            />
+            <Stat
+              label="Total TVL"
+              value={totalTVL !== null ? formatUSD(totalTVL) : null}
+              sub="Across all tracked protocols"
+            />
+            <Stat
+              label="Markets Tracked"
+              value={lendingMarketCount !== null ? String(lendingMarketCount) : null}
+              sub="Lending · Vaults · Fixed Yield"
+            />
+          </>
+        ) : (
+          <>
+            <Stat
+              label="Lowest Borrow APR"
+              value={lowestBorrow ? formatPercent(lowestBorrow.borrowAPR) : null}
+              sub={lowestBorrow ? `${lowestBorrow.asset} · ${formatProtocolLabel(lowestBorrow)}` : undefined}
+              accent
+            />
+            <Stat
+              label="Avg Borrow APR"
+              value={avgBorrowAPR !== null ? formatPercent(avgBorrowAPR) : null}
+              sub={borrowMarkets.length ? `Across ${borrowMarkets.length} markets` : undefined}
+            />
+            <Stat
+              label="Most Liquid Market"
+              value={mostLiquid ? formatUSD(mostLiquid.availableLiquidityUSD ?? 0) : null}
+              sub={mostLiquid ? `${mostLiquid.asset} · ${formatProtocolLabel(mostLiquid)}` : undefined}
+            />
+            <Stat
+              label="Total Borrow Capacity"
+              value={totalBorrowLiquidity !== null ? formatUSD(totalBorrowLiquidity) : null}
+              sub="Available across all markets"
+            />
+            <Stat
+              label="Avg Utilization"
+              value={avgUtilization !== null ? formatPercent(avgUtilization) : null}
+              sub={`${borrowMarkets.length ?? 0} borrow markets`}
+            />
+          </>
+        )}
       </div>
     </>
   );
