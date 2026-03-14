@@ -115,12 +115,18 @@ export default function VaultsTable() {
               : rows.map((v) => (
                   <TableRow key={v.id}>
                     <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                        <ProtocolIcon name={v.protocol} size={16} />
-                        <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 260 }} noWrap>
-                          {v.name}
-                        </Typography>
-                      </Box>
+                      {(() => {
+                        const { name: vaultName, chain } = parseChainFromLabel(v.name);
+                        return (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                            <ProtocolIcon name={v.protocol} size={16} />
+                            <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 260 }} noWrap>
+                              {vaultName}
+                            </Typography>
+                            {chain && <ChainIcon chainName={chain} size={14} />}
+                          </Box>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       {v.curator ? (

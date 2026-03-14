@@ -95,12 +95,18 @@ export default function FixedYieldTable() {
               : rows.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                        <ProtocolIcon name="Pendle" size={16} />
-                        <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 280 }} noWrap>
-                          {m.name}
-                        </Typography>
-                      </Box>
+                      {(() => {
+                        const { name: marketName, chain } = parseChainFromLabel(m.name);
+                        return (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                            <ProtocolIcon name="Pendle" size={16} />
+                            <Typography fontSize={13} fontWeight={500} sx={{ maxWidth: 280 }} noWrap>
+                              {marketName}
+                            </Typography>
+                            {chain && <ChainIcon chainName={chain} size={14} />}
+                          </Box>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>

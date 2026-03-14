@@ -95,10 +95,16 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                        <ProtocolIcon name={m.protocolName} size={16} />
-                        <Chip label={formatProtocolLabel(m)} size="small" variant="outlined" sx={{ fontSize: 11, height: 22, borderColor: "divider" }} />
-                      </Box>
+                      {(() => {
+                        const { name: protoName, chain } = parseChainFromLabel(formatProtocolLabel(m));
+                        return (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                            <ProtocolIcon name={m.protocolName} size={16} />
+                            <Chip label={protoName} size="small" variant="outlined" sx={{ fontSize: 11, height: 22, borderColor: "divider" }} />
+                            {chain && <ChainIcon chainName={chain} size={14} />}
+                          </Box>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell align="right">
                       <Typography
