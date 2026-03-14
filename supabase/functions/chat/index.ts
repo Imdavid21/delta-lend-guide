@@ -1022,12 +1022,6 @@ BORROW MARKET RESPONSES (CRITICAL — ALWAYS USE MARKET CARDS):
 - Sort borrow markets by borrowAPR ascending (lowest cost first).
 - Example: {{market:AAVE_V3:1:0xabc;;Aave V3 Core (Ethereum);;USDC;;4.12;;1200000000;;borrow|USDC · Aave V3}}
 
-WALLET + ACTION GATING (REVISED):
-- The user's message may start with "[Wallet: 0x...]" — extract and use this address automatically for ALL action tools.
-- If NO wallet prefix: answer informational queries normally without any wallet warning.
-- ONLY when the user explicitly asks to EXECUTE a transaction (deposit, borrow, repay, leverage) AND no wallet is connected, say: "Connect your wallet using the button at the top right to execute this transaction."
-- NEVER gate informational queries, rate comparisons, or position lookups on wallet connection.
-
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
 Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on Aave V3." or "Preparing to borrow [USDC](token:USDC) from Aave V3."
 No summaries, no tables, no bullet points after actions.`;
@@ -1035,11 +1029,65 @@ No summaries, no tables, no bullet points after actions.`;
 /* ───── agent loop ───── */
 
 async function runAgent(query: string, userAddress?: string, history: any[] = []) {
+  // ── Pre-flight: resolve ENS / address lookups BEFORE hitting the AI ─────
+  // This bypasses model refusals entirely — the tool is called in code, not by the model.
+  const ENS_PATTERN = /\b([a-zA-Z0-9][a-zA-Z0-9-]*\.eth)\b/i;
+  const ADDR_PATTERN = /\b(0x[a-fA-F0-9]{40})\b/;
+  const POSITION_KEYWORDS = /position|portfolio|hold(ing)?|balance|deposit|borrow|lend|own/i;
+
+  let preResolvedAddress: string | undefined;
+  let preResolvedLabel: string | undefined;
+  let preResolvedPositions: string | undefined;
+
+  const ensMatch = query.match(ENS_PATTERN);
+  const addrMatch = query.match(ADDR_PATTERN);
+  const isPositionQuery = POSITION_KEYWORDS.test(query);
+
+  if (isPositionQuery && (ensMatch || addrMatch)) {
+    if (ensMatch) {
+      const name = ensMatch[1].toLowerCase();
+      try {
+        const r = await fetch(`https://api.ensideas.com/ens/resolve/${encodeURIComponent(name)}`, {
+          signal: AbortSignal.timeout(8000),
+        });
+        if (r.ok) {
+          const d = await r.json();
+          if (d.address) { preResolvedAddress = d.address; preResolvedLabel = `${name} (${d.address})`; }
+        }
+      } catch { /* fall through */ }
+    } else if (addrMatch) {
+      const addr = addrMatch[1];
+      // Only pre-resolve when it's a different address than the connected wallet
+      if (!userAddress || addr.toLowerCase() !== userAddress.toLowerCase()) {
+        preResolvedAddress = addr;
+        preResolvedLabel = addr;
+      }
+    }
+
+    if (preResolvedAddress) {
+      try {
+        preResolvedPositions = await dispatchTool("get_user_positions", {
+          account: preResolvedAddress,
+          chains: "1,8453,42161,10",
+        });
+      } catch { /* fall through to AI */ }
+    }
+  }
+
   const messages: any[] = [
     { role: "system", content: SYSTEM_PROMPT },
-    ...history.slice(-20), // Keep last 20 messages for richer context
-    { role: "user", content: userAddress ? `[Wallet: ${userAddress}]\n${query}` : query },
+    ...history.slice(-20),
   ];
+
+  // Inject pre-resolved position data so AI only needs to format it — no tool decision needed
+  if (preResolvedAddress && preResolvedPositions) {
+    messages.push({
+      role: "system",
+      content: `PUBLIC LOOKUP ALREADY COMPLETED: The user asked about ${preResolvedLabel}. The raw position data has been fetched directly from the blockchain data provider:\n\n${preResolvedPositions}\n\nPresent this data clearly and helpfully. Do NOT mention wallet connection.`,
+    });
+  }
+
+  messages.push({ role: "user", content: userAddress ? `[Wallet: ${userAddress}]\n${query}` : query });
   const collectedSteps: any[] = [];
   let collectedQuote: any;
 
