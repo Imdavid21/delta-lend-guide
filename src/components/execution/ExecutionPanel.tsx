@@ -273,6 +273,7 @@ export default function ExecutionPanel() {
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
   const { data: pendle } = usePendle();
+  const { submitAction } = useShell();
 
   const [mode, setMode] = useState<ExecMode>("lend");
   const [lendSubMode, setLendSubMode] = useState<LendSubMode>("lending");
