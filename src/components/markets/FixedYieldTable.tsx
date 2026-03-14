@@ -68,7 +68,7 @@ export default function FixedYieldTable() {
         <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load Pendle markets</Typography>}
-      <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 3 }}>
+      <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, overflow: "hidden" }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -120,7 +120,7 @@ export default function FixedYieldTable() {
                         fontWeight={700}
                         sx={{
                           fontVariantNumeric: "tabular-nums",
-                          color: m.impliedAPY > 5 ? "#22c55e" : "text.primary",
+                          color: m.impliedAPY > 5 ? "primary.main" : "text.primary",
                         }}
                       >
                         {formatPercent(m.impliedAPY)}

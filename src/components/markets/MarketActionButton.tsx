@@ -15,18 +15,23 @@ export default function MarketActionButton({ label, prompt }: Props) {
       variant="outlined"
       onClick={() => submitAction(prompt)}
       sx={{
-        fontSize: 11,
-        fontWeight: 700,
-        py: 0.3,
-        px: 1.5,
+        fontSize: "0.6875rem",
+        fontWeight: 800,
+        py: 0.5,
+        px: 1.75,
         minWidth: 0,
-        borderRadius: 3,
+        borderRadius: 1.5,
+        letterSpacing: "0.05em",
+        textTransform: "uppercase",
         borderColor: "divider",
-        color: "text.primary",
+        color: "primary.main",
+        bgcolor: "rgba(0,255,157,0.04)",
         "&:hover": {
-          bgcolor: "text.primary",
-          color: "background.default",
-          borderColor: "text.primary",
+          bgcolor: "primary.main",
+          color: "primary.contrastText",
+          borderColor: "primary.main",
+          boxShadow: "0 4px 16px rgba(0,255,157,0.2)",
+          transform: "translateY(-1px)",
         },
         transition: "all 200ms ease",
       }}

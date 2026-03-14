@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Box, Typography, Popper, Paper, List, ListItemButton, ListItemText, ListItemIcon, ClickAwayListener, Chip } from "@mui/material";
+import {
+  Box, Typography, Popper, Paper, List, ListItemButton,
+  ListItemText, ListItemIcon, ClickAwayListener, Chip,
+} from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import SendIcon from "@mui/icons-material/Send";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import LockClockIcon from "@mui/icons-material/LockClock";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import HistoryIcon from "@mui/icons-material/History";
@@ -64,7 +66,6 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Extract unique recent user messages for autocomplete
   const recentQueries = useMemo(() => {
     const seen = new Set<string>();
     const queries: string[] = [];
@@ -91,7 +92,6 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
 
     const items: SearchResult[] = [];
 
-    // Chat history autocomplete
     const matchingHistory = recentQueries
       .filter((msg) => msg.toLowerCase().includes(q))
       .slice(0, 3);
@@ -106,7 +106,6 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
       });
     }
 
-    // Nav results
     const navItems: { tab: TabId; label: string; keywords: string[] }[] = [
       { tab: "overview", label: "Overview Dashboard", keywords: ["overview", "dashboard", "home"] },
       { tab: "lending", label: "Lending Markets", keywords: ["lending", "lend", "supply", "borrow"] },
@@ -127,7 +126,6 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
       }
     }
 
-    // Market results
     if (markets) {
       for (const m of markets) {
         if (
@@ -148,7 +146,6 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
       }
     }
 
-    // Vault results
     if (vaults && items.length < 8) {
       for (const v of vaults) {
         if (
@@ -169,7 +166,6 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
       }
     }
 
-    // Pendle results
     if (pendle && items.length < 8) {
       for (const p of pendle) {
         if (p.asset.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)) {
@@ -205,221 +201,263 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
   return (
     <ClickAwayListener onClickAway={() => setFocused(false)}>
       <Box
-        ref={anchorRef}
-        component="form"
-        onSubmit={handleSubmit}
         sx={{
-          p: 1.5,
-          px: { xs: 1.5, md: 3 },
-          borderTop: 1,
-          borderColor: "divider",
-          bgcolor: "background.default",
           position: "relative",
+          // Gradient fade from transparent to background
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: "-48px",
+            left: 0,
+            right: 0,
+            height: "48px",
+            background: (t) =>
+              t.palette.mode === "dark"
+                ? "linear-gradient(to top, #0a0f14 0%, transparent 100%)"
+                : "linear-gradient(to top, #ffffff 0%, transparent 100%)",
+            pointerEvents: "none",
+            zIndex: 0,
+          },
         }}
       >
         <Box
+          ref={anchorRef}
+          component="form"
+          onSubmit={handleSubmit}
           sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            border: 1,
-            borderColor: focused ? "text.secondary" : "divider",
-            borderRadius: "14px",
-            px: 1.5,
-            py: 0.75,
-            transition: "all 300ms ease",
+            p: 1.5,
+            px: { xs: 1.5, md: 3 },
+            borderTop: "1px solid",
+            borderColor: "divider",
             bgcolor: "background.default",
-            // Subtle glow
-            boxShadow: (t) => {
-              const glowColor = t.palette.mode === "dark"
-                ? "rgba(250, 250, 250, 0.04)"
-                : "rgba(10, 10, 10, 0.03)";
-              const focusGlow = t.palette.mode === "dark"
-                ? "0 0 20px 4px rgba(250, 250, 250, 0.06), 0 0 40px 8px rgba(250, 250, 250, 0.03)"
-                : "0 0 20px 4px rgba(10, 10, 10, 0.04), 0 0 40px 8px rgba(10, 10, 10, 0.02)";
-              return focused ? focusGlow : `0 0 12px 2px ${glowColor}`;
-            },
-            "&:hover": {
-              borderColor: "text.secondary",
-              boxShadow: (t) =>
-                t.palette.mode === "dark"
-                  ? "0 0 16px 3px rgba(250, 250, 250, 0.05)"
-                  : "0 0 16px 3px rgba(10, 10, 10, 0.03)",
-            },
+            position: "relative",
+            zIndex: 1,
           }}
         >
-          <SearchIcon sx={{ fontSize: 18, color: "text.disabled", flexShrink: 0 }} />
           <Box
-            component="input"
-            ref={inputRef}
-            name="chatInput"
-            value={value}
-            onChange={(e: any) => setValue(e.target.value)}
-            onFocus={() => setFocused(true)}
-            placeholder="Search markets or ask anything…"
-            disabled={loading}
-            autoComplete="off"
-            className="clean-input"
             sx={{
-              flex: 1,
-              fontSize: 13,
-              color: "text.primary",
-              py: 0.25,
-              "&::placeholder": { color: "text.disabled", opacity: 1 },
-            }}
-          />
-          {/* Keyboard shortcut badge */}
-          {!focused && !value && (
-            <Chip
-              label={isMac ? "⌘ K" : "Ctrl K"}
-              size="small"
-              sx={{
-                height: 22,
-                fontSize: 10,
-                fontWeight: 600,
-                fontFamily: "monospace",
-                bgcolor: "action.hover",
-                color: "text.secondary",
-                border: 1,
-                borderColor: "divider",
-                "& .MuiChip-label": { px: 1 },
-              }}
-            />
-          )}
-          {/* Send button — only when there's text */}
-          {value.trim() && (
-            <Box
-              component="button"
-              type="submit"
-              disabled={loading}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                bgcolor: "text.primary",
-                color: "background.default",
-                border: "none",
-                borderRadius: "8px",
-                width: 28,
-                height: 28,
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.5 : 1,
-                transition: "all 200ms ease",
-                flexShrink: 0,
-                "&:hover": { opacity: 0.8 },
-              }}
-            >
-              <SendIcon sx={{ fontSize: 14 }} />
-            </Box>
-          )}
-        </Box>
-
-        {/* Dropdown */}
-        <Popper
-          open={showDropdown}
-          anchorEl={anchorRef.current}
-          placement="top-start"
-          style={{ width: anchorRef.current?.clientWidth ?? 400, zIndex: 1300 }}
-          modifiers={[{ name: "offset", options: { offset: [0, 6] } }]}
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              border: 1,
-              borderColor: "divider",
-              borderRadius: 3,
-              overflow: "hidden",
-              maxHeight: 340,
-              overflowY: "auto",
-              bgcolor: "background.default",
-              boxShadow: (t) =>
-                t.palette.mode === "dark"
-                  ? "0 -8px 30px -6px rgba(0,0,0,0.5)"
-                  : "0 -8px 30px -6px rgba(0,0,0,0.08)",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              border: "1px solid",
+              borderColor: focused ? "primary.main" : "divider",
+              borderRadius: "14px",
+              px: 2,
+              py: 1,
+              transition: "all 300ms ease",
+              bgcolor: "background.paper",
+              boxShadow: focused
+                ? (t) => t.palette.mode === "dark"
+                  ? "0 0 0 3px rgba(0,255,157,0.08), 0 0 20px rgba(0,255,157,0.06)"
+                  : "0 0 0 3px rgba(0,109,64,0.08)"
+                : "none",
+              "&:hover": {
+                borderColor: (t) => t.palette.mode === "dark"
+                  ? "rgba(0,255,157,0.3)"
+                  : "rgba(0,0,0,0.3)",
+              },
             }}
           >
-            {/* Search results */}
-            {results.length > 0 && (
-              <List dense disablePadding>
-                {results.map((r) => (
-                  <ListItemButton
-                    key={r.id}
-                    onClick={r.action}
-                    sx={{ py: 0.75, px: 1.5, "&:hover": { bgcolor: "action.hover" } }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 32 }}>{r.icon}</ListItemIcon>
-                    <ListItemText
-                      primary={r.label}
-                      secondary={r.sub}
-                      primaryTypographyProps={{ fontSize: 12, fontWeight: 500, noWrap: true }}
-                      secondaryTypographyProps={{ fontSize: 10, color: "text.disabled" }}
-                    />
-                    <Chip
-                      label={r.type === "nav" ? "Page" : r.type === "market" ? "Lending" : r.type === "vault" ? "Vault" : r.type === "history" ? "History" : "Fixed"}
-                      size="small"
-                      sx={{ fontSize: 9, height: 18, bgcolor: "action.hover", color: "text.secondary" }}
-                    />
-                  </ListItemButton>
-                ))}
-                {value.trim() && (
-                  <ListItemButton onClick={() => handleSubmit()} sx={{ py: 0.75, px: 1.5, borderTop: 1, borderColor: "divider" }}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <ChatBubbleOutlineIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={`Ask: "${value.trim()}"`}
-                      primaryTypographyProps={{ fontSize: 12, fontWeight: 500, fontStyle: "italic" }}
-                    />
-                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: 9 }}>
-                      Enter ↵
-                    </Typography>
-                  </ListItemButton>
-                )}
-              </List>
+            <SearchIcon
+              sx={{
+                fontSize: 18,
+                color: focused ? "primary.main" : "text.disabled",
+                flexShrink: 0,
+                transition: "color 200ms ease",
+              }}
+            />
+            <Box
+              component="input"
+              ref={inputRef}
+              name="chatInput"
+              value={value}
+              onChange={(e: any) => setValue(e.target.value)}
+              onFocus={() => setFocused(true)}
+              placeholder="Search markets or ask anything…"
+              disabled={loading}
+              autoComplete="off"
+              className="clean-input"
+              sx={{
+                flex: 1,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "text.primary",
+                py: 0.25,
+                "&::placeholder": { color: "text.disabled", opacity: 1 },
+              }}
+            />
+
+            {/* Keyboard shortcut badge */}
+            {!focused && !value && (
+              <Chip
+                label={isMac ? "⌘ K" : "Ctrl K"}
+                size="small"
+                sx={{
+                  height: 22,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  fontFamily: "monospace",
+                  bgcolor: "action.hover",
+                  color: "text.disabled",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  "& .MuiChip-label": { px: 1 },
+                }}
+              />
             )}
 
-            {/* Empty state — quick actions */}
-            {results.length === 0 && !value.trim() && !quickActionsDismissed && (
-              <Box sx={{ p: 1.5 }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
-                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Quick actions
-                  </Typography>
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={() => { setQuickActionsDismissed(true); setFocused(false); inputRef.current?.blur(); }}
-                    sx={{
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      border: "none", bgcolor: "transparent", cursor: "pointer",
-                      color: "text.disabled", p: 0, width: 18, height: 18,
-                      borderRadius: "50%", "&:hover": { color: "text.secondary", bgcolor: "action.hover" },
-                    }}
-                  >
-                    <CloseIcon sx={{ fontSize: 14 }} />
-                  </Box>
-                </Box>
+            {/* Send button */}
+            {value.trim() && (
+              <Box
+                component="button"
+                type="submit"
+                disabled={loading}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  border: "none",
+                  borderRadius: "8px",
+                  width: 28,
+                  height: 28,
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.5 : 1,
+                  transition: "all 200ms ease",
+                  flexShrink: 0,
+                  "&:hover": { opacity: 0.85, transform: "scale(1.05)" },
+                }}
+              >
+                <SendIcon sx={{ fontSize: 14 }} />
+              </Box>
+            )}
+          </Box>
+
+          {/* Dropdown */}
+          <Popper
+            open={showDropdown}
+            anchorEl={anchorRef.current}
+            placement="top-start"
+            style={{ width: anchorRef.current?.clientWidth ?? 400, zIndex: 1300 }}
+            modifiers={[{ name: "offset", options: { offset: [0, 8] } }]}
+          >
+            <Paper
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 3,
+                overflow: "hidden",
+                maxHeight: 340,
+                overflowY: "auto",
+                bgcolor: "background.paper",
+                boxShadow: (t) =>
+                  t.palette.mode === "dark"
+                    ? "0 -12px 40px -8px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,255,157,0.05)"
+                    : "0 -8px 30px -6px rgba(0,0,0,0.08)",
+              }}
+            >
+              {results.length > 0 && (
                 <List dense disablePadding>
-                  {QUICK_ACTIONS.map((a) => (
+                  {results.map((r) => (
                     <ListItemButton
-                      key={a.label}
-                      onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
-                      sx={{ py: 0.5, px: 1, borderRadius: 1.5 }}
+                      key={r.id}
+                      onClick={r.action}
+                      sx={{ py: 0.75, px: 1.5, "&:hover": { bgcolor: "action.hover" } }}
                     >
-                      <ListItemIcon sx={{ minWidth: 28 }}>
-                        <ChatBubbleOutlineIcon sx={{ fontSize: 14, color: "text.disabled" }} />
-                      </ListItemIcon>
+                      <ListItemIcon sx={{ minWidth: 32 }}>{r.icon}</ListItemIcon>
                       <ListItemText
-                        primary={a.label}
-                        primaryTypographyProps={{ fontSize: 12, color: "text.secondary" }}
+                        primary={r.label}
+                        secondary={r.sub}
+                        primaryTypographyProps={{ fontSize: 12, fontWeight: 600, noWrap: true }}
+                        secondaryTypographyProps={{ fontSize: 10, color: "text.disabled" }}
+                      />
+                      <Chip
+                        label={
+                          r.type === "nav" ? "Page"
+                          : r.type === "market" ? "Lending"
+                          : r.type === "vault" ? "Vault"
+                          : r.type === "history" ? "History"
+                          : "Fixed"
+                        }
+                        size="small"
+                        sx={{
+                          fontSize: 9,
+                          height: 18,
+                          bgcolor: "action.hover",
+                          color: "text.secondary",
+                          fontWeight: 700,
+                        }}
                       />
                     </ListItemButton>
                   ))}
+                  {value.trim() && (
+                    <ListItemButton
+                      onClick={() => handleSubmit()}
+                      sx={{ py: 0.75, px: 1.5, borderTop: "1px solid", borderColor: "divider" }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 32 }}>
+                        <ChatBubbleOutlineIcon sx={{ fontSize: 16, color: "primary.main" }} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={`Ask: "${value.trim()}"`}
+                        primaryTypographyProps={{ fontSize: 12, fontWeight: 600, fontStyle: "italic" }}
+                      />
+                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: 9 }}>
+                        Enter ↵
+                      </Typography>
+                    </ListItemButton>
+                  )}
                 </List>
-              </Box>
-            )}
-          </Paper>
-        </Popper>
+              )}
+
+              {/* Empty state — quick actions */}
+              {results.length === 0 && !value.trim() && !quickActionsDismissed && (
+                <Box sx={{ p: 1.5 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.1em", color: "text.disabled", fontWeight: 700 }}
+                    >
+                      Quick actions
+                    </Typography>
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={() => { setQuickActionsDismissed(true); setFocused(false); inputRef.current?.blur(); }}
+                      sx={{
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        border: "none", bgcolor: "transparent", cursor: "pointer",
+                        color: "text.disabled", p: 0, width: 18, height: 18,
+                        borderRadius: "50%", "&:hover": { color: "text.secondary", bgcolor: "action.hover" },
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 14 }} />
+                    </Box>
+                  </Box>
+                  <List dense disablePadding>
+                    {QUICK_ACTIONS.map((a) => (
+                      <ListItemButton
+                        key={a.label}
+                        onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
+                        sx={{ py: 0.5, px: 1, borderRadius: 1.5 }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 28 }}>
+                          <ChatBubbleOutlineIcon sx={{ fontSize: 14, color: "primary.main" }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={a.label}
+                          primaryTypographyProps={{ fontSize: 12, color: "text.secondary", fontWeight: 600 }}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Box>
+              )}
+            </Paper>
+          </Popper>
+        </Box>
       </Box>
     </ClickAwayListener>
   );
