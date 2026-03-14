@@ -178,3 +178,40 @@ export function ProtocolIcon({ name, size = 18 }: ProtocolIconProps) {
     </Box>
   );
 }
+
+const CHAIN_ICONS: Record<string, string> = {
+  Ethereum: "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg",
+  Base: "https://icons.llamao.fi/icons/chains/rsz_base.jpg",
+};
+
+interface ChainIconProps {
+  chainName: string;
+  size?: number;
+}
+
+export function ChainIcon({ chainName, size = 14 }: ChainIconProps) {
+  const src = CHAIN_ICONS[chainName];
+  if (!src) return null;
+  return (
+    <Box
+      component="img"
+      src={src}
+      alt={chainName}
+      title={chainName}
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        flexShrink: 0,
+        objectFit: "cover",
+      }}
+    />
+  );
+}
+
+/** Extract chain name from a protocol label like "Aave V3 Core (Ethereum)" */
+export function parseChainFromLabel(label: string): { name: string; chain: string | null } {
+  const match = label.match(/^(.+?)\s*\((\w+)\)$/);
+  if (match) return { name: match[1], chain: match[2] };
+  return { name: label, chain: null };
+}
