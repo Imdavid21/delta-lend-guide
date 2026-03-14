@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
-import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
+import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 
 interface Props {
   viewMode?: "lending" | "borrow";
@@ -12,6 +12,8 @@ interface Props {
 interface YieldItem {
   id: string;
   label: string;
+  protocolName?: string; // shown with ProtocolIcon (lending rows)
+  chain?: string | null; // shown with ChainIcon
   sub: string;
   apy: string;
   icon: React.ReactNode;
@@ -147,15 +149,33 @@ function YieldCard({
                 {/* Label */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#eaeef5",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap" as const,
-                    fontFamily: "Inter, sans-serif",
                   }}>
-                    {item.label}
+                    <span style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "#eaeef5",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap" as const,
+                      fontFamily: "Inter, sans-serif",
+                      flexShrink: 1,
+                      minWidth: 0,
+                    }}>
+                      {item.label}
+                    </span>
+                    {item.protocolName && (
+                      <>
+                        <span style={{ color: "rgba(167,171,178,0.3)", fontSize: 10, flexShrink: 0 }}>·</span>
+                        <ProtocolIcon name={item.protocolName} size={13} />
+                      </>
+                    )}
+                    {item.chain && (
+                      <ChainIcon chainName={item.chain} size={13} />
+                    )}
                   </div>
                   <div style={{
                     fontSize: 10,
@@ -203,13 +223,18 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
     return [...filtered]
       .sort((a, b) => isLending ? (b.supplyAPY - a.supplyAPY) : ((a.borrowAPR ?? 999) - (b.borrowAPR ?? 999)))
       .slice(0, 5)
-      .map((m) => ({
-        id: m.id,
-        label: `${m.asset} · ${formatProtocolLabel(m)}`,
-        sub: `${formatUSD(m.totalSupplyUSD)} TVL`,
-        apy: formatPercent(isLending ? m.supplyAPY : m.borrowAPR),
-        icon: <AssetIcon symbol={m.asset} size={16} />,
-      }));
+      .map((m) => {
+        const { name: protoName, chain } = parseChainFromLabel(formatProtocolLabel(m));
+        return {
+          id: m.id,
+          label: m.asset,
+          protocolName: protoName,
+          chain,
+          sub: `${formatUSD(m.totalSupplyUSD)} TVL`,
+          apy: formatPercent(isLending ? m.supplyAPY : m.borrowAPR),
+          icon: <AssetIcon symbol={m.asset} size={16} />,
+        };
+      });
   }, [lending, isLending]);
 
   const topVaults = useMemo(() => {
@@ -217,13 +242,17 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
     return [...vaults]
       .sort((a, b) => b.apy - a.apy)
       .slice(0, 5)
-      .map((v) => ({
-        id: v.id,
-        label: v.name,
-        sub: `${v.curator || v.protocol} · ${formatUSD(v.tvl)}`,
-        apy: formatPercent(v.apy),
-        icon: <ProtocolIcon name={v.protocol} size={16} />,
-      }));
+      .map((v) => {
+        const { name: vaultName, chain } = parseChainFromLabel(v.name);
+        return {
+          id: v.id,
+          label: vaultName,
+          chain,
+          sub: `${v.curator || v.protocol} · ${formatUSD(v.tvl)}`,
+          apy: formatPercent(v.apy),
+          icon: <ProtocolIcon name={v.protocol} size={16} />,
+        };
+      });
   }, [vaults]);
 
   const topFixed = useMemo(() => {
@@ -231,13 +260,17 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
     return [...pendle]
       .sort((a, b) => b.impliedAPY - a.impliedAPY)
       .slice(0, 5)
-      .map((p) => ({
-        id: p.id,
-        label: p.name,
-        sub: `${p.daysToMaturity}d to maturity · ${formatUSD(p.tvl)}`,
-        apy: formatPercent(p.impliedAPY),
-        icon: <AssetIcon symbol={p.asset} size={16} />,
-      }));
+      .map((p) => {
+        const { name: marketName, chain } = parseChainFromLabel(p.name);
+        return {
+          id: p.id,
+          label: marketName,
+          chain,
+          sub: `${p.daysToMaturity}d to maturity · ${formatUSD(p.tvl)}`,
+          apy: formatPercent(p.impliedAPY),
+          icon: <AssetIcon symbol={p.asset} size={16} />,
+        };
+      });
   }, [pendle]);
 
   return (

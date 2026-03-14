@@ -207,7 +207,8 @@ async function fetchMorphoVaults(): Promise<any[]> {
     return items
       .filter((v: any) => {
         const tvl = v.state?.totalAssetsUsd ?? 0;
-        if (tvl < 10_000_000) return false; // $10M minimum for vaults
+        if (tvl < 10_000_000) return false;   // $10M minimum
+        if (tvl > 50_000_000_000) return false; // $50B max — guards against raw token unit values
         // Filter out unrealistic APYs (>100%) — likely reward-gaming or data artifacts
         const apy = (v.state?.apy ?? 0) * 100;
         if (apy > 100) return false;
@@ -253,7 +254,7 @@ async function fetchVaults(hdrs: Record<string, string>) {
     const lk = pool.lenderKey ?? "";
     if (!lk.startsWith("EULER")) continue;
     const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-    if (tvl < 10_000_000) continue; // $10M minimum for Euler vaults
+    if (tvl < 10_000_000 || tvl > 50_000_000_000) continue; // $10M–$50B range for Euler vaults
     const chainId = resolveChainId(pool) ?? 1;
     const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
     const asset = extractAsset(pool);
