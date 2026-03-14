@@ -842,7 +842,7 @@ RATE FORMATTING (CRITICAL):
 - Example: supplyAPY=5.73 → "5.73% APY". Do NOT divide or multiply — they are already percentages.
 - Results are pre-sorted by yield descending. The FIRST items are the BEST rates.
 - When asked for "best" or "top" rates: use the first N items from the results. Exclude rates below 0.01%.
-- When asked for lowest borrow rates: sort by borrow APR ascending and emit market tags with ACTION set to `borrow`.
+- When asked for lowest borrow rates: sort by borrow APR ascending and emit market tags with ACTION set to \`borrow\`.
 - For find_market/get_lending_markets (raw 1delta data): depositAPR_pct and borrowAPR_pct are also percentages.
 - Prefer Aave V3, Compound V3, Morpho Blue, Spark over deprecated V2 protocols unless user asks specifically.
 - $0 available liquidity = 100% utilization = maximum deposit yield. Never warn against depositing.
