@@ -7,6 +7,8 @@ import {
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
+import TxExecutor from "@/components/TxExecutor";
+import type { TxStep } from "@/hooks/useChats";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -25,7 +27,10 @@ const AMBER = "#fbbf24";
 interface ExecRoute {
   id: string;
   protocol: string;
+  protocolName: string;
   chain: string | null;
+  asset: string;
+  marketUid?: string;
   outputLabel: string;
   returnValue: number;
   returnLabel: string;
@@ -37,11 +42,12 @@ interface ExecRoute {
 
 /* ─── Health Factor Gauge ───────────────────────────────── */
 
-function HealthGauge({ value }: { value: number }) {
-  const clamped = Math.max(1.0, Math.min(3.5, value));
-  const pct = ((clamped - 1.0) / 2.5) * 100;
-  const color = value >= 2.0 ? GREEN : value >= 1.5 ? AMBER : "#ef4444";
-  const statusLabel = value >= 2.0 ? "Safe" : value >= 1.5 ? "Caution" : value > 1.0 ? "Danger" : "Liquidation";
+function HealthGauge({ value }: { value: number | null }) {
+  const hasValue = value != null && Number.isFinite(value);
+  const clamped = hasValue ? Math.max(1.0, Math.min(3.5, value)) : 1.0;
+  const pct = hasValue ? ((clamped - 1.0) / 2.5) * 100 : 0;
+  const color = !hasValue ? "#a7abb2" : value >= 2.0 ? GREEN : value >= 1.5 ? AMBER : "#ef4444";
+  const statusLabel = !hasValue ? "Live Data" : value >= 2.0 ? "Safe" : value >= 1.5 ? "Caution" : value > 1.0 ? "Danger" : "Liquidation";
   const total = 125.7;
   const fill = (pct / 100) * total;
 
@@ -52,7 +58,7 @@ function HealthGauge({ value }: { value: number }) {
         <path d="M10 60 A45 45 0 0 1 100 60" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
           strokeDasharray={`${fill} ${total}`}/>
         <text x="55" y="53" textAnchor="middle" fontSize="17" fontWeight="800" fill={color} fontFamily="Inter, sans-serif">
-          {value >= 9.99 ? "—" : value.toFixed(2)}
+          {hasValue ? value.toFixed(2) : "—"}
         </text>
         <text x="55" y="64" textAnchor="middle" fontSize="8" fill="#a7abb2" fontFamily="Inter, sans-serif">HEALTH FACTOR</text>
       </svg>
@@ -276,7 +282,17 @@ export default function ExecutionPanel() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
+  const [prepLoading, setPrepLoading] = useState(false);
+  const [prepError, setPrepError] = useState<string | null>(null);
+  const [preparedTxs, setPreparedTxs] = useState<TxStep[] | null>(null);
+  const [preparedQuote, setPreparedQuote] = useState<any>(null);
+  const [protocolFilter, setProtocolFilter] = useState("all");
+  const [chainFilter, setChainFilter] = useState("all");
+  const [tvlFilter, setTvlFilter] = useState("all");
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
   const accent = mode === "borrow" ? AMBER : GREEN;
@@ -288,6 +304,15 @@ export default function ExecutionPanel() {
 
   // Reset route selection when mode/submode/asset changes
   useEffect(() => { setSelectedRouteId(null); }, [mode, lendSubMode, fromAsset, toAsset]);
+  useEffect(() => {
+    setProtocolFilter("all");
+    setChainFilter("all");
+    setTvlFilter("all");
+    setShowAllRoutes(false);
+    setPrepError(null);
+    setPreparedTxs(null);
+    setPreparedQuote(null);
+  }, [mode, lendSubMode, fromAsset, toAsset]);
 
   // Close settings on outside click
   useEffect(() => {
@@ -327,11 +352,10 @@ export default function ExecutionPanel() {
       return (markets ?? [])
         .filter(m => m.asset === toAsset && m.borrowAPR != null && m.borrowAPR > 0)
         .sort((a, b) => (a.borrowAPR ?? 999) - (b.borrowAPR ?? 999))
-        .slice(0, 6)
         .map(m => {
-          const { chain } = parseChainFromLabel(m.protocolName);
+          const { name: protocolName, chain } = parseChainFromLabel(m.protocolName);
           return {
-            id: m.id, protocol: m.protocolName, chain,
+            id: m.id, protocol: m.protocolName, protocolName, chain, asset: m.asset, marketUid: m.marketUid,
             outputLabel: `${m.asset} variable debt`,
             returnValue: m.borrowAPR!,
             returnLabel: formatPercent(m.borrowAPR) + " APR",
@@ -347,12 +371,11 @@ export default function ExecutionPanel() {
       return (markets ?? [])
         .filter(m => m.asset === asset && m.supplyAPY > 0)
         .sort((a, b) => b.supplyAPY - a.supplyAPY)
-        .slice(0, 6)
         .map(m => {
-          const { chain } = parseChainFromLabel(m.protocolName);
+          const { name: protocolName, chain } = parseChainFromLabel(m.protocolName);
           const prefix = m.protocol.startsWith("AAVE") ? "a" : m.protocol.startsWith("COMPOUND") ? "c" : "";
           return {
-            id: m.id, protocol: m.protocolName, chain,
+            id: m.id, protocol: m.protocolName, protocolName, chain, asset: m.asset, marketUid: m.marketUid,
             outputLabel: `${prefix}${m.asset} — receipt token`,
             returnValue: m.supplyAPY,
             returnLabel: formatPercent(m.supplyAPY) + " APY",
@@ -367,11 +390,10 @@ export default function ExecutionPanel() {
       return (vaults ?? [])
         .filter(v => v.asset === asset && v.apy > 0)
         .sort((a, b) => b.apy - a.apy)
-        .slice(0, 6)
         .map(v => {
           const { name: vaultDisplay, chain } = parseChainFromLabel(v.name);
           return {
-            id: v.id, protocol: v.protocol, chain,
+            id: v.id, protocol: v.protocol, protocolName: v.protocol, chain, asset: v.asset, marketUid: v.marketUid,
             outputLabel: vaultDisplay,
             returnValue: v.apy,
             returnLabel: formatPercent(v.apy) + " APY",
@@ -386,11 +408,10 @@ export default function ExecutionPanel() {
     return (pendle ?? [])
       .filter(p => p.asset === asset || p.name.toLowerCase().includes(asset.toLowerCase()))
       .sort((a, b) => b.impliedAPY - a.impliedAPY)
-      .slice(0, 6)
       .map(p => {
         const { chain } = parseChainFromLabel(p.name);
         return {
-          id: p.id, protocol: "Pendle", chain,
+          id: p.id, protocol: "Pendle", protocolName: "Pendle", chain, asset: p.asset,
           outputLabel: `PT-${p.asset} · ${p.daysToMaturity}d maturity`,
           returnValue: p.impliedAPY,
           returnLabel: formatPercent(p.impliedAPY) + " Fixed APY",
@@ -401,25 +422,80 @@ export default function ExecutionPanel() {
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults, pendle]);
 
-  const selectedRoute = routes.find(r => r.id === selectedRouteId) ?? routes[0] ?? null;
+  const filteredRoutes = useMemo(() => {
+    const minTvl = tvlFilter === "1m" ? 1_000_000 : tvlFilter === "10m" ? 10_000_000 : tvlFilter === "100m" ? 100_000_000 : 0;
+    return routes.filter((route) => {
+      if (protocolFilter !== "all" && route.protocolName !== protocolFilter) return false;
+      if (chainFilter !== "all" && route.chain !== chainFilter) return false;
+      if (route.tvlRaw < minTvl) return false;
+      return true;
+    });
+  }, [routes, protocolFilter, chainFilter, tvlFilter]);
 
-  // ── Borrow calculations ──────────────────────────────────
+  const visibleRoutes = showAllRoutes ? filteredRoutes : filteredRoutes.slice(0, 6);
+  const selectedRoute = visibleRoutes.find(r => r.id === selectedRouteId) ?? visibleRoutes[0] ?? null;
+  const hasMoreRoutes = filteredRoutes.length > 6;
+  const protocolOptions = useMemo(() => [...new Set(routes.map((r) => r.protocolName))].sort(), [routes]);
+  const chainOptions = useMemo(() => [...new Set(routes.map((r) => r.chain).filter(Boolean) as string[])].sort(), [routes]);
+
+  // ── Borrow calculations (live-data based) ─────────────────
   const amountNum = parseFloat(amount) || 0;
-  const COLLATERAL_PRICES: Record<string, number> = {
-    ETH: 3000, WETH: 3000, WBTC: 65000, USDC: 1, USDT: 1, DAI: 1, wstETH: 3300,
+  const selectedBorrowMarket = useMemo(() => {
+    if (mode !== "borrow" || !selectedRoute) return null;
+    return (markets ?? []).find((m) => m.id === selectedRoute.id) ?? null;
+  }, [mode, selectedRoute, markets]);
+
+  const readPct = (value: unknown): number | null => {
+    if (typeof value !== "number" || !Number.isFinite(value)) return null;
+    return value > 1 ? value / 100 : value;
   };
-  const LTV_RATIOS: Record<string, number> = {
-    ETH: 0.80, WETH: 0.80, WBTC: 0.75, USDC: 0.87, USDT: 0.87, DAI: 0.87, wstETH: 0.78,
-  };
-  const collateralPrice = COLLATERAL_PRICES[validFromAsset] ?? 1;
-  const ltv = LTV_RATIOS[validFromAsset] ?? 0.75;
-  const maxBorrow = amountNum * collateralPrice * ltv;
-  const healthFactor = amountNum > 0 && selectedRoute
-    ? (amountNum * collateralPrice * ltv) / Math.min(amountNum * collateralPrice * ltv * 0.8, amountNum)
-    : 9.99;
-  const liquidationPrice = amountNum > 0 && selectedRoute
-    ? (amountNum * 0.5) / (amountNum * ltv)
-    : 0;
+
+  const collateralPrice =
+    typeof (selectedBorrowMarket as any)?.collateralPriceUsd === "number"
+      ? (selectedBorrowMarket as any).collateralPriceUsd
+      : typeof (selectedBorrowMarket as any)?.priceUsd === "number"
+      ? (selectedBorrowMarket as any).priceUsd
+      : null;
+
+  const borrowAssetPrice =
+    typeof (selectedBorrowMarket as any)?.borrowAssetPriceUsd === "number"
+      ? (selectedBorrowMarket as any).borrowAssetPriceUsd
+      : typeof (selectedBorrowMarket as any)?.debtAssetPriceUsd === "number"
+      ? (selectedBorrowMarket as any).debtAssetPriceUsd
+      : typeof (selectedBorrowMarket as any)?.assetPriceUsd === "number"
+      ? (selectedBorrowMarket as any).assetPriceUsd
+      : typeof (selectedBorrowMarket as any)?.priceUsd === "number"
+      ? (selectedBorrowMarket as any).priceUsd
+      : 1;
+
+  const ltv =
+    readPct((selectedBorrowMarket as any)?.maxLtv) ??
+    readPct((selectedBorrowMarket as any)?.ltv) ??
+    readPct((selectedBorrowMarket as any)?.collateralFactor);
+
+  const liquidationThreshold =
+    readPct((selectedBorrowMarket as any)?.liquidationThreshold) ??
+    readPct((selectedBorrowMarket as any)?.liquidationLtv) ??
+    ltv;
+
+  const collateralUsd = amountNum > 0 && collateralPrice != null ? amountNum * collateralPrice : null;
+  const maxBorrowByLtv = collateralUsd != null && ltv != null ? collateralUsd * ltv : null;
+  const marketLiquidity = selectedBorrowMarket?.availableLiquidityUSD ?? null;
+  const maxBorrow =
+    maxBorrowByLtv != null
+      ? Math.min(maxBorrowByLtv, marketLiquidity ?? Number.POSITIVE_INFINITY)
+      : null;
+
+  const plannedBorrowUsd = amountNum > 0 ? amountNum * borrowAssetPrice : null;
+  const healthFactor =
+    collateralUsd != null && plannedBorrowUsd != null && plannedBorrowUsd > 0 && liquidationThreshold != null
+      ? (collateralUsd * liquidationThreshold) / plannedBorrowUsd
+      : null;
+
+  const liquidationPrice =
+    amountNum > 0 && plannedBorrowUsd != null && liquidationThreshold != null && liquidationThreshold > 0
+      ? plannedBorrowUsd / (amountNum * liquidationThreshold)
+      : null;
 
   // ── Button state ─────────────────────────────────────────
   type BtnState = "connect" | "enter" | "exec";
@@ -433,6 +509,42 @@ export default function ExecutionPanel() {
 
   const handleButton = () => {
     if (btnState === "connect") openWallet();
+    if (btnState !== "exec" || !selectedRoute || prepLoading) return;
+
+    const actionLabel = mode === "borrow" ? "borrow" : "deposit";
+    const basePrompt = mode === "borrow"
+      ? `Help me borrow ${amount} ${toAsset} using ${validFromAsset} as collateral on ${selectedRoute.protocolName}${selectedRoute.chain ? ` (${selectedRoute.chain})` : ""}`
+      : `Help me deposit ${amount} ${validFromAsset} into ${selectedRoute.protocolName}${selectedRoute.chain ? ` (${selectedRoute.chain})` : ""}${lendSubMode === "vault" ? " vault" : lendSubMode === "fixed" ? " fixed-yield market" : " lending market"}`;
+    const marketRef = selectedRoute.marketUid ? ` (marketUid: ${selectedRoute.marketUid})` : "";
+    const query = `${basePrompt}${marketRef} and prepare the ${actionLabel} transaction.`;
+
+    setPrepError(null);
+    setPrepLoading(true);
+    setPreparedTxs(null);
+    setPreparedQuote(null);
+
+    fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({ query, history: [] }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Server error (${res.status})`);
+        const data = await res.json();
+        const txs = Array.isArray(data.transactions) ? (data.transactions as TxStep[]) : [];
+        if (!txs.length) throw new Error("No executable transactions were returned. Please try a different route/amount.");
+        setPreparedTxs(txs);
+        setPreparedQuote(data.quote ?? null);
+      })
+      .catch((err: any) => {
+        setPrepError(err?.message || "Failed to prepare transaction");
+      })
+      .finally(() => {
+        setPrepLoading(false);
+      });
   };
 
   const inputBg = "#141a20";
@@ -582,16 +694,6 @@ export default function ExecutionPanel() {
                 onChange={a => setFromAsset(a)}
                 assets={fromAssets}
               />
-              <div style={{
-                display: "flex", alignItems: "center", gap: 4,
-                background: "#0a0f14", border: "1px solid rgba(67,72,78,0.3)",
-                borderRadius: 8, padding: "5px 9px", fontSize: 11, fontWeight: 600,
-                color: "#a7abb2", fontFamily: "Inter, sans-serif",
-              }}>
-                <div style={{ width: 13, height: 13, borderRadius: "50%", background: "#627EEA", fontSize: 7, color: "#fff", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>E</div>
-                Any Chain
-                <ChevronDown size={9} />
-              </div>
             </div>
 
             {/* Amount input */}
@@ -709,13 +811,13 @@ export default function ExecutionPanel() {
           {mode === "borrow" && amountNum > 0 && (
             <div style={{ marginBottom: 12, background: inputBg, borderRadius: 12, padding: 12, border: sectionBorder }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
-                <HealthGauge value={Math.min(9.99, healthFactor)} />
+                <HealthGauge value={healthFactor != null ? Math.min(9.99, healthFactor) : null} />
               </div>
-              <FieldRow label="Max Borrow" value={formatUSD(maxBorrow)} tooltip="Maximum you can borrow with current collateral" />
+              <FieldRow label="Max Borrow" value={maxBorrow != null ? formatUSD(maxBorrow) : "—"} tooltip="Maximum you can borrow with current collateral" />
               <FieldRow label="Borrow APR" value={selectedRoute ? selectedRoute.returnLabel : "Select route"} accent={selectedRoute ? AMBER : undefined} />
-              <FieldRow label="LTV Ratio" value={`${(ltv * 100).toFixed(0)}%`} tooltip="Loan-to-value ratio for this collateral" />
-              <FieldRow label="Liquidation Price" value={liquidationPrice > 0 ? `$${liquidationPrice.toLocaleString("en", { maximumFractionDigits: 2 })}` : "—"} tooltip="Price at which your position gets liquidated" />
-              {healthFactor < 1.5 && healthFactor < 9.99 && (
+              <FieldRow label="LTV Ratio" value={ltv != null ? `${(ltv * 100).toFixed(0)}%` : "—"} tooltip="Loan-to-value ratio for this collateral" />
+              <FieldRow label="Liquidation Price" value={liquidationPrice != null && liquidationPrice > 0 ? `$${liquidationPrice.toLocaleString("en", { maximumFractionDigits: 2 })}` : "—"} tooltip="Price at which your position gets liquidated" />
+              {healthFactor != null && healthFactor < 1.5 && (
                 <div style={{ marginTop: 8, padding: "6px 8px", background: "rgba(239,68,68,0.06)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)" }}>
                   <span style={{ fontSize: 10, color: "#ef4444", fontFamily: "Inter, sans-serif" }}>
                     ⚠ Low health factor — add more collateral or reduce borrow amount
@@ -757,8 +859,20 @@ export default function ExecutionPanel() {
             onMouseEnter={e => { if (!btnDisabled) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.14)"; } }}
             onMouseLeave={e => { if (!btnDisabled) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)"; } }}
           >
-            {btnLabels[btnState]}
+            {prepLoading && btnState === "exec" ? "Preparing Transaction..." : btnLabels[btnState]}
           </button>
+
+          {prepError && (
+            <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#ef4444", fontSize: 11, fontFamily: "Inter, sans-serif" }}>
+              {prepError}
+            </div>
+          )}
+
+          {preparedTxs && preparedTxs.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <TxExecutor transactions={preparedTxs} quote={preparedQuote} />
+            </div>
+          )}
 
           <div style={{ marginTop: 7, textAlign: "center", fontSize: 10, color: "rgba(167,171,178,0.4)", fontFamily: "Inter, sans-serif" }}>
             Slippage {slippage}% · Rates update every 60s
@@ -771,14 +885,31 @@ export default function ExecutionPanel() {
             <span style={{ fontSize: 13, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.02em" }}>
               Best Routes
             </span>
-            {routes.length > 0 && (
+            {filteredRoutes.length > 0 && (
               <span style={{ fontSize: 10, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
-                {routes.length} option{routes.length !== 1 ? "s" : ""} · sorted by best return
+                {filteredRoutes.length} option{filteredRoutes.length !== 1 ? "s" : ""} · sorted by best return
               </span>
             )}
           </div>
 
-          {routes.length === 0 ? (
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+            <select value={protocolFilter} onChange={(e) => setProtocolFilter(e.target.value)} style={{ background: "#141a20", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2", borderRadius: 8, padding: "6px 8px", fontSize: 11 }}>
+              <option value="all">All Protocols</option>
+              {protocolOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select value={chainFilter} onChange={(e) => setChainFilter(e.target.value)} style={{ background: "#141a20", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2", borderRadius: 8, padding: "6px 8px", fontSize: 11 }}>
+              <option value="all">All Chains</option>
+              {chainOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={tvlFilter} onChange={(e) => setTvlFilter(e.target.value)} style={{ background: "#141a20", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2", borderRadius: 8, padding: "6px 8px", fontSize: 11 }}>
+              <option value="all">All TVL</option>
+              <option value="1m">TVL ≥ $1M</option>
+              <option value="10m">TVL ≥ $10M</option>
+              <option value="100m">TVL ≥ $100M</option>
+            </select>
+          </div>
+
+          {filteredRoutes.length === 0 ? (
             <div style={{
               background: "#0e1419", border: "1px solid rgba(67,72,78,0.3)",
               borderRadius: 12, padding: "40px 24px", textAlign: "center",
@@ -793,21 +924,32 @@ export default function ExecutionPanel() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {routes.map((route, i) => (
+              {visibleRoutes.map((route, i) => (
                 <RouteCard
                   key={route.id}
                   route={route}
-                  selected={route.id === (selectedRoute?.id ?? routes[0]?.id)}
+                  selected={route.id === (selectedRoute?.id ?? visibleRoutes[0]?.id)}
                   onSelect={() => setSelectedRouteId(route.id)}
                   accent={accent}
                   isBest={i === 0}
                 />
               ))}
+              {hasMoreRoutes && !showAllRoutes && (
+                <button
+                  onClick={() => setShowAllRoutes(true)}
+                  style={{
+                    width: "100%", background: "transparent", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2",
+                    borderRadius: 10, padding: "8px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700,
+                  }}
+                >
+                  More ({filteredRoutes.length - visibleRoutes.length} more)
+                </button>
+              )}
             </div>
           )}
 
           {/* Info footer */}
-          {routes.length > 0 && (
+          {filteredRoutes.length > 0 && (
             <div style={{
               marginTop: 12, padding: "10px 14px",
               background: "#0e1419", borderRadius: 10,
