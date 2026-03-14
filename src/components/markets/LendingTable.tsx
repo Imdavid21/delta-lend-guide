@@ -11,8 +11,9 @@ import MarketActionButton from "./MarketActionButton";
 
 type SortKey = "asset" | "protocolName" | "supplyAPY" | "borrowAPR" | "totalSupplyUSD" | "utilizationRate";
 
+// UtilBar: utilizationRate from backend is already in percent (0-100)
 function UtilBar({ value }: { value: number }) {
-  const pct = Math.min(100, Math.max(0, value * 100));
+  const pct = Math.min(100, Math.max(0, value)); // NOT value*100 — field is already percent
   const color =
     pct > 90 ? "#ff716c"
     : pct > 75 ? "#f59e0b"
@@ -30,9 +31,126 @@ function UtilBar({ value }: { value: number }) {
   );
 }
 
+function extractChain(protocolName: string): string | null {
+  const match = protocolName.match(/\((\w+)\)$/);
+  return match ? match[1] : null;
+}
+
+function extractProtocolBase(protocolName: string): string {
+  return protocolName.replace(/\s*\([^)]+\)$/, "");
+}
+
+interface FilterBarProps {
+  assets: string[];
+  protocols: string[];
+  chains: string[];
+  assetFilter: string | null;
+  protocolFilter: string | null;
+  chainFilter: string | null;
+  onAsset: (v: string | null) => void;
+  onProtocol: (v: string | null) => void;
+  onChain: (v: string | null) => void;
+}
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "4px 12px",
+        borderRadius: 20,
+        border: `1px solid ${active ? "#00FF9D" : "rgba(67,72,78,0.4)"}`,
+        background: active ? "rgba(0,255,157,0.1)" : "transparent",
+        color: active ? "#00FF9D" : "#a7abb2",
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: "pointer",
+        fontFamily: "Inter, sans-serif",
+        transition: "all 150ms ease",
+        whiteSpace: "nowrap" as const,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function FilterBar({ assets, protocols, chains, assetFilter, protocolFilter, chainFilter, onAsset, onProtocol, onChain }: FilterBarProps) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+      {/* Chain pills */}
+      {chains.map((c) => (
+        <FilterChip
+          key={c}
+          label={c}
+          active={chainFilter === c}
+          onClick={() => onChain(chainFilter === c ? null : c)}
+        />
+      ))}
+
+      {chains.length > 0 && protocols.length > 0 && (
+        <div style={{ width: 1, height: 22, background: "rgba(67,72,78,0.3)", margin: "0 4px", alignSelf: "center" }} />
+      )}
+
+      {/* Protocol pills */}
+      {protocols.map((p) => (
+        <FilterChip
+          key={p}
+          label={p}
+          active={protocolFilter === p}
+          onClick={() => onProtocol(protocolFilter === p ? null : p)}
+        />
+      ))}
+
+      {protocols.length > 0 && assets.length > 0 && (
+        <div style={{ width: 1, height: 22, background: "rgba(67,72,78,0.3)", margin: "0 4px", alignSelf: "center" }} />
+      )}
+
+      {/* Asset pills */}
+      {assets.map((a) => (
+        <FilterChip
+          key={a}
+          label={a}
+          active={assetFilter === a}
+          onClick={() => onAsset(assetFilter === a ? null : a)}
+        />
+      ))}
+
+      {(assetFilter || protocolFilter || chainFilter) && (
+        <button
+          onClick={() => { onAsset(null); onProtocol(null); onChain(null); }}
+          style={{
+            padding: "4px 10px",
+            borderRadius: 20,
+            border: "1px solid rgba(255,113,108,0.4)",
+            background: "transparent",
+            color: "#ff716c",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+            fontFamily: "Inter, sans-serif",
+          }}
+        >
+          Clear ×
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function LendingTable({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
   const { data, isLoading, error } = useMarkets();
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
+  const [protocolFilter, setProtocolFilter] = useState<string | null>(null);
+  const [chainFilter, setChainFilter] = useState<string | null>(null);
   const isLending = viewMode === "lending";
   const [sortKey, setSortKey] = useState<SortKey>(isLending ? "supplyAPY" : "borrowAPR");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(isLending ? "desc" : "asc");
@@ -42,17 +160,32 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
     return [...new Set(data.map((m) => m.asset))].sort();
   }, [data]);
 
+  const protocols = useMemo(() => {
+    if (!data) return [];
+    const bases = data.map((m) => extractProtocolBase(m.protocolName));
+    return [...new Set(bases)].sort();
+  }, [data]);
+
+  const chains = useMemo(() => {
+    if (!data) return [];
+    const cs = data.map((m) => extractChain(m.protocolName)).filter(Boolean) as string[];
+    return [...new Set(cs)].sort();
+  }, [data]);
+
   const rows = useMemo(() => {
     if (!data) return [];
-    let filtered = assetFilter ? data.filter((m) => m.asset === assetFilter) : data;
+    let filtered = data;
     if (!isLending) filtered = filtered.filter((m) => m.borrowAPR != null && m.borrowAPR > 0);
+    if (assetFilter) filtered = filtered.filter((m) => m.asset === assetFilter);
+    if (protocolFilter) filtered = filtered.filter((m) => extractProtocolBase(m.protocolName) === protocolFilter);
+    if (chainFilter) filtered = filtered.filter((m) => extractChain(m.protocolName) === chainFilter);
     return [...filtered].sort((a, b) => {
       const av = (a as any)[sortKey] ?? 0;
       const bv = (b as any)[sortKey] ?? 0;
       if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       return sortDir === "asc" ? av - bv : bv - av;
     });
-  }, [data, assetFilter, sortKey, sortDir, isLending]);
+  }, [data, assetFilter, protocolFilter, chainFilter, sortKey, sortDir, isLending]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -71,26 +204,17 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
   return (
     <Box>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{
-            fontSize: 10,
-            fontWeight: 800,
-            textTransform: "uppercase" as const,
-            letterSpacing: "0.12em",
-            color: "#00FF9D",
-            marginBottom: 4,
-            fontFamily: "Inter, sans-serif",
+            fontSize: 10, fontWeight: 800, textTransform: "uppercase" as const,
+            letterSpacing: "0.12em", color: "#00FF9D", marginBottom: 4, fontFamily: "Inter, sans-serif",
           }}>
             {isLending ? "Omnichain Protocol" : "Institutional Credit Layer"}
           </div>
           <div style={{
-            fontSize: 22,
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            color: "#eaeef5",
-            marginBottom: 2,
-            fontFamily: "Inter, sans-serif",
+            fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5",
+            marginBottom: 2, fontFamily: "Inter, sans-serif",
           }}>
             {isLending ? "Lending Markets" : "Borrow Markets"}
           </div>
@@ -98,8 +222,20 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
             Rates via 1Delta · Base rates only (excl. reward incentives)
           </div>
         </div>
-        <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </div>
+
+      {/* Filter bar */}
+      <FilterBar
+        assets={assets}
+        protocols={protocols}
+        chains={chains}
+        assetFilter={assetFilter}
+        protocolFilter={protocolFilter}
+        chainFilter={chainFilter}
+        onAsset={setAssetFilter}
+        onProtocol={setProtocolFilter}
+        onChain={setChainFilter}
+      />
 
       {error && (
         <Typography color="error" variant="body2" sx={{ mb: 2 }}>
@@ -129,15 +265,9 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
                     direction={sortKey === c.key ? sortDir : "asc"}
                     onClick={() => handleSort(c.key)}
                     sx={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "#a7abb2 !important",
-                      "& .MuiTableSortLabel-icon": {
-                        opacity: sortKey === c.key ? 1 : 0.3,
-                        color: "#00FF9D !important",
-                      },
+                      fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+                      letterSpacing: "0.05em", color: "#a7abb2 !important",
+                      "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#00FF9D !important" },
                       "&.Mui-active": { color: "#eaeef5 !important" },
                       "&:hover": { color: "#eaeef5 !important" },
                     }}
@@ -175,12 +305,10 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
                         "& td": { borderBottom: "1px solid rgba(67,72,78,0.15)" },
                       }}
                     >
-                      {/* Asset */}
                       <TableCell>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                           <Box sx={{
-                            width: 32, height: 32, borderRadius: "50%",
-                            bgcolor: "#141a20",
+                            width: 32, height: 32, borderRadius: "50%", bgcolor: "#141a20",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             border: "1px solid rgba(67,72,78,0.3)", flexShrink: 0,
                           }}>
@@ -192,7 +320,6 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
                         </Box>
                       </TableCell>
 
-                      {/* Protocol */}
                       <TableCell>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                           <ProtocolIcon name={m.protocolName} size={16} />
@@ -200,53 +327,37 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
                             label={protoName}
                             size="small"
                             variant="outlined"
-                            sx={{
-                              fontSize: 11, height: 22, fontWeight: 600,
-                              borderColor: "rgba(67,72,78,0.4)",
-                              color: "#a7abb2",
-                              bgcolor: "transparent",
-                            }}
+                            sx={{ fontSize: 11, height: 22, fontWeight: 600, borderColor: "rgba(67,72,78,0.4)", color: "#a7abb2", bgcolor: "transparent" }}
                           />
                           {chain && <ChainIcon chainName={chain} size={13} />}
                         </Box>
                       </TableCell>
 
-                      {/* Supply APY */}
                       <TableCell align="right">
                         <Typography sx={{
-                          fontSize: 13, fontWeight: 800,
-                          fontVariantNumeric: "tabular-nums",
-                          color: supplyHighlight ? "#00FF9D" : "#eaeef5",
-                          letterSpacing: "-0.02em",
+                          fontSize: 13, fontWeight: 800, fontVariantNumeric: "tabular-nums",
+                          color: supplyHighlight ? "#00FF9D" : "#eaeef5", letterSpacing: "-0.02em",
                         }}>
                           {formatPercent(m.supplyAPY)}
                         </Typography>
                       </TableCell>
 
-                      {/* Borrow APR */}
                       <TableCell align="right">
-                        <Typography sx={{
-                          fontSize: 13, fontWeight: 600,
-                          fontVariantNumeric: "tabular-nums",
-                          color: "#a7abb2",
-                        }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#a7abb2" }}>
                           {formatPercent(m.borrowAPR)}
                         </Typography>
                       </TableCell>
 
-                      {/* TVL */}
                       <TableCell align="right">
                         <Typography sx={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>
                           {formatUSD(m.totalSupplyUSD)}
                         </Typography>
                       </TableCell>
 
-                      {/* Utilization */}
                       <TableCell align="right">
-                        <UtilBar value={m.utilizationRate} />
+                        <UtilBar value={m.utilizationRate ?? 0} />
                       </TableCell>
 
-                      {/* Action */}
                       <TableCell align="right">
                         <MarketActionButton
                           label={isLending ? "Deposit" : "Borrow"}

@@ -17,7 +17,6 @@ const PROTOCOL_SLUGS: Record<string, string> = {
   "Radiant V2": "radiant",
   "Venus": "venus",
   "Seamless": "seamless-protocol",
-  "ZeroLend": "zerolend",
   "LayerBank": "layerbank",
   "Aurelius": "aurelius",
   "Init Capital": "init-capital",
@@ -50,9 +49,24 @@ const LOCAL_PROTOCOL_ICONS: Record<string, string> = {
 
 export function getProtocolIconUrl(protocolName: string): string {
   if (LOCAL_PROTOCOL_ICONS[protocolName]) return LOCAL_PROTOCOL_ICONS[protocolName];
+
+  // Exact match first
   const slug = PROTOCOL_SLUGS[protocolName];
   if (slug) return `https://icons.llamao.fi/icons/protocols/${slug}`;
-  const derived = protocolName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+  // Strip chain suffix like " (Ethereum)" or " (Base)" then try exact + local match
+  const withoutChain = protocolName.replace(/\s*\([^)]+\)$/, "");
+  if (LOCAL_PROTOCOL_ICONS[withoutChain]) return LOCAL_PROTOCOL_ICONS[withoutChain];
+  const slugNoChain = PROTOCOL_SLUGS[withoutChain];
+  if (slugNoChain) return `https://icons.llamao.fi/icons/protocols/${slugNoChain}`;
+
+  // Prefix match — handles "Aave V3 Core" → "Aave V3", "Compound Blue" → "Compound V3"
+  for (const [key, s] of Object.entries(PROTOCOL_SLUGS)) {
+    if (withoutChain.startsWith(key)) return `https://icons.llamao.fi/icons/protocols/${s}`;
+  }
+
+  // Derive slug from stripped name
+  const derived = withoutChain.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   return `https://icons.llamao.fi/icons/protocols/${derived}`;
 }
 

@@ -137,6 +137,7 @@ async function fetchLending(hdrs: Record<string, string>) {
     .map((pool: any) => {
       const lenderKey = pool.lenderKey ?? pool.lender ?? "";
       if (lenderKey.startsWith("MORPHO_BLUE")) return null;
+      if (lenderKey === "ZEROLEND") return null; // Removed from UI per product decision
 
       const chainId = resolveChainId(pool) ?? 1;
       const asset = extractAsset(pool);
