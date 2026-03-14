@@ -15,7 +15,6 @@ import MarketPage from "./dashboard/MarketPage";
 import LendingTable from "./markets/LendingTable";
 import VaultsTable from "./markets/VaultsTable";
 import FixedYieldTable from "./markets/FixedYieldTable";
-import PositionsPanel from "./dashboard/PositionsPanel";
 import Account from "./Account";
 import { useChats, type ChatMessage } from "../hooks/useChats";
 import type { TransitionProps } from "@mui/material/transitions";
@@ -43,7 +42,7 @@ const SlideUp = forwardRef(function SlideUp(
 export default function AppShell({ mode, onToggle }: Props) {
   const [chatInput, setChatInput] = useState("");
   const { address: walletAddress, isConnected: walletConnected } = useAccount();
-  useWalletAuth(); // Register/update wallet in DB on connect
+  useWalletAuth();
   const { chats, activeChat, activeChatId, setActiveChatId, createChat, addMessage, deleteChat } =
     useChats();
   const [loading, setLoading] = useState(false);
@@ -103,7 +102,6 @@ export default function AppShell({ mode, onToggle }: Props) {
         try {
           data = await fetchWithTimeout(55000);
         } catch (firstErr: any) {
-          // Retry once on failure
           console.warn("Chat first attempt failed, retrying:", firstErr.message);
           try {
             data = await fetchWithTimeout(55000);
@@ -141,7 +139,6 @@ export default function AppShell({ mode, onToggle }: Props) {
   const submitAction = useCallback(
     (prompt: string) => {
       setChatOpen(true);
-      // Continue in the current chat if one exists, otherwise create a new one
       const cid = activeChatId ?? createChat();
       setTimeout(() => sendMessage(prompt, cid), 100);
     },
@@ -150,40 +147,24 @@ export default function AppShell({ mode, onToggle }: Props) {
 
   const ctx = useMemo(() => ({ submitAction }), [submitAction]);
 
+  const isDark = mode === "dark";
+
   return (
     <ShellContext.Provider value={ctx}>
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", position: "relative" }}>
-        {/* Decorative background glows */}
-        <Box
-          aria-hidden
-          sx={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            width: 500,
-            height: 500,
-            borderRadius: "50%",
-            bgcolor: "rgba(0,255,157,0.04)",
-            filter: "blur(120px)",
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
-        <Box
-          aria-hidden
-          sx={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            width: 600,
-            height: 600,
-            borderRadius: "50%",
-            bgcolor: "rgba(120,223,255,0.03)",
-            filter: "blur(150px)",
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          bgcolor: isDark ? "#0a0f14" : "#ffffff",
+          color: isDark ? "#eaeef5" : "#0a0a0a",
+          position: "relative",
+        }}
+      >
+        {/* Background glows */}
+        <Box aria-hidden sx={{ position: "fixed", top: 0, right: 0, width: 500, height: 500, borderRadius: "50%", bgcolor: isDark ? "rgba(0,255,157,0.04)" : "transparent", filter: "blur(120px)", pointerEvents: "none", zIndex: 0 }} />
+        <Box aria-hidden sx={{ position: "fixed", bottom: 0, left: 0, width: 600, height: 600, borderRadius: "50%", bgcolor: isDark ? "rgba(120,223,255,0.03)" : "transparent", filter: "blur(150px)", pointerEvents: "none", zIndex: 0 }} />
+
         <AppHeader
           mode={mode}
           onToggle={onToggle}
@@ -191,52 +172,56 @@ export default function AppShell({ mode, onToggle }: Props) {
           onToggleChat={() => setChatOpen((p) => !p)}
         />
 
-        {/* Main dashboard content */}
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <Box
-            sx={{
-              flex: 1,
-              overflow: "auto",
-              p: { xs: 2, md: 3 },
-              maxWidth: 1400,
-              mx: "auto",
-              width: "100%",
-            }}
-          >
-            <Routes>
-              <Route path="/" element={<Navigate to="/lending" replace />} />
-              <Route path="/lending" element={
-                <DashboardContainer viewMode="lending" submitAction={submitAction} />
-              } />
-              <Route path="/borrow" element={
-                <DashboardContainer viewMode="borrow" submitAction={submitAction} />
-              } />
-              <Route path="/lending/markets" element={
-                <MarketPage><LendingTable viewMode="lending" /></MarketPage>
-              } />
-              <Route path="/borrow/markets" element={
-                <MarketPage><LendingTable viewMode="borrow" /></MarketPage>
-              } />
-              <Route path="/lending/vaults" element={
-                <MarketPage><VaultsTable /></MarketPage>
-              } />
-              <Route path="/lending/fixed" element={
-                <MarketPage><FixedYieldTable /></MarketPage>
-              } />
-              <Route path="/account" element={<Account />} />
-            </Routes>
-          </Box>
-
-          <CommandBar
-            loading={loading}
-            onSend={(text) => sendMessage(text)}
-            onNavigate={() => {}}
-            onNewChat={submitAction}
-            chatHistory={chats}
-          />
+        {/* Scrollable main content - pb accounts for fixed bottom bar */}
+        <Box
+          component="main"
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            pt: { xs: 2, md: 3 },
+            px: { xs: 2, md: 3 },
+            pb: "100px",
+            maxWidth: 1400,
+            mx: "auto",
+            width: "100%",
+          }}
+        >
+          <Routes>
+            <Route path="/" element={<Navigate to="/lending" replace />} />
+            <Route path="/lending" element={
+              <DashboardContainer viewMode="lending" submitAction={submitAction} isDark={isDark} />
+            } />
+            <Route path="/borrow" element={
+              <DashboardContainer viewMode="borrow" submitAction={submitAction} isDark={isDark} />
+            } />
+            <Route path="/lending/markets" element={
+              <MarketPage><LendingTable viewMode="lending" /></MarketPage>
+            } />
+            <Route path="/borrow/markets" element={
+              <MarketPage><LendingTable viewMode="borrow" /></MarketPage>
+            } />
+            <Route path="/lending/vaults" element={
+              <MarketPage><VaultsTable /></MarketPage>
+            } />
+            <Route path="/lending/fixed" element={
+              <MarketPage><FixedYieldTable /></MarketPage>
+            } />
+            <Route path="/account" element={<Account />} />
+          </Routes>
         </Box>
 
-        {/* Chat overlay — centered dialog on top of dashboard */}
+        {/* Fixed floating CommandBar */}
+        <CommandBar
+          loading={loading}
+          onSend={(text) => sendMessage(text)}
+          onNavigate={() => {}}
+          onNewChat={submitAction}
+          chatHistory={chats}
+          isDark={isDark}
+        />
+
+        {/* Chat overlay dialog */}
         <Dialog
           open={chatOpen}
           onClose={() => setChatOpen(false)}
@@ -252,19 +237,18 @@ export default function AppShell({ mode, onToggle }: Props) {
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              bgcolor: "background.default",
-              border: 1,
-              borderColor: "divider",
+              bgcolor: isDark ? "#0e1419" : "background.default",
+              border: "1px solid",
+              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
             },
           }}
           sx={{
             "& .MuiBackdrop-root": {
-              backgroundColor: "rgba(0,0,0,0.3)",
-              backdropFilter: "blur(4px)",
+              backgroundColor: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(6px)",
             },
           }}
         >
-          {/* Chat header */}
           <Box
             sx={{
               display: "flex",
@@ -272,8 +256,8 @@ export default function AppShell({ mode, onToggle }: Props) {
               justifyContent: "space-between",
               px: 2,
               py: 1,
-              borderBottom: 1,
-              borderColor: "divider",
+              borderBottom: "1px solid",
+              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
               minHeight: 44,
               flexShrink: 0,
             }}
@@ -292,7 +276,6 @@ export default function AppShell({ mode, onToggle }: Props) {
             </Tooltip>
           </Box>
 
-          {/* Chat content */}
           <Box sx={{ flex: 1, overflow: "hidden" }}>
             <ChatPanel
               chat={activeChat}
@@ -301,7 +284,6 @@ export default function AppShell({ mode, onToggle }: Props) {
             />
           </Box>
 
-          {/* Chat input */}
           <Box
             component="form"
             onSubmit={(e: React.FormEvent) => {
@@ -317,8 +299,8 @@ export default function AppShell({ mode, onToggle }: Props) {
               gap: 1,
               px: 2,
               py: 1.5,
-              borderTop: 1,
-              borderColor: "divider",
+              borderTop: "1px solid",
+              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
               flexShrink: 0,
             }}
           >
@@ -328,49 +310,34 @@ export default function AppShell({ mode, onToggle }: Props) {
               placeholder="Ask anything..."
               fullWidth
               autoFocus
-              sx={{
-                fontSize: 14,
-                px: 1.5,
-                py: 0.75,
-                borderRadius: 2,
-                bgcolor: "action.hover",
-              }}
+              sx={{ fontSize: 14, px: 1.5, py: 0.75, borderRadius: 2, bgcolor: isDark ? "rgba(31,38,46,0.5)" : "action.hover" }}
             />
             <IconButton
               type="submit"
               size="small"
               disabled={!chatInput.trim() || loading}
-              sx={{ color: "text.primary" }}
+              sx={{ color: isDark ? "#00FF9D" : "text.primary" }}
             >
               <SendIcon fontSize="small" />
             </IconButton>
           </Box>
         </Dialog>
-
       </Box>
     </ShellContext.Provider>
   );
 }
-function DashboardContainer({ viewMode, submitAction }: {
+
+function DashboardContainer({ viewMode, submitAction, isDark }: {
   viewMode: "lending" | "borrow";
   submitAction: (p: string) => void;
+  isDark: boolean;
 }) {
   return (
     <>
-      <Box sx={{ mb: 2.5 }}>
+      <Box sx={{ mb: 3 }}>
         <HeroStats viewMode={viewMode} />
       </Box>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "1fr 320px" },
-          gap: 2,
-          mb: 2.5,
-        }}
-      >
-        <TopYields viewMode={viewMode} onAction={submitAction} />
-        <PositionsPanel onAskChat={submitAction} />
-      </Box>
+      <TopYields viewMode={viewMode} onAction={submitAction} />
     </>
   );
 }

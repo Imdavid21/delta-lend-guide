@@ -1,7 +1,4 @@
 import { useMemo } from "react";
-import {
-  Box, Typography, Skeleton, Button, alpha,
-} from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
@@ -12,180 +9,182 @@ interface Props {
   onAction: (prompt: string) => void;
 }
 
+interface YieldItem {
+  id: string;
+  label: string;
+  sub: string;
+  apy: string;
+  icon: React.ReactNode;
+}
+
+function SkeletonRow() {
+  return (
+    <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ width: 14, height: 14, borderRadius: 3, background: "rgba(255,255,255,0.06)" }} />
+      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.06)", flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ height: 12, width: "60%", borderRadius: 4, background: "rgba(255,255,255,0.06)", marginBottom: 5 }} />
+        <div style={{ height: 10, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+      </div>
+      <div style={{ width: 44, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+    </div>
+  );
+}
+
 function YieldCard({
   title,
   items,
   loading,
   onSeeAll,
-  accentColor = "primary.main",
+  accentColor = "#00FF9D",
 }: {
   title: string;
-  items: { id: string; label: string; sub: string; apy: string; icon: React.ReactNode }[] | null;
+  items: YieldItem[] | null;
   loading: boolean;
   onSeeAll?: () => void;
   accentColor?: string;
 }) {
   return (
-    <Box
-      sx={{
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 3,
+    <div
+      style={{
+        border: "1px solid rgba(67,72,78,0.3)",
+        borderRadius: 12,
         overflow: "hidden",
-        bgcolor: "background.paper",
+        background: "#0e1419",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {/* Card header */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1.5,
-          borderBottom: "1px solid",
-          borderColor: "divider",
+      {/* Header */}
+      <div
+        style={{
+          padding: "12px 16px",
+          borderBottom: "1px solid rgba(67,72,78,0.25)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          bgcolor: (t) => t.palette.mode === "dark" ? "#1a2027" : "#f1f5f9",
         }}
       >
-        <Typography
-          sx={{
-            fontWeight: 800,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-            fontSize: "0.625rem",
-            color: "text.secondary",
-          }}
-        >
+        <span style={{
+          fontWeight: 800,
+          textTransform: "uppercase" as const,
+          letterSpacing: "0.1em",
+          fontSize: 10,
+          color: "#a7abb2",
+          fontFamily: "Inter, sans-serif",
+        }}>
           {title}
-        </Typography>
+        </span>
         {onSeeAll && (
-          <Button
-            size="small"
+          <button
             onClick={onSeeAll}
-            sx={{
-              fontSize: "0.625rem",
+            style={{
+              fontSize: 10,
               fontWeight: 700,
-              textTransform: "none",
-              minWidth: 0,
-              px: 1,
-              py: 0,
-              color: "text.secondary",
-              "&:hover": { color: accentColor },
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "#a7abb2",
+              fontFamily: "Inter, sans-serif",
+              padding: "2px 4px",
+              transition: "color 150ms ease",
             }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = accentColor)}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#a7abb2")}
           >
             See All →
-          </Button>
+          </button>
         )}
-      </Box>
+      </div>
 
       {/* Items */}
-      <Box>
+      <div style={{ flex: 1 }}>
         {loading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <Box key={i} sx={{ px: 2, py: 1.25, display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Skeleton width={14} height={16} />
-                <Skeleton variant="circular" width={28} height={28} />
-                <Box sx={{ flex: 1 }}>
-                  <Skeleton width="60%" height={14} />
-                  <Skeleton width="40%" height={12} />
-                </Box>
-                <Skeleton width={48} height={16} />
-              </Box>
-            ))
+          ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
           : items?.map((item, i) => (
-              <Box
+              <div
                 key={item.id}
-                sx={{
-                  px: 2,
-                  py: 1.25,
+                style={{
+                  padding: "11px 16px",
                   display: "flex",
                   alignItems: "center",
-                  gap: 1.5,
+                  gap: 12,
                   cursor: "pointer",
-                  transition: "background-color 150ms ease",
-                  borderBottom: i < (items.length - 1) ? "1px solid" : "none",
-                  borderColor: "divider",
-                  "&:hover": { bgcolor: "action.hover" },
+                  borderBottom: i < (items.length - 1) ? "1px solid rgba(67,72,78,0.18)" : "none",
+                  transition: "background 150ms ease",
                 }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.03)")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = "transparent")}
               >
                 {/* Rank */}
-                <Typography
-                  sx={{
-                    fontSize: "0.625rem",
-                    fontWeight: 700,
-                    color: "text.disabled",
-                    width: 14,
-                    flexShrink: 0,
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "rgba(167,171,178,0.4)",
+                  width: 14,
+                  flexShrink: 0,
+                  fontVariantNumeric: "tabular-nums" as const,
+                  fontFamily: "Inter, sans-serif",
+                }}>
                   {i + 1}
-                </Typography>
+                </span>
 
-                {/* Icon */}
-                <Box
-                  sx={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    bgcolor: (t) =>
-                      t.palette.mode === "dark" ? "#1f262e" : "#f1f5f9",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    border: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
+                {/* Icon circle */}
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "#141a20",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  border: "1px solid rgba(67,72,78,0.25)",
+                }}>
                   {item.icon}
-                </Box>
+                </div>
 
                 {/* Label */}
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography
-                    sx={{
-                      fontSize: "0.75rem",
-                      fontWeight: 700,
-                      color: "text.primary",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#eaeef5",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap" as const,
+                    fontFamily: "Inter, sans-serif",
+                  }}>
                     {item.label}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.625rem",
-                      color: "text.disabled",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  </div>
+                  <div style={{
+                    fontSize: 10,
+                    color: "rgba(167,171,178,0.6)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap" as const,
+                    fontFamily: "Inter, sans-serif",
+                  }}>
                     {item.sub}
-                  </Typography>
-                </Box>
+                  </div>
+                </div>
 
                 {/* APY */}
-                <Typography
-                  sx={{
-                    fontSize: "0.8125rem",
-                    fontWeight: 800,
-                    color: accentColor,
-                    fontVariantNumeric: "tabular-nums",
-                    flexShrink: 0,
-                    letterSpacing: "-0.02em",
-                  }}
-                >
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 800,
+                  color: accentColor,
+                  fontVariantNumeric: "tabular-nums" as const,
+                  flexShrink: 0,
+                  letterSpacing: "-0.02em",
+                  fontFamily: "Inter, sans-serif",
+                }}>
                   {item.apy}
-                </Typography>
-              </Box>
+                </span>
+              </div>
             ))}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -242,13 +241,11 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
   }, [pendle]);
 
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         display: "grid",
-        gridTemplateColumns: isLending
-          ? { xs: "1fr", md: "1fr 1fr 1fr" }
-          : { xs: "1fr", md: "1fr" },
-        gap: 1.5,
+        gridTemplateColumns: isLending ? "1fr 1fr 1fr" : "1fr",
+        gap: 12,
       }}
     >
       <YieldCard
@@ -256,7 +253,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         items={topLending}
         loading={ll}
         onSeeAll={() => navigate(isLending ? "/lending/markets" : "/borrow/markets")}
-        accentColor="primary.main"
+        accentColor="#00FF9D"
       />
       {isLending && (
         <>
@@ -265,7 +262,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
             items={topVaults}
             loading={vl}
             onSeeAll={() => navigate("/lending/vaults")}
-            accentColor="secondary.main"
+            accentColor="#64f9c3"
           />
           <YieldCard
             title="Top Fixed Yields"
@@ -276,6 +273,6 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
           />
         </>
       )}
-    </Box>
+    </div>
   );
 }
