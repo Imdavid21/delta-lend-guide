@@ -1,24 +1,26 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
+import {
+  ArrowDown, ChevronDown, Clock, Fuel, Info, Lock, Settings,
+} from "lucide-react";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
-type ExecMode = "lend" | "borrow" | "vault" | "fixed" | "loop";
+type ExecMode = "lend" | "borrow";
+type LendSubMode = "lending" | "vault" | "fixed";
 
-const MODES: {
-  id: ExecMode; label: string; color: string; btnLabel: string;
-  fromLabel: string; toLabel: string;
-}[] = [
-  { id: "lend",   label: "Lend",        color: "#00FF9D", btnLabel: "Deposit",    fromLabel: "Deposit Asset",  toLabel: "You Receive"        },
-  { id: "borrow", label: "Borrow",      color: "#f59e0b", btnLabel: "Borrow",     fromLabel: "Collateral",     toLabel: "Borrow Asset"       },
-  { id: "vault",  label: "Vault",       color: "#a78bfa", btnLabel: "Deposit",    fromLabel: "Deposit Asset",  toLabel: "Vault Strategy"     },
-  { id: "fixed",  label: "Fixed Yield", color: "#78dfff", btnLabel: "Lock Yield", fromLabel: "Source Asset",   toLabel: "Fixed Token"        },
-  { id: "loop",   label: "Loop",        color: "#fb923c", btnLabel: "Open Loop",  fromLabel: "Asset to Loop",  toLabel: "Leveraged Position" },
+const LEND_SUBMODES: { id: LendSubMode; label: string; btnLabel: string; fromLabel: string; toLabel: string }[] = [
+  { id: "lending", label: "Lending",     btnLabel: "Deposit",    fromLabel: "Deposit Asset", toLabel: "You Receive"    },
+  { id: "vault",   label: "Vault",       btnLabel: "Deposit",    fromLabel: "Deposit Asset", toLabel: "Vault Strategy" },
+  { id: "fixed",   label: "Fixed Yield", btnLabel: "Lock Yield", fromLabel: "Source Asset",  toLabel: "Fixed Token"    },
 ];
+
+const GREEN = "#86efac";
+const AMBER = "#fbbf24";
 
 interface ExecRoute {
   id: string;
@@ -33,64 +35,12 @@ interface ExecRoute {
   timeEst: string;
 }
 
-/* ─── Icons ─────────────────────────────────────────────── */
-
-const ChevronDown = ({ size = 11 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
-const GearIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3"/>
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-  </svg>
-);
-
-const GasIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M3 22V4l5-2v7l3-2v13"/>
-    <path d="M18 10h.01"/>
-    <rect x="13" y="10" width="8" height="12" rx="2"/>
-  </svg>
-);
-
-const ClockIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="12" cy="12" r="10"/>
-    <polyline points="12 6 12 12 16 14"/>
-  </svg>
-);
-
-const LockIcon = ({ size = 11 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-
-const ArrowDown = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="12" y1="5" x2="12" y2="19"/>
-    <polyline points="19 12 12 19 5 12"/>
-  </svg>
-);
-
-const InfoIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <circle cx="12" cy="12" r="10"/>
-    <line x1="12" y1="8" x2="12" y2="12"/>
-    <line x1="12" y1="16" x2="12.01" y2="16"/>
-  </svg>
-);
-
 /* ─── Health Factor Gauge ───────────────────────────────── */
 
 function HealthGauge({ value }: { value: number }) {
   const clamped = Math.max(1.0, Math.min(3.5, value));
   const pct = ((clamped - 1.0) / 2.5) * 100;
-  const color = value >= 2.0 ? "#00FF9D" : value >= 1.5 ? "#f59e0b" : "#ef4444";
+  const color = value >= 2.0 ? GREEN : value >= 1.5 ? AMBER : "#ef4444";
   const statusLabel = value >= 2.0 ? "Safe" : value >= 1.5 ? "Caution" : value > 1.0 ? "Danger" : "Liquidation";
   const total = 125.7;
   const fill = (pct / 100) * total;
@@ -150,7 +100,7 @@ function AssetDropdown({ asset, onChange, assets }: {
           color: "#eaeef5", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700,
           transition: "border-color 150ms", minWidth: 100,
         }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)")}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)")}
         onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(67,72,78,0.4)")}
       >
         <AssetIcon symbol={asset} size={16} />
@@ -193,7 +143,7 @@ function AssetDropdown({ asset, onChange, assets }: {
               >
                 <AssetIcon symbol={a} size={16} />
                 {a}
-                {a === asset && <span style={{ marginLeft: "auto", color: "#00FF9D", fontSize: 10 }}>✓</span>}
+                {a === asset && <span style={{ marginLeft: "auto", color: GREEN, fontSize: 10 }}>✓</span>}
               </button>
             )) : (
               <div style={{ padding: 12, color: "#a7abb2", fontSize: 11, textAlign: "center" }}>No assets found</div>
@@ -207,8 +157,8 @@ function AssetDropdown({ asset, onChange, assets }: {
 
 /* ─── Route Card ────────────────────────────────────────── */
 
-function RouteCard({ route, selected, onSelect, color, isBest }: {
-  route: ExecRoute; selected: boolean; onSelect: () => void; color: string; isBest: boolean;
+function RouteCard({ route, selected, onSelect, isBest, accent }: {
+  route: ExecRoute; selected: boolean; onSelect: () => void; isBest: boolean; accent: string;
 }) {
   const { name: protoDisplay } = parseChainFromLabel(route.protocol);
 
@@ -216,9 +166,9 @@ function RouteCard({ route, selected, onSelect, color, isBest }: {
     <div
       onClick={onSelect}
       style={{
-        border: selected ? `1px solid ${color}50` : "1px solid rgba(67,72,78,0.3)",
+        border: selected ? "1px solid rgba(255,255,255,0.18)" : "1px solid rgba(67,72,78,0.3)",
         borderRadius: 12, padding: "14px 16px", cursor: "pointer",
-        background: selected ? `${color}08` : "#0e1419",
+        background: selected ? "rgba(255,255,255,0.04)" : "#0e1419",
         transition: "all 150ms ease", position: "relative",
       }}
       onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.12)"; }}
@@ -227,7 +177,7 @@ function RouteCard({ route, selected, onSelect, color, isBest }: {
       {isBest && (
         <div style={{
           position: "absolute", top: -1, left: 14, fontSize: 9, fontWeight: 800,
-          color: "#004527", background: "#00FF9D", borderRadius: "0 0 6px 6px",
+          color: "#0a0f14", background: "#eaeef5", borderRadius: "0 0 6px 6px",
           padding: "1px 8px", letterSpacing: "0.08em",
           fontFamily: "Inter, sans-serif", textTransform: "uppercase",
         }}>
@@ -257,7 +207,8 @@ function RouteCard({ route, selected, onSelect, color, isBest }: {
               )}
             </div>
             <div style={{
-              fontSize: 17, fontWeight: 800, color: selected ? color : "#eaeef5",
+              fontSize: 17, fontWeight: 800,
+              color: selected ? accent : "#eaeef5",
               fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em",
               fontFamily: "Inter, sans-serif", flexShrink: 0,
             }}>
@@ -277,10 +228,10 @@ function RouteCard({ route, selected, onSelect, color, isBest }: {
 
           <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 14 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#a7abb2", fontSize: 10, fontFamily: "Inter, sans-serif" }}>
-              <GasIcon /> {route.gasEst}
+              <Fuel size={11} /> {route.gasEst}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#a7abb2", fontSize: 10, fontFamily: "Inter, sans-serif" }}>
-              <ClockIcon /> {route.timeEst}
+              <Clock size={11} /> {route.timeEst}
             </span>
           </div>
         </div>
@@ -299,7 +250,7 @@ function FieldRow({ label, value, accent, tooltip }: { label: string; value: str
     }}>
       <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
         {label}
-        {tooltip && <span title={tooltip} style={{ opacity: 0.5, cursor: "help" }}><InfoIcon /></span>}
+        {tooltip && <span title={tooltip} style={{ opacity: 0.5, cursor: "help" }}><Info size={11} /></span>}
       </span>
       <span style={{ fontSize: 11, fontWeight: 700, color: accent ?? "#eaeef5", fontFamily: "Inter, sans-serif" }}>
         {value}
@@ -310,27 +261,33 @@ function FieldRow({ label, value, accent, tooltip }: { label: string; value: str
 
 /* ─── Main Component ────────────────────────────────────── */
 
-export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode }) {
+export default function ExecutionPanel() {
   const { isConnected } = useAccount();
   const { open: openWallet } = useAppKit();
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
   const { data: pendle } = usePendle();
 
-  const [mode, setMode] = useState<ExecMode>(initialMode ?? "lend");
+  const [mode, setMode] = useState<ExecMode>("lend");
+  const [lendSubMode, setLendSubMode] = useState<LendSubMode>("lending");
   const [amount, setAmount] = useState("");
   const [fromAsset, setFromAsset] = useState("USDC");
   const [toAsset, setToAsset] = useState("USDC");
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
-  const [leverage, setLeverage] = useState(2);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  const cfg = MODES.find(m => m.id === mode)!;
+  const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
+  const accent = mode === "borrow" ? AMBER : GREEN;
 
-  // Reset route selection when mode/asset changes
-  useEffect(() => { setSelectedRouteId(null); }, [mode, fromAsset, toAsset]);
+  // Button label + "from/to" labels
+  const fromLabel = mode === "borrow" ? "Collateral" : subCfg.fromLabel;
+  const toLabel   = mode === "borrow" ? "Borrow Asset" : subCfg.toLabel;
+  const execBtnLabel = mode === "borrow" ? "Borrow" : subCfg.btnLabel;
+
+  // Reset route selection when mode/submode/asset changes
+  useEffect(() => { setSelectedRouteId(null); }, [mode, lendSubMode, fromAsset, toAsset]);
 
   // Close settings on outside click
   useEffect(() => {
@@ -352,37 +309,19 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
 
   const fromAssets = useMemo(() => {
     const fallback = ["USDC", "ETH", "WBTC", "USDT"];
-    if (mode === "vault")  return vaultAssets.length  ? vaultAssets  : fallback;
-    if (mode === "fixed")  return pendleAssets.length ? pendleAssets : ["USDe", "USDC", "ETH"];
+    if (mode === "lend") {
+      if (lendSubMode === "vault")  return vaultAssets.length  ? vaultAssets  : fallback;
+      if (lendSubMode === "fixed")  return pendleAssets.length ? pendleAssets : ["USDe", "USDC", "ETH"];
+      return lendingAssets.length ? lendingAssets : fallback;
+    }
     return lendingAssets.length ? lendingAssets : fallback;
-  }, [mode, lendingAssets, vaultAssets, pendleAssets]);
+  }, [mode, lendSubMode, lendingAssets, vaultAssets, pendleAssets]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
   // ── Routes ───────────────────────────────────────────────
   const routes = useMemo((): ExecRoute[] => {
     const asset = validFromAsset;
-
-    if (mode === "lend") {
-      return (markets ?? [])
-        .filter(m => m.asset === asset && m.supplyAPY > 0)
-        .sort((a, b) => b.supplyAPY - a.supplyAPY)
-        .slice(0, 6)
-        .map(m => {
-          const { name: protoName, chain } = parseChainFromLabel(m.protocolName);
-          const prefix = m.protocol.startsWith("AAVE") ? "a" : m.protocol.startsWith("COMPOUND") ? "c" : "";
-          return {
-            id: m.id, protocol: m.protocolName, chain,
-            outputLabel: `${prefix}${m.asset} — receipt token`,
-            returnValue: m.supplyAPY,
-            returnLabel: formatPercent(m.supplyAPY) + " APY",
-            tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
-            tvlRaw: m.totalSupplyUSD,
-            gasEst: "<$0.01", timeEst: "~15s",
-          };
-          void protoName;
-        });
-    }
 
     if (mode === "borrow") {
       return (markets ?? [])
@@ -403,7 +342,28 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
         });
     }
 
-    if (mode === "vault") {
+    // lend mode — differentiate by sub-mode
+    if (lendSubMode === "lending") {
+      return (markets ?? [])
+        .filter(m => m.asset === asset && m.supplyAPY > 0)
+        .sort((a, b) => b.supplyAPY - a.supplyAPY)
+        .slice(0, 6)
+        .map(m => {
+          const { chain } = parseChainFromLabel(m.protocolName);
+          const prefix = m.protocol.startsWith("AAVE") ? "a" : m.protocol.startsWith("COMPOUND") ? "c" : "";
+          return {
+            id: m.id, protocol: m.protocolName, chain,
+            outputLabel: `${prefix}${m.asset} — receipt token`,
+            returnValue: m.supplyAPY,
+            returnLabel: formatPercent(m.supplyAPY) + " APY",
+            tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
+            tvlRaw: m.totalSupplyUSD,
+            gasEst: "<$0.01", timeEst: "~15s",
+          };
+        });
+    }
+
+    if (lendSubMode === "vault") {
       return (vaults ?? [])
         .filter(v => v.asset === asset && v.apy > 0)
         .sort((a, b) => b.apy - a.apy)
@@ -422,52 +382,24 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
         });
     }
 
-    if (mode === "fixed") {
-      return (pendle ?? [])
-        .filter(p => p.asset === asset || p.name.toLowerCase().includes(asset.toLowerCase()))
-        .sort((a, b) => b.impliedAPY - a.impliedAPY)
-        .slice(0, 6)
-        .map(p => {
-          const { name: mktDisplay, chain } = parseChainFromLabel(p.name);
-          return {
-            id: p.id, protocol: "Pendle", chain,
-            outputLabel: `PT-${p.asset} · ${p.daysToMaturity}d maturity`,
-            returnValue: p.impliedAPY,
-            returnLabel: formatPercent(p.impliedAPY) + " Fixed APY",
-            tvlLabel: formatUSD(p.tvl) + " TVL",
-            tvlRaw: p.tvl,
-            gasEst: "<$0.01", timeEst: "~15s",
-          };
-          void mktDisplay;
-        });
-    }
-
-    if (mode === "loop") {
-      return (markets ?? [])
-        .filter(m => m.asset === asset && m.supplyAPY > 0 && m.borrowAPR != null && m.borrowAPR > 0)
-        .sort((a, b) => {
-          const netA = (a.supplyAPY * leverage) - ((a.borrowAPR ?? 0) * (leverage - 1));
-          const netB = (b.supplyAPY * leverage) - ((b.borrowAPR ?? 0) * (leverage - 1));
-          return netB - netA;
-        })
-        .slice(0, 5)
-        .map(m => {
-          const { chain } = parseChainFromLabel(m.protocolName);
-          const netAPY = Math.max(0, (m.supplyAPY * leverage) - ((m.borrowAPR ?? 0) * (leverage - 1)));
-          return {
-            id: m.id, protocol: m.protocolName, chain,
-            outputLabel: `${leverage}x ${m.asset} recursive`,
-            returnValue: netAPY,
-            returnLabel: formatPercent(netAPY) + " Net APY",
-            tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
-            tvlRaw: m.totalSupplyUSD,
-            gasEst: "~$0.05", timeEst: "~30s",
-          };
-        });
-    }
-
-    return [];
-  }, [mode, validFromAsset, toAsset, markets, vaults, pendle, leverage]);
+    // fixed
+    return (pendle ?? [])
+      .filter(p => p.asset === asset || p.name.toLowerCase().includes(asset.toLowerCase()))
+      .sort((a, b) => b.impliedAPY - a.impliedAPY)
+      .slice(0, 6)
+      .map(p => {
+        const { chain } = parseChainFromLabel(p.name);
+        return {
+          id: p.id, protocol: "Pendle", chain,
+          outputLabel: `PT-${p.asset} · ${p.daysToMaturity}d maturity`,
+          returnValue: p.impliedAPY,
+          returnLabel: formatPercent(p.impliedAPY) + " Fixed APY",
+          tvlLabel: formatUSD(p.tvl) + " TVL",
+          tvlRaw: p.tvl,
+          gasEst: "<$0.01", timeEst: "~15s",
+        };
+      });
+  }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults, pendle]);
 
   const selectedRoute = routes.find(r => r.id === selectedRouteId) ?? routes[0] ?? null;
 
@@ -495,13 +427,12 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
   const btnLabels: Record<BtnState, string> = {
     connect: "Connect Wallet",
     enter:   "Enter Amount",
-    exec:    cfg.btnLabel,
+    exec:    execBtnLabel,
   };
   const btnDisabled = btnState === "enter";
 
   const handleButton = () => {
     if (btnState === "connect") openWallet();
-    // exec: handled by TxExecutor in future
   };
 
   const inputBg = "#141a20";
@@ -510,24 +441,27 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* ── Mode tabs ── */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-        {MODES.map(m => (
-          <button
-            key={m.id}
-            onClick={() => setMode(m.id)}
-            style={{
-              padding: "6px 16px", borderRadius: 8,
-              border: mode === m.id ? `1px solid ${m.color}50` : "1px solid rgba(67,72,78,0.3)",
-              background: mode === m.id ? `${m.color}10` : "transparent",
-              color: mode === m.id ? m.color : "#a7abb2",
-              fontSize: 12, fontWeight: 700, cursor: "pointer",
-              fontFamily: "Inter, sans-serif", letterSpacing: "-0.01em",
-              transition: "all 150ms ease",
-            }}
-          >
-            {m.label}
-          </button>
-        ))}
+      <div style={{ display: "flex", gap: 4 }}>
+        {(["lend", "borrow"] as ExecMode[]).map(m => {
+          const active = mode === m;
+          return (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              style={{
+                padding: "6px 20px", borderRadius: 8,
+                border: active ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
+                background: active ? "rgba(255,255,255,0.07)" : "transparent",
+                color: active ? "#eaeef5" : "#a7abb2",
+                fontSize: 12, fontWeight: 700, cursor: "pointer",
+                fontFamily: "Inter, sans-serif", letterSpacing: "-0.01em",
+                transition: "all 150ms ease",
+              }}
+            >
+              {m === "lend" ? "Lend" : "Borrow"}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Two-panel layout ── */}
@@ -540,9 +474,33 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
         }}>
           {/* Panel header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: cfg.color, fontFamily: "Inter, sans-serif", letterSpacing: "-0.02em" }}>
-              {cfg.label}
-            </span>
+            {/* Lend sub-mode tabs */}
+            {mode === "lend" ? (
+              <div style={{ display: "flex", gap: 2, background: "#141a20", borderRadius: 8, padding: 2, border: "1px solid rgba(67,72,78,0.3)" }}>
+                {LEND_SUBMODES.map(s => {
+                  const active = lendSubMode === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setLendSubMode(s.id)}
+                      style={{
+                        padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                        background: active ? "#1f262e" : "transparent",
+                        color: active ? "#eaeef5" : "#a7abb2",
+                        transition: "all 150ms",
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+                Borrow
+              </span>
+            )}
 
             {/* Settings gear + popover */}
             <div ref={settingsRef} style={{ position: "relative" }}>
@@ -561,7 +519,7 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                   if (!showSettings) { e.currentTarget.style.borderColor = "rgba(67,72,78,0.3)"; e.currentTarget.style.color = "#a7abb2"; }
                 }}
               >
-                <GearIcon />
+                <Settings size={14} />
               </button>
 
               {showSettings && (
@@ -579,9 +537,9 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                     {["0.1", "0.5", "1.0"].map(s => (
                       <button key={s} onClick={() => setSlippage(s)} style={{
                         flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 700,
-                        border: slippage === s ? `1px solid ${cfg.color}60` : "1px solid rgba(67,72,78,0.3)",
-                        background: slippage === s ? `${cfg.color}12` : "transparent",
-                        color: slippage === s ? cfg.color : "#a7abb2",
+                        border: slippage === s ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
+                        background: slippage === s ? "rgba(255,255,255,0.07)" : "transparent",
+                        color: slippage === s ? "#eaeef5" : "#a7abb2",
                         cursor: "pointer", fontFamily: "Inter, sans-serif",
                       }}>{s}%</button>
                     ))}
@@ -591,9 +549,9 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                     {["Off", "On"].map(v => (
                       <button key={v} style={{
                         flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 700,
-                        border: v === "Off" ? `1px solid ${cfg.color}60` : "1px solid rgba(67,72,78,0.3)",
-                        background: v === "Off" ? `${cfg.color}12` : "transparent",
-                        color: v === "Off" ? cfg.color : "#a7abb2",
+                        border: v === "Off" ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
+                        background: v === "Off" ? "rgba(255,255,255,0.07)" : "transparent",
+                        color: v === "Off" ? "#eaeef5" : "#a7abb2",
                         cursor: "pointer", fontFamily: "Inter, sans-serif",
                       }}>{v}</button>
                     ))}
@@ -610,10 +568,10 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
               fontFamily: "Inter, sans-serif", textTransform: "uppercase", letterSpacing: "0.1em",
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
-              <span>{cfg.fromLabel}</span>
+              <span>{fromLabel}</span>
               {mode === "borrow" && (
-                <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#f59e0b", fontSize: 9 }}>
-                  <LockIcon size={9} /> Locked as collateral
+                <span style={{ display: "flex", alignItems: "center", gap: 3, color: AMBER, fontSize: 9 }}>
+                  <Lock size={9} /> Locked as collateral
                 </span>
               )}
             </div>
@@ -654,8 +612,8 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                 onClick={() => setAmount("1000")}
                 style={{
                   position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)",
-                  fontSize: 10, fontWeight: 800, color: cfg.color,
-                  background: `${cfg.color}18`, border: "none", borderRadius: 5,
+                  fontSize: 10, fontWeight: 800, color: "#eaeef5",
+                  background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 5,
                   padding: "3px 7px", cursor: "pointer", fontFamily: "Inter, sans-serif",
                 }}
               >
@@ -683,7 +641,7 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                     borderRadius: 6, color: "#a7abb2", cursor: "pointer",
                     fontFamily: "Inter, sans-serif", transition: "all 150ms",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${cfg.color}60`; e.currentTarget.style.color = cfg.color; }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.color = "#eaeef5"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(67,72,78,0.25)"; e.currentTarget.style.color = "#a7abb2"; }}
                 >
                   {p}
@@ -698,16 +656,16 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
               width: 28, height: 28, borderRadius: "50%",
               background: "#0a0f14", border: "1px solid rgba(67,72,78,0.3)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: mode === "borrow" ? "#f59e0b" : cfg.color,
+              color: mode === "borrow" ? AMBER : "#a7abb2",
             }}>
-              {mode === "borrow" ? <LockIcon size={11} /> : <ArrowDown />}
+              {mode === "borrow" ? <Lock size={11} /> : <ArrowDown size={12} />}
             </div>
           </div>
 
           {/* TO section */}
           <div style={{ background: inputBg, borderRadius: 12, padding: 12, marginBottom: 12, border: sectionBorder }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#a7abb2", marginBottom: 8, fontFamily: "Inter, sans-serif", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              {cfg.toLabel}
+              {toLabel}
             </div>
 
             {mode === "borrow" ? (
@@ -734,7 +692,7 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                     {selectedRoute.chain ? ` · ${selectedRoute.chain}` : ""}
                   </div>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: cfg.color, letterSpacing: "-0.02em", fontFamily: "Inter, sans-serif", flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: GREEN, letterSpacing: "-0.02em", fontFamily: "Inter, sans-serif", flexShrink: 0 }}>
                   {selectedRoute.returnLabel}
                 </div>
               </div>
@@ -754,7 +712,7 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                 <HealthGauge value={Math.min(9.99, healthFactor)} />
               </div>
               <FieldRow label="Max Borrow" value={formatUSD(maxBorrow)} tooltip="Maximum you can borrow with current collateral" />
-              <FieldRow label="Borrow APR" value={selectedRoute ? selectedRoute.returnLabel : "Select route"} accent={selectedRoute ? "#f59e0b" : undefined} />
+              <FieldRow label="Borrow APR" value={selectedRoute ? selectedRoute.returnLabel : "Select route"} accent={selectedRoute ? AMBER : undefined} />
               <FieldRow label="LTV Ratio" value={`${(ltv * 100).toFixed(0)}%`} tooltip="Loan-to-value ratio for this collateral" />
               <FieldRow label="Liquidation Price" value={liquidationPrice > 0 ? `$${liquidationPrice.toLocaleString("en", { maximumFractionDigits: 2 })}` : "—"} tooltip="Price at which your position gets liquidated" />
               {healthFactor < 1.5 && healthFactor < 9.99 && (
@@ -770,57 +728,13 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
           {/* LEND: summary fields */}
           {mode === "lend" && selectedRoute && (
             <div style={{ marginBottom: 12 }}>
-              <FieldRow label="Supply APY" value={selectedRoute.returnLabel} accent={cfg.color} />
-              <FieldRow label="Protocol" value={parseChainFromLabel(selectedRoute.protocol).name} />
-              <FieldRow label="Pool TVL" value={selectedRoute.tvlLabel} />
-            </div>
-          )}
-
-          {/* VAULT: summary fields */}
-          {mode === "vault" && selectedRoute && (
-            <div style={{ marginBottom: 12 }}>
-              <FieldRow label="Est. APY" value={selectedRoute.returnLabel} accent="#a78bfa" />
-              <FieldRow label="Strategy" value={selectedRoute.outputLabel} />
-              <FieldRow label="Vault TVL" value={selectedRoute.tvlLabel} />
-            </div>
-          )}
-
-          {/* FIXED: summary fields */}
-          {mode === "fixed" && selectedRoute && (
-            <div style={{ marginBottom: 12 }}>
-              <FieldRow label="Fixed APY" value={selectedRoute.returnLabel} accent="#78dfff" />
-              <FieldRow label="Token" value={selectedRoute.outputLabel} />
-              <FieldRow label="Market TVL" value={selectedRoute.tvlLabel} />
-            </div>
-          )}
-
-          {/* LOOP: leverage slider + risk warning */}
-          {mode === "loop" && (
-            <div style={{ marginBottom: 12, background: inputBg, borderRadius: 12, padding: 12, border: sectionBorder }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>Leverage</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: "#fb923c", fontFamily: "Inter, sans-serif" }}>{leverage}x</span>
-              </div>
-              <input
-                type="range" min={1.5} max={5} step={0.5} value={leverage}
-                onChange={e => setLeverage(parseFloat(e.target.value))}
-                style={{ width: "100%", accentColor: "#fb923c", marginBottom: 2 }}
+              <FieldRow
+                label={lendSubMode === "fixed" ? "Fixed APY" : "Est. APY"}
+                value={selectedRoute.returnLabel}
+                accent={GREEN}
               />
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontSize: 9, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>1.5x Conservative</span>
-                <span style={{ fontSize: 9, color: "#ef4444", fontFamily: "Inter, sans-serif" }}>5x Aggressive</span>
-              </div>
-              {selectedRoute && (
-                <div style={{ padding: "6px 8px", background: "#0a0f14", borderRadius: 8, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 10, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>Est. Net APY</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: "#fb923c", fontFamily: "Inter, sans-serif" }}>{selectedRoute.returnLabel}</span>
-                </div>
-              )}
-              <div style={{ padding: "6px 8px", background: "rgba(239,68,68,0.06)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.15)" }}>
-                <span style={{ fontSize: 10, color: "#ef4444", fontFamily: "Inter, sans-serif" }}>
-                  ⚠ Looping amplifies both gains and losses. Higher leverage = lower liquidation threshold.
-                </span>
-              </div>
+              <FieldRow label="Protocol" value={parseChainFromLabel(selectedRoute.protocol).name} />
+              <FieldRow label={lendSubMode === "vault" ? "Vault TVL" : "Pool TVL"} value={selectedRoute.tvlLabel} />
             </div>
           )}
 
@@ -831,14 +745,17 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
             style={{
               width: "100%", padding: "13px 0", borderRadius: 12, border: "none",
               cursor: btnDisabled ? "not-allowed" : "pointer",
-              background: btnDisabled ? "rgba(255,255,255,0.06)" : cfg.color,
-              color: btnDisabled ? "#a7abb2" : mode === "borrow" ? "#431a00" : "#004527",
+              background: btnDisabled
+                ? "rgba(255,255,255,0.06)"
+                : mode === "borrow" ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.1)",
+              color: btnDisabled ? "#a7abb2" : "#eaeef5",
               fontSize: 14, fontWeight: 800, letterSpacing: "-0.01em",
               fontFamily: "Inter, sans-serif", transition: "all 200ms ease",
+              border: btnDisabled ? "1px solid transparent" : "1px solid rgba(255,255,255,0.15)",
               opacity: btnDisabled ? 0.7 : 1,
             }}
-            onMouseEnter={e => { if (!btnDisabled) (e.currentTarget as HTMLButtonElement).style.opacity = "0.88"; }}
-            onMouseLeave={e => { if (!btnDisabled) (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+            onMouseEnter={e => { if (!btnDisabled) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.14)"; } }}
+            onMouseLeave={e => { if (!btnDisabled) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)"; } }}
           >
             {btnLabels[btnState]}
           </button>
@@ -871,7 +788,7 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                 No routes found
               </div>
               <div style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
-                {!markets ? "Loading market data..." : "Try selecting a different asset or execution mode"}
+                {!markets ? "Loading market data..." : "Try selecting a different asset"}
               </div>
             </div>
           ) : (
@@ -882,7 +799,7 @@ export default function ExecutionPanel({ initialMode }: { initialMode?: ExecMode
                   route={route}
                   selected={route.id === (selectedRoute?.id ?? routes[0]?.id)}
                   onSelect={() => setSelectedRouteId(route.id)}
-                  color={cfg.color}
+                  accent={accent}
                   isBest={i === 0}
                 />
               ))}

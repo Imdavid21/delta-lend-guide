@@ -10,7 +10,6 @@ interface Props {
 
 const NAV_TABS = [
   { id: "trade",     label: "Trade",     path: "/trade"     },
-  { id: "explore",   label: "Explore",   path: "/explore"   },
   { id: "markets",   label: "Markets",   path: "/markets"   },
   { id: "portfolio", label: "Portfolio", path: "/portfolio" },
 ] as const;
@@ -24,14 +23,13 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
   const border = isDark ? "rgba(67,72,78,0.2)"     : "rgba(0,0,0,0.08)";
   const textPrimary   = isDark ? "#eaeef5" : "#0a0a0a";
   const textSecondary = isDark ? "#a7abb2" : "#737373";
-  const green   = "#00FF9D";
+  const green   = "#86efac";
   const surface = isDark ? "rgba(31,38,46,0.6)" : "#f1f5f9";
 
   function getActiveTab(): string {
-    if (pathname.startsWith("/explore"))   return "explore";
     if (pathname.startsWith("/markets"))   return "markets";
     if (pathname.startsWith("/portfolio")) return "portfolio";
-    return "trade"; // default: /, /trade, /lending, /borrow, etc.
+    return "trade"; // default: /, /trade, /borrow, etc.
   }
   const activeTab = getActiveTab();
 
@@ -119,6 +117,28 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
         <WalletButton />
 
         <div style={{ width: 1, height: 18, background: border, margin: "0 2px" }} />
+
+        {/* Settings */}
+        <button
+          onClick={() => navigate("/settings")}
+          title="Settings"
+          style={{
+            width: 34, height: 34, borderRadius: 8,
+            border: pathname.startsWith("/settings") ? `1px solid rgba(255,255,255,0.2)` : `1px solid transparent`,
+            background: pathname.startsWith("/settings") ? "rgba(255,255,255,0.07)" : "transparent",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: pathname.startsWith("/settings") ? textPrimary : textSecondary,
+            transition: "all 180ms ease",
+          }}
+          onMouseEnter={e => { if (!pathname.startsWith("/settings")) (e.currentTarget as HTMLButtonElement).style.background = surface; }}
+          onMouseLeave={e => { if (!pathname.startsWith("/settings")) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
 
         {/* AI assistant */}
         <button

@@ -44,7 +44,7 @@ export default function WalletButton() {
               width: 20,
               height: 20,
               borderRadius: "50%",
-              border: "1.5px solid #00FF9D",
+              border: "1.5px solid #86efac",
               boxShadow: "0 0 6px rgba(0,255,157,0.4)",
               flexShrink: 0,
               objectFit: "cover",
@@ -55,7 +55,7 @@ export default function WalletButton() {
             width: 7,
             height: 7,
             borderRadius: "50%",
-            background: "#00FF9D",
+            background: "#86efac",
             boxShadow: "0 0 6px rgba(0,255,157,0.5)",
             flexShrink: 0,
           }} />

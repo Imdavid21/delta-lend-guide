@@ -11,9 +11,9 @@ const nebula = {
   surfaceBright:"#252d35",
 
   // Accents
-  primary:   "#00FF9D",  // bright green
-  primaryDim:"#00ec91",
-  secondary: "#64f9c3",  // teal
+  primary:   "#86efac",  // soft green
+  primaryDim:"#6ee7a0",
+  secondary: "#a7f3d0",  // teal
   tertiary:  "#78dfff",  // cyan
 
   // Text
@@ -34,10 +34,10 @@ export const getTheme = (mode: "light" | "dark") => {
     palette: {
       mode,
       primary: {
-        main:         isDark ? nebula.primary    : "#006d40",
-        light:        isDark ? nebula.secondary  : "#00ec91",
-        dark:         isDark ? nebula.primaryDim : "#004527",
-        contrastText: isDark ? "#004527"         : "#ffffff",
+        main:         isDark ? nebula.primary    : "#16a34a",
+        light:        isDark ? nebula.secondary  : "#6ee7a0",
+        dark:         isDark ? nebula.primaryDim : "#166534",
+        contrastText: isDark ? "#052e16"         : "#ffffff",
       },
       secondary: {
         main:         isDark ? nebula.secondary  : "#006c4f",
@@ -99,7 +99,7 @@ export const getTheme = (mode: "light" | "dark") => {
           },
           contained: {
             backgroundColor: isDark ? nebula.primary : "#0a0a0a",
-            color:           isDark ? "#004527"       : "#fafafa",
+            color:           isDark ? "#052e16"       : "#fafafa",
             "&:hover": {
               backgroundColor: isDark ? nebula.primaryDim : "#262626",
               transform: "translateY(-1px)",
@@ -190,7 +190,7 @@ export const getTheme = (mode: "light" | "dark") => {
             color: isDark ? nebula.onVariant : "#737373",
             "&.Mui-selected": {
               backgroundColor: isDark ? nebula.primary   : "#0a0a0a",
-              color:           isDark ? "#004527"        : "#fafafa",
+              color:           isDark ? "#052e16"        : "#fafafa",
               "&:hover": {
                 backgroundColor: isDark ? nebula.primaryDim : "#262626",
               },
