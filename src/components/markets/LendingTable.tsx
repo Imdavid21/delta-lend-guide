@@ -219,7 +219,7 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
             {isLending ? "Lending Markets" : "Borrow Markets"}
           </div>
           <div style={{ fontSize: 11, color: "rgba(167,171,178,0.7)", fontFamily: "Inter, sans-serif" }}>
-            Rates via 1Delta · Base rates only (excl. reward incentives)
+            Rates via 1Delta · Base rates only (excluding reward incentives)
           </div>
         </div>
       </div>

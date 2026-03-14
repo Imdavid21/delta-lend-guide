@@ -23,11 +23,26 @@ interface Props {
   isDark: boolean;
 }
 
-const QUICK_ACTIONS: { label: string; prompt: string }[] = [
-  { label: "Best lending rates", prompt: "What are the best lending rates on Ethereum?" },
-  { label: "Compare ETH yields", prompt: "Compare ETH supply APY across all protocols" },
-  { label: "Show my positions", prompt: "Show my positions" },
+const QUICK_ACTIONS: { label: string; prompt: string; icon?: string }[] = [
+  { label: "Best lending rates", prompt: "What are the best lending rates on Ethereum?", icon: "⬆" },
+  { label: "Compare ETH yields", prompt: "Compare ETH supply APY across all protocols", icon: "⚖" },
+  { label: "Lowest borrow APR", prompt: "What are the lowest borrow APR rates on Ethereum?", icon: "⬇" },
+  { label: "Show my positions", prompt: "Show my positions", icon: "◈" },
+  { label: "Top vault yields", prompt: "Show top Morpho vault yields", icon: "◉" },
 ];
+
+const ALPHA_SCANNER_ACTIONS: { label: string; prompt: string }[] = [
+  { label: "Protocols under $500M mcap with growing revenue and low P/F ratios", prompt: "Which DeFi protocols under $500M market cap show growing revenue and low P/F ratios?" },
+  { label: "Yield aggregators with >$50M TVL and APY exceeding 15%", prompt: "Find top yield aggregators with over $50M TVL and APYs exceeding 15%" },
+  { label: "RWA protocols with highest TVL growth in 30 days", prompt: "Which RWA protocols have seen the highest TVL growth over the past 30 days?" },
+  { label: "Liquid staking protocols with growing TVL and declining token prices", prompt: "Identify liquid staking protocols with growing TVL and declining token prices" },
+];
+
+/** True if the string looks like an ENS name or Ethereum address */
+function isEnsOrAddress(val: string): boolean {
+  const v = val.trim();
+  return /^[a-z0-9-]+\.eth$/i.test(v) || /^0x[0-9a-f]{40}$/i.test(v);
+}
 
 export default function CommandBar({ loading, onSend, onNavigate, onNewChat, chatHistory, isDark }: Props) {
   const [value, setValue] = useState("");
@@ -195,6 +210,22 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
       }
     }
 
+    // ENS / address lookup
+    if (isEnsOrAddress(q)) {
+      items.unshift({
+        id: `ens:${q}`,
+        type: "ens" as any,
+        label: q.endsWith(".eth") ? `Look up ${q}` : `Look up ${q.slice(0, 10)}…`,
+        sub: q.endsWith(".eth") ? "ENS Portfolio Lookup" : "Address Portfolio Lookup",
+        icon: (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        ),
+        action: () => { onNewChat(`Show all DeFi positions and portfolio for ${q}`); setValue(""); setFocused(false); },
+      });
+    }
+
     return items.slice(0, 8);
   }, [value, markets, vaults, pendle, onNavigate, recentQueries, onNewChat, onSend]);
 
@@ -221,13 +252,41 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
   const itemHover = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
   const green = "#00FF9D";
 
-  const typeLabel = (type: SearchResult["type"]) => {
-    if (type === "nav") return "Page";
-    if (type === "market") return "Lending";
-    if (type === "vault") return "Vault";
-    if (type === "history") return "History";
-    return "Fixed";
-  };
+  /** Icon-only type indicator (no text labels) */
+  function TypeIcon({ type }: { type: SearchResult["type"] | string }) {
+    const style: React.CSSProperties = { width: 14, height: 14, flexShrink: 0 };
+    if (type === "market") return (
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#00FF9D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Lending">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    );
+    if (type === "vault") return (
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#64f9c3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Vault">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    );
+    if (type === "pendle") return (
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#78dfff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Fixed Yield">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    );
+    if (type === "history") return (
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Recent">
+        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.41"/>
+      </svg>
+    );
+    if (type === "ens") return (
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="ENS">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    );
+    // nav
+    return (
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Navigate">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    );
+  }
 
   return (
     /* Fixed overlay — gradient above, bar at bottom */
@@ -314,18 +373,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                         {r.sub}
                       </span>
                     </span>
-                    <span style={{
-                      fontSize: 9,
-                      fontWeight: 700,
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                      color: textSecondary,
-                      letterSpacing: "0.03em",
-                      flexShrink: 0,
-                    }}>
-                      {typeLabel(r.type)}
-                    </span>
+                    <TypeIcon type={r.type} />
                   </button>
                 ))}
                 {value.trim() && (
@@ -363,7 +411,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             {/* Quick actions when empty */}
             {results.length === 0 && !value.trim() && !quickActionsDismissed && (
               <div style={{ padding: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: textDisabled }}>
                     Quick actions
                   </span>
@@ -386,17 +434,9 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                     key={a.label}
                     onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
                     style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "6px 8px",
-                      border: "none",
-                      borderRadius: 8,
-                      background: "transparent",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition: "background 150ms ease",
+                      width: "100%", display: "flex", alignItems: "center", gap: 8,
+                      padding: "6px 8px", border: "none", borderRadius: 8, background: "transparent",
+                      cursor: "pointer", textAlign: "left", transition: "background 150ms ease",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = itemHover)}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -408,6 +448,34 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                     <span style={{ fontSize: 12, fontWeight: 600, color: textSecondary }}>{a.label}</span>
                   </button>
                 ))}
+
+                {/* Alpha Scanner section */}
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${isDark ? "rgba(67,72,78,0.25)" : "rgba(0,0,0,0.06)"}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#5298FF" }}>
+                      Alpha Scanner
+                    </span>
+                  </div>
+                  {ALPHA_SCANNER_ACTIONS.map((a) => (
+                    <button
+                      key={a.label}
+                      onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "flex-start", gap: 8,
+                        padding: "5px 8px", border: "none", borderRadius: 8, background: "transparent",
+                        cursor: "pointer", textAlign: "left", transition: "background 150ms ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = itemHover)}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span style={{ color: "rgba(82,152,255,0.5)", fontSize: 9, fontWeight: 700, fontFamily: "monospace", marginTop: 1, flexShrink: 0 }}>›</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: textSecondary, lineHeight: 1.4 }}>{a.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -452,7 +520,7 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onFocus={() => setFocused(true)}
-            placeholder="Search markets or ask anything…"
+            placeholder="Search markets, ask anything, or look up a .eth name…"
             disabled={loading}
             autoComplete="off"
             style={{

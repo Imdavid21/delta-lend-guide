@@ -76,7 +76,10 @@ export default function MarketCard({ label, marketId, protocol, asset, apy, tvl,
           fontWeight: 700,
           fontSize: 10,
           color: actionLabel === "Borrow" ? "#60a5fa" : "#22c55e",
-          bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+          bgcolor: actionLabel === "Borrow"
+            ? "rgba(96,165,250,0.12)"
+            : (t: any) => t.palette.mode === "dark" ? "rgba(34,197,94,0.12)" : "rgba(34,197,94,0.1)",
+          border: `1px solid ${actionLabel === "Borrow" ? "rgba(96,165,250,0.25)" : "rgba(34,197,94,0.25)"}`,
           px: 0.8,
           py: 0.2,
           borderRadius: 10,
@@ -86,13 +89,13 @@ export default function MarketCard({ label, marketId, protocol, asset, apy, tvl,
         {actionLabel}
       </Typography>
 
-      {/* APY badge */}
+      {/* APY / APR badge */}
       <Typography
         variant="caption"
         sx={{
           fontWeight: 700,
           fontSize: 11,
-          color: "#22c55e",
+          color: actionLabel === "Borrow" ? "#60a5fa" : "#22c55e",
           fontVariantNumeric: "tabular-nums",
           lineHeight: 1,
         }}

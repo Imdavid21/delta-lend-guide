@@ -219,6 +219,66 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       return JSON.stringify(await deltaGet("/data/lending/emode-categories", input));
     case "repay_with_atoken":
       return JSON.stringify(await deltaGet("/actions/lending/repay-with-atoken", { ...input, simulate: true }));
+    // ── ENS name resolution ──
+    case "resolve_ens_name": {
+      const { name } = input;
+      if (!name) return JSON.stringify({ error: "name is required" });
+      try {
+        const res = await fetch(`https://api.ensideas.com/ens/resolve/${encodeURIComponent(name.toLowerCase())}`, {
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) return JSON.stringify({ error: "ENS resolution failed" });
+        const data = await res.json();
+        return JSON.stringify(data);
+      } catch {
+        return JSON.stringify({ error: "Could not resolve ENS name — try a direct wallet address" });
+      }
+    }
+
+    // ── DeFiLlama protocol search (for Alpha Scanner queries) ──
+    case "search_defi_protocols": {
+      const { query, category, minTvl, maxTvl, chain } = input;
+      const res = await fetch("https://api.llama.fi/protocols", { signal: AbortSignal.timeout(12000) });
+      if (!res.ok) return JSON.stringify({ error: "DeFiLlama API unavailable" });
+      const allProtos: any[] = await res.json();
+
+      let filtered = allProtos;
+      if (category) filtered = filtered.filter((p: any) =>
+        (p.category ?? "").toLowerCase().includes(category.toLowerCase())
+      );
+      if (chain) filtered = filtered.filter((p: any) =>
+        (p.chains ?? []).some((c: string) => c.toLowerCase().includes(chain.toLowerCase()))
+      );
+      if (minTvl) filtered = filtered.filter((p: any) => (p.tvl ?? 0) >= minTvl);
+      if (maxTvl) filtered = filtered.filter((p: any) => (p.tvl ?? 0) <= maxTvl);
+      if (query) {
+        const q = query.toLowerCase();
+        filtered = filtered.filter((p: any) =>
+          (p.name ?? "").toLowerCase().includes(q) ||
+          (p.category ?? "").toLowerCase().includes(q) ||
+          (p.description ?? "").toLowerCase().includes(q)
+        );
+      }
+
+      const slim = filtered
+        .sort((a: any, b: any) => (b.tvl ?? 0) - (a.tvl ?? 0))
+        .slice(0, input.limit ?? 30)
+        .map((p: any) => ({
+          name: p.name,
+          slug: p.slug,
+          symbol: p.symbol,
+          category: p.category,
+          tvl: p.tvl,
+          tvl1dChange: p.change_1d,
+          tvl7dChange: p.change_7d,
+          tvl30dChange: p.change_1m,
+          mcap: p.mcap,
+          chains: p.chains?.slice(0, 5),
+          description: p.description?.slice(0, 200),
+        }));
+      return JSON.stringify({ count: slim.length, protocols: slim });
+    }
+
     default:
       return JSON.stringify({ error: "Unknown tool" });
   }
@@ -761,6 +821,40 @@ const TOOLS: any[] = [
       },
     },
   },
+  // ── ENS resolution ──
+  {
+    type: "function",
+    function: {
+      name: "resolve_ens_name",
+      description: "Resolve an ENS name (e.g. 'vitalik.eth') to a wallet address, or reverse-resolve an address to its ENS name. Use this whenever the user provides a .eth name or asks about a specific ENS identity.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "ENS name (e.g. 'vitalik.eth') or Ethereum address (0x...)" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  // ── DeFiLlama protocol intelligence (Alpha Scanner) ──
+  {
+    type: "function",
+    function: {
+      name: "search_defi_protocols",
+      description: "Search and analyze DeFi protocols from DeFiLlama — TVL, TVL changes, categories, chains, market cap. Use for research queries about protocol performance, growth trends, RWA protocols, liquid staking, yield aggregators, P/F ratios, and any question requiring ecosystem-wide protocol data.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search term: protocol name, keyword, or description fragment" },
+          category: { type: "string", description: "Protocol category e.g. 'Lending', 'Yield Aggregator', 'Liquid Staking', 'RWA', 'CDP', 'DEX'" },
+          chain: { type: "string", description: "Filter by chain name e.g. 'Ethereum', 'Base', 'Arbitrum'" },
+          minTvl: { type: "number", description: "Minimum TVL in USD e.g. 50000000 for $50M" },
+          maxTvl: { type: "number", description: "Maximum TVL in USD e.g. 500000000 for $500M" },
+          limit: { type: "number", description: "Max results, default 30" },
+        },
+      },
+    },
+  },
 ];
 
 /* ───── system prompt ───── */
@@ -892,8 +986,34 @@ VAULT vs LENDING DEPOSITS (CRITICAL — READ CAREFULLY):
 - Yearn vaults are NOT displayed in the UI and are not supported for actions.
 - Pendle fixed-yield markets are displayed in the UI and available via search_markets for informational queries (APY, TVL, maturity). However, Pendle PT/YT trading execution is NOT supported yet via action tools. If a user asks to buy a Pendle PT or trade on Pendle, explain that execution isn't available yet but show them the market data.
 
+
+ENS IDENTITY INTEGRATION:
+- When a user mentions a .eth name (e.g. "vitalik.eth") or asks about another address, ALWAYS call resolve_ens_name first to get the canonical address and ENS name.
+- Use the resolved address for get_user_positions and any position queries.
+- Display the ENS name prominently: e.g. "Here are **vitalik.eth**'s positions:" — make it feel personal.
+- If the ENS name has no registered address, reply: "I couldn't find a wallet registered to that ENS name."
+
+ALPHA SCANNER — PROTOCOL RESEARCH QUERIES:
+- When users ask about protocol ecosystems, TVL trends, P/F ratios, market cap, growing protocols, or DeFi categories (RWA, liquid staking, yield aggregators, etc.), use search_defi_protocols.
+- search_defi_protocols returns: name, tvl, tvl1dChange/7dChange/30dChange (%), mcap, category, chains, description.
+- For complex multi-step research: call search_defi_protocols, cross-reference with search_markets for yield data, then synthesize into a table.
+- TVL growth signals: tvl30dChange > 20% = notable growth; < -20% = concern.
+- Present results as a formatted markdown table with the most relevant columns.
+
+BORROW MARKET RESPONSES (CRITICAL — ALWAYS USE MARKET CARDS):
+- For ANY borrow query, ALWAYS format each market as: {{market:ID;;PROTOCOL;;ASSET;;APR;;TVL;;borrow|Label}}
+- NEVER use plain text or bullet points alone for borrow markets. Every borrow market MUST have a card.
+- Sort borrow markets by borrowAPR ascending (lowest cost first).
+- Example: {{market:AAVE_V3:1:0xabc;;Aave V3 Core (Ethereum);;USDC;;4.12;;1200000000;;borrow|USDC · Aave V3}}
+
+WALLET + ACTION GATING (REVISED):
+- The user's message may start with "[Wallet: 0x...]" — extract and use this address automatically for ALL action tools.
+- If NO wallet prefix: answer informational queries normally without any wallet warning.
+- ONLY when the user explicitly asks to EXECUTE a transaction (deposit, borrow, repay, leverage) AND no wallet is connected, say: "Connect your wallet using the button at the top right to execute this transaction."
+- NEVER gate informational queries, rate comparisons, or position lookups on wallet connection.
+
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
-Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on [Aave V3](market:AAVE_V3:1)." or "Preparing to borrow [USDC](token:USDC) on [Aave V3](market:AAVE_V3:1)."
+Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on Aave V3." or "Preparing to borrow [USDC](token:USDC) from Aave V3."
 No summaries, no tables, no bullet points after actions.`;
 
 /* ───── agent loop ───── */
@@ -901,7 +1021,7 @@ No summaries, no tables, no bullet points after actions.`;
 async function runAgent(query: string, userAddress?: string, history: any[] = []) {
   const messages: any[] = [
     { role: "system", content: SYSTEM_PROMPT },
-    ...history.slice(-10),
+    ...history.slice(-20), // Keep last 20 messages for richer context
     { role: "user", content: userAddress ? `[Wallet: ${userAddress}]\n${query}` : query },
   ];
   const collectedSteps: any[] = [];
