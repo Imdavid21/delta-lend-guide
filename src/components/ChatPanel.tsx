@@ -9,10 +9,10 @@ const SUGGESTIONS = [
   "Best USDC lending rates on Ethereum",
   "Lowest USDC borrow APR on Ethereum",
   "Compare ETH supply APY across protocols",
-  "Show Morpho Blue vault yields",
+  "Show top Morpho vault yields",
   "What Pendle fixed yields are available?",
   "Top 5 markets by TVL",
-  "Show my borrowing positions",
+  "Look up vitalik.eth's DeFi positions",
   "Show my positions",
 ];
 
@@ -62,14 +62,14 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
           How can I help?
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Ask about lending and borrowing markets, vault yields, fixed rates, or execute DeFi actions.
+          Ask about lending and borrowing rates, vault yields, fixed-rate markets, or execute DeFi transactions. Search any ENS name to explore their portfolio.
         </Typography>
 
         {/* Quick Actions */}
         <Box sx={{ width: "100%" }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, px: 0.5 }}>
             <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Quick Actions
+              Suggestions
             </Typography>
             <IconButton size="small" onClick={() => setDismissed(true)} sx={{ color: "text.disabled", p: 0.3 }}>
               <CloseIcon sx={{ fontSize: 14 }} />

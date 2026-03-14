@@ -10,7 +10,7 @@ import AppShell from "./components/AppShell";
 
 const queryClient = new QueryClient();
 
-// Create AppKit instance
+// Create AppKit instance — explicit WalletConnect + QR config
 createAppKit({
   adapters: [wagmiAdapter],
   projectId,
@@ -19,11 +19,14 @@ createAppKit({
     name: "Nebula",
     description: "DeFi Intelligence Platform",
     url: window.location.origin,
-    icons: [],
+    icons: [`${window.location.origin}/favicon.ico`],
   },
   themeMode: "dark",
   features: {
     analytics: false,
+    email: false,
+    socials: [],
+    emailShowWallets: true,
   },
 });
 

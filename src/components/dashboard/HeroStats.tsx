@@ -149,12 +149,12 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
         <Stat
           label={isLending ? "Total TVL" : "Aggregate Liquidity"}
           value={totalTVL !== null ? formatUSD(totalTVL) : null}
-          sub="Across all protocols"
+          sub="Across all tracked protocols"
         />
         <Stat
           label="Markets Tracked"
           value={marketCount !== null ? String(marketCount) : null}
-          sub={isLending ? "Lending · Vaults · Fixed" : "Borrow Markets"}
+          sub={isLending ? "Lending · Vaults · Fixed Yield" : "Borrow Markets"}
         />
       </div>
     </>

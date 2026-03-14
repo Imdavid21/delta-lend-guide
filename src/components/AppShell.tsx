@@ -11,7 +11,6 @@ import ChatSidebar from "./ChatSidebar";
 import ChatPanel from "./ChatPanel";
 import HeroStats from "./dashboard/HeroStats";
 import TopYields from "./dashboard/TopYields";
-import EnsExplorer from "./EnsExplorer";
 import MarketPage from "./dashboard/MarketPage";
 import LendingTable from "./markets/LendingTable";
 import VaultsTable from "./markets/VaultsTable";
@@ -339,9 +338,6 @@ function DashboardContainer({ viewMode, submitAction, isDark }: {
         <HeroStats viewMode={viewMode} />
       </Box>
       <TopYields viewMode={viewMode} onAction={submitAction} />
-      <Box sx={{ mt: 3 }}>
-        <EnsExplorer />
-      </Box>
     </>
   );
 }

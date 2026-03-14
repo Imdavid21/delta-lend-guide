@@ -24,6 +24,8 @@ const LENDER_NAMES: Record<string, string> = {
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum",
   8453: "Base",
+  42161: "Arbitrum",
+  10: "Optimism",
 };
 
 function parseChainIdFromMarketUid(marketUid?: string): number | undefined {
@@ -205,7 +207,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
     return items
       .filter((v: any) => {
         const tvl = v.state?.totalAssetsUsd ?? 0;
-        if (tvl < 100000) return false;
+        if (tvl < 10_000_000) return false; // $10M minimum for vaults
         // Filter out unrealistic APYs (>100%) — likely reward-gaming or data artifacts
         const apy = (v.state?.apy ?? 0) * 100;
         if (apy > 100) return false;
@@ -251,7 +253,7 @@ async function fetchVaults(hdrs: Record<string, string>) {
     const lk = pool.lenderKey ?? "";
     if (!lk.startsWith("EULER")) continue;
     const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-    if (tvl < 10000) continue;
+    if (tvl < 10_000_000) continue; // $10M minimum for Euler vaults
     const chainId = resolveChainId(pool) ?? 1;
     const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
     const asset = extractAsset(pool);
@@ -319,11 +321,13 @@ async function fetchPendleForChain(chainId: number): Promise<any[]> {
 }
 
 async function fetchPendle() {
-  const [eth, base] = await Promise.all([
+  const [eth, base, arb, opt] = await Promise.all([
     fetchPendleForChain(1),
     fetchPendleForChain(8453),
+    fetchPendleForChain(42161), // Arbitrum — largest Pendle market outside Ethereum
+    fetchPendleForChain(10),    // Optimism
   ]);
-  const results = [...eth, ...base];
+  const results = [...eth, ...base, ...arb, ...opt];
   console.log(`Pendle: ${results.length} total active markets`);
   return results;
 }
