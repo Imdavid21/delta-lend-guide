@@ -7,6 +7,7 @@ import {
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
+import { useShell } from "@/components/AppShell";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -25,7 +26,10 @@ const AMBER = "#fbbf24";
 interface ExecRoute {
   id: string;
   protocol: string;
+  protocolName: string;
   chain: string | null;
+  asset: string;
+  marketUid?: string;
   outputLabel: string;
   returnValue: number;
   returnLabel: string;
@@ -267,6 +271,7 @@ export default function ExecutionPanel() {
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
   const { data: pendle } = usePendle();
+  const { submitAction } = useShell();
 
   const [mode, setMode] = useState<ExecMode>("lend");
   const [lendSubMode, setLendSubMode] = useState<LendSubMode>("lending");
@@ -276,6 +281,10 @@ export default function ExecutionPanel() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
+  const [protocolFilter, setProtocolFilter] = useState("all");
+  const [chainFilter, setChainFilter] = useState("all");
+  const [tvlFilter, setTvlFilter] = useState("all");
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
@@ -288,6 +297,12 @@ export default function ExecutionPanel() {
 
   // Reset route selection when mode/submode/asset changes
   useEffect(() => { setSelectedRouteId(null); }, [mode, lendSubMode, fromAsset, toAsset]);
+  useEffect(() => {
+    setProtocolFilter("all");
+    setChainFilter("all");
+    setTvlFilter("all");
+    setShowAllRoutes(false);
+  }, [mode, lendSubMode, fromAsset, toAsset]);
 
   // Close settings on outside click
   useEffect(() => {
@@ -327,11 +342,10 @@ export default function ExecutionPanel() {
       return (markets ?? [])
         .filter(m => m.asset === toAsset && m.borrowAPR != null && m.borrowAPR > 0)
         .sort((a, b) => (a.borrowAPR ?? 999) - (b.borrowAPR ?? 999))
-        .slice(0, 6)
         .map(m => {
-          const { chain } = parseChainFromLabel(m.protocolName);
+          const { name: protocolName, chain } = parseChainFromLabel(m.protocolName);
           return {
-            id: m.id, protocol: m.protocolName, chain,
+            id: m.id, protocol: m.protocolName, protocolName, chain, asset: m.asset, marketUid: m.marketUid,
             outputLabel: `${m.asset} variable debt`,
             returnValue: m.borrowAPR!,
             returnLabel: formatPercent(m.borrowAPR) + " APR",
@@ -347,12 +361,11 @@ export default function ExecutionPanel() {
       return (markets ?? [])
         .filter(m => m.asset === asset && m.supplyAPY > 0)
         .sort((a, b) => b.supplyAPY - a.supplyAPY)
-        .slice(0, 6)
         .map(m => {
-          const { chain } = parseChainFromLabel(m.protocolName);
+          const { name: protocolName, chain } = parseChainFromLabel(m.protocolName);
           const prefix = m.protocol.startsWith("AAVE") ? "a" : m.protocol.startsWith("COMPOUND") ? "c" : "";
           return {
-            id: m.id, protocol: m.protocolName, chain,
+            id: m.id, protocol: m.protocolName, protocolName, chain, asset: m.asset, marketUid: m.marketUid,
             outputLabel: `${prefix}${m.asset} — receipt token`,
             returnValue: m.supplyAPY,
             returnLabel: formatPercent(m.supplyAPY) + " APY",
@@ -367,11 +380,10 @@ export default function ExecutionPanel() {
       return (vaults ?? [])
         .filter(v => v.asset === asset && v.apy > 0)
         .sort((a, b) => b.apy - a.apy)
-        .slice(0, 6)
         .map(v => {
           const { name: vaultDisplay, chain } = parseChainFromLabel(v.name);
           return {
-            id: v.id, protocol: v.protocol, chain,
+            id: v.id, protocol: v.protocol, protocolName: v.protocol, chain, asset: v.asset, marketUid: v.marketUid,
             outputLabel: vaultDisplay,
             returnValue: v.apy,
             returnLabel: formatPercent(v.apy) + " APY",
@@ -386,11 +398,10 @@ export default function ExecutionPanel() {
     return (pendle ?? [])
       .filter(p => p.asset === asset || p.name.toLowerCase().includes(asset.toLowerCase()))
       .sort((a, b) => b.impliedAPY - a.impliedAPY)
-      .slice(0, 6)
       .map(p => {
         const { chain } = parseChainFromLabel(p.name);
         return {
-          id: p.id, protocol: "Pendle", chain,
+          id: p.id, protocol: "Pendle", protocolName: "Pendle", chain, asset: p.asset,
           outputLabel: `PT-${p.asset} · ${p.daysToMaturity}d maturity`,
           returnValue: p.impliedAPY,
           returnLabel: formatPercent(p.impliedAPY) + " Fixed APY",
@@ -401,7 +412,21 @@ export default function ExecutionPanel() {
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults, pendle]);
 
-  const selectedRoute = routes.find(r => r.id === selectedRouteId) ?? routes[0] ?? null;
+  const filteredRoutes = useMemo(() => {
+    const minTvl = tvlFilter === "1m" ? 1_000_000 : tvlFilter === "10m" ? 10_000_000 : tvlFilter === "100m" ? 100_000_000 : 0;
+    return routes.filter((route) => {
+      if (protocolFilter !== "all" && route.protocolName !== protocolFilter) return false;
+      if (chainFilter !== "all" && route.chain !== chainFilter) return false;
+      if (route.tvlRaw < minTvl) return false;
+      return true;
+    });
+  }, [routes, protocolFilter, chainFilter, tvlFilter]);
+
+  const visibleRoutes = showAllRoutes ? filteredRoutes : filteredRoutes.slice(0, 6);
+  const selectedRoute = visibleRoutes.find(r => r.id === selectedRouteId) ?? visibleRoutes[0] ?? null;
+  const hasMoreRoutes = filteredRoutes.length > 6;
+  const protocolOptions = useMemo(() => [...new Set(routes.map((r) => r.protocolName))].sort(), [routes]);
+  const chainOptions = useMemo(() => [...new Set(routes.map((r) => r.chain).filter(Boolean) as string[])].sort(), [routes]);
 
   // ── Borrow calculations ──────────────────────────────────
   const amountNum = parseFloat(amount) || 0;
@@ -433,6 +458,15 @@ export default function ExecutionPanel() {
 
   const handleButton = () => {
     if (btnState === "connect") openWallet();
+    if (btnState !== "exec" || !selectedRoute) return;
+
+    const actionLabel = mode === "borrow" ? "borrow" : "deposit";
+    const basePrompt = mode === "borrow"
+      ? `Help me borrow ${amount} ${toAsset} using ${validFromAsset} as collateral on ${selectedRoute.protocolName}${selectedRoute.chain ? ` (${selectedRoute.chain})` : ""}`
+      : `Help me deposit ${amount} ${validFromAsset} into ${selectedRoute.protocolName}${selectedRoute.chain ? ` (${selectedRoute.chain})` : ""}${lendSubMode === "vault" ? " vault" : lendSubMode === "fixed" ? " fixed-yield market" : " lending market"}`;
+    const marketRef = selectedRoute.marketUid ? ` (marketUid: ${selectedRoute.marketUid})` : "";
+
+    submitAction(`${basePrompt}${marketRef} and prepare the ${actionLabel} transaction.`);
   };
 
   const inputBg = "#141a20";
@@ -771,14 +805,31 @@ export default function ExecutionPanel() {
             <span style={{ fontSize: 13, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.02em" }}>
               Best Routes
             </span>
-            {routes.length > 0 && (
+            {filteredRoutes.length > 0 && (
               <span style={{ fontSize: 10, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
-                {routes.length} option{routes.length !== 1 ? "s" : ""} · sorted by best return
+                {filteredRoutes.length} option{filteredRoutes.length !== 1 ? "s" : ""} · sorted by best return
               </span>
             )}
           </div>
 
-          {routes.length === 0 ? (
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+            <select value={protocolFilter} onChange={(e) => setProtocolFilter(e.target.value)} style={{ background: "#141a20", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2", borderRadius: 8, padding: "6px 8px", fontSize: 11 }}>
+              <option value="all">All Protocols</option>
+              {protocolOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select value={chainFilter} onChange={(e) => setChainFilter(e.target.value)} style={{ background: "#141a20", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2", borderRadius: 8, padding: "6px 8px", fontSize: 11 }}>
+              <option value="all">All Chains</option>
+              {chainOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={tvlFilter} onChange={(e) => setTvlFilter(e.target.value)} style={{ background: "#141a20", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2", borderRadius: 8, padding: "6px 8px", fontSize: 11 }}>
+              <option value="all">All TVL</option>
+              <option value="1m">TVL ≥ $1M</option>
+              <option value="10m">TVL ≥ $10M</option>
+              <option value="100m">TVL ≥ $100M</option>
+            </select>
+          </div>
+
+          {filteredRoutes.length === 0 ? (
             <div style={{
               background: "#0e1419", border: "1px solid rgba(67,72,78,0.3)",
               borderRadius: 12, padding: "40px 24px", textAlign: "center",
@@ -793,21 +844,32 @@ export default function ExecutionPanel() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {routes.map((route, i) => (
+              {visibleRoutes.map((route, i) => (
                 <RouteCard
                   key={route.id}
                   route={route}
-                  selected={route.id === (selectedRoute?.id ?? routes[0]?.id)}
+                  selected={route.id === (selectedRoute?.id ?? visibleRoutes[0]?.id)}
                   onSelect={() => setSelectedRouteId(route.id)}
                   accent={accent}
                   isBest={i === 0}
                 />
               ))}
+              {hasMoreRoutes && !showAllRoutes && (
+                <button
+                  onClick={() => setShowAllRoutes(true)}
+                  style={{
+                    width: "100%", background: "transparent", border: "1px solid rgba(67,72,78,0.3)", color: "#a7abb2",
+                    borderRadius: 10, padding: "8px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700,
+                  }}
+                >
+                  More ({filteredRoutes.length - visibleRoutes.length} more)
+                </button>
+              )}
             </div>
           )}
 
           {/* Info footer */}
-          {routes.length > 0 && (
+          {filteredRoutes.length > 0 && (
             <div style={{
               marginTop: 12, padding: "10px 14px",
               background: "#0e1419", borderRadius: 10,
