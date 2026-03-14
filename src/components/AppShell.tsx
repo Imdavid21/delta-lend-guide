@@ -152,7 +152,38 @@ export default function AppShell({ mode, onToggle }: Props) {
 
   return (
     <ShellContext.Provider value={ctx}>
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100vh", position: "relative" }}>
+        {/* Decorative background glows */}
+        <Box
+          aria-hidden
+          sx={{
+            position: "fixed",
+            top: 0,
+            right: 0,
+            width: 500,
+            height: 500,
+            borderRadius: "50%",
+            bgcolor: "rgba(0,255,157,0.04)",
+            filter: "blur(120px)",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
+        <Box
+          aria-hidden
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            width: 600,
+            height: 600,
+            borderRadius: "50%",
+            bgcolor: "rgba(120,223,255,0.03)",
+            filter: "blur(150px)",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
         <AppHeader
           mode={mode}
           onToggle={onToggle}

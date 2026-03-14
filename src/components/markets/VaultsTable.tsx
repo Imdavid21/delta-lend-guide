@@ -86,7 +86,7 @@ export default function VaultsTable() {
         </Box>
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load vaults</Typography>}
-      <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 3 }}>
+      <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, overflow: "hidden" }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -153,7 +153,7 @@ export default function VaultsTable() {
                         fontWeight={700}
                         sx={{
                           fontVariantNumeric: "tabular-nums",
-                          color: v.apy > 5 ? "#22c55e" : "text.primary",
+                          color: v.apy > 5 ? "primary.main" : "text.primary",
                         }}
                       >
                         {formatPercent(v.apy)}

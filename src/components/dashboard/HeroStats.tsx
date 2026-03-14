@@ -1,4 +1,9 @@
-import { Box, Paper, Typography, Skeleton } from "@mui/material";
+import { Box, Typography, Skeleton } from "@mui/material";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import LockClockOutlinedIcon from "@mui/icons-material/LockClockOutlined";
+import LayersOutlinedIcon from "@mui/icons-material/LayersOutlined";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatUSD, formatPercent, formatProtocolLabel } from "@/lib/marketTypes";
 
@@ -6,62 +11,99 @@ interface StatProps {
   label: string;
   value: string | null;
   sub?: string;
-  accent?: boolean;
+  icon: React.ReactNode;
+  accentColor?: string;
+  kineticGradient?: boolean;
 }
 
-function Stat({ label, value, sub, accent }: StatProps) {
+function Stat({ label, value, sub, icon, accentColor = "text.primary", kineticGradient }: StatProps) {
   return (
-    <Paper
-      elevation={0}
+    <Box
       sx={{
         px: 2.5,
-        py: 2,
+        py: 2.25,
         borderRadius: 3,
-        border: 1,
+        border: "1px solid",
         borderColor: "divider",
-        bgcolor: "background.default",
+        bgcolor: "background.paper",
         minWidth: 0,
         flex: 1,
-        transition: "all 200ms ease",
-        "&:hover": { borderColor: "text.secondary" },
+        position: "relative",
+        overflow: "hidden",
+        transition: "border-color 200ms ease, transform 200ms ease",
+        "&:hover": {
+          borderColor: "rgba(0,255,157,0.25)",
+          transform: "translateY(-1px)",
+        },
+        ...(kineticGradient && {
+          background: (t) =>
+            t.palette.mode === "dark"
+              ? "linear-gradient(135deg, rgba(0, 255, 157, 0.04) 0%, transparent 60%), #0e1419"
+              : "linear-gradient(135deg, rgba(0, 109, 64, 0.04) 0%, transparent 60%), #f8fafc",
+        }),
       }}
     >
+      {/* Icon top-right */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 12,
+          right: 12,
+          opacity: 0.35,
+          color: accentColor,
+          "& svg": { fontSize: 20 },
+        }}
+      >
+        {icon}
+      </Box>
+
       <Typography
-        variant="caption"
         sx={{
           color: "text.secondary",
-          fontSize: 10,
-          fontWeight: 600,
+          fontSize: "0.625rem",
+          fontWeight: 700,
           textTransform: "uppercase",
-          letterSpacing: "0.06em",
+          letterSpacing: "0.12em",
           display: "block",
-          mb: 0.5,
+          mb: 0.75,
         }}
       >
         {label}
       </Typography>
+
       {value === null ? (
-        <Skeleton width={72} height={28} />
+        <Skeleton width={80} height={30} sx={{ borderRadius: 1 }} />
       ) : (
         <Typography
-          variant="h6"
           sx={{
             fontWeight: 800,
             fontVariantNumeric: "tabular-nums",
-            letterSpacing: "-0.02em",
-            color: accent ? "#22c55e" : "text.primary",
-            fontSize: "1.15rem",
+            letterSpacing: "-0.03em",
+            color: accentColor,
+            fontSize: "1.4rem",
+            lineHeight: 1.1,
           }}
         >
           {value}
         </Typography>
       )}
+
       {sub && (
-        <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 10 }}>
+        <Typography
+          sx={{
+            color: "text.disabled",
+            fontSize: "0.625rem",
+            mt: 0.5,
+            display: "block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
           {sub}
         </Typography>
       )}
-    </Paper>
+    </Box>
   );
 }
 
@@ -114,29 +156,37 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
         label={isLending ? "Best Lending APY" : "Lowest Borrow APR"}
         value={bestLending ? formatPercent(isLending ? bestLending.supplyAPY : bestLending.borrowAPR) : null}
         sub={bestLending ? `${bestLending.asset} · ${formatProtocolLabel(bestLending)}` : undefined}
-        accent
+        icon={<TrendingUpIcon />}
+        accentColor="primary.main"
+        kineticGradient
       />
       <Stat
         label="Best Vault APY"
         value={bestVault ? formatPercent(bestVault.apy) : null}
-        sub={bestVault ? `${bestVault.name}` : undefined}
-        accent
+        sub={bestVault ? bestVault.name : undefined}
+        icon={<ShowChartIcon />}
+        accentColor="secondary.main"
       />
       <Stat
         label="Best Fixed Yield"
         value={bestFixed ? formatPercent(bestFixed.impliedAPY) : null}
-        sub={bestFixed ? `${bestFixed.name}` : undefined}
-        accent
+        sub={bestFixed ? bestFixed.name : undefined}
+        icon={<LockClockOutlinedIcon />}
+        accentColor="#78dfff"
       />
       <Stat
         label={isLending ? "Total TVL" : "Aggregate Liquidity"}
         value={totalTVL !== null ? formatUSD(totalTVL) : null}
         sub="Across all protocols"
+        icon={<AccountBalanceWalletOutlinedIcon />}
+        accentColor="text.primary"
       />
       <Stat
         label="Markets Tracked"
         value={marketCount !== null ? String(marketCount) : null}
         sub={isLending ? "Lending · Vaults · Fixed" : "Borrow Markets"}
+        icon={<LayersOutlinedIcon />}
+        accentColor="text.primary"
       />
     </Box>
   );

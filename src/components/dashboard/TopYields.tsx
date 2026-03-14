@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  Box, Paper, Typography, Skeleton, List, ListItemButton, ListItemText, Button,
+  Box, Typography, Skeleton, Button, alpha,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
@@ -17,31 +17,43 @@ function YieldCard({
   items,
   loading,
   onSeeAll,
+  accentColor = "primary.main",
 }: {
   title: string;
   items: { id: string; label: string; sub: string; apy: string; icon: React.ReactNode }[] | null;
   loading: boolean;
   onSeeAll?: () => void;
+  accentColor?: string;
 }) {
   return (
-    <Paper
-      elevation={0}
+    <Box
       sx={{
-        border: 1,
+        border: "1px solid",
         borderColor: "divider",
         borderRadius: 3,
         overflow: "hidden",
-        bgcolor: "background.default",
+        bgcolor: "background.paper",
       }}
     >
-      <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      {/* Card header */}
+      <Box
+        sx={{
+          px: 2,
+          py: 1.5,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          bgcolor: (t) => t.palette.mode === "dark" ? "#1a2027" : "#f1f5f9",
+        }}
+      >
         <Typography
-          variant="caption"
           sx={{
-            fontWeight: 700,
+            fontWeight: 800,
             textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            fontSize: 10,
+            letterSpacing: "0.1em",
+            fontSize: "0.625rem",
             color: "text.secondary",
           }}
         >
@@ -51,64 +63,129 @@ function YieldCard({
           <Button
             size="small"
             onClick={onSeeAll}
-            sx={{ fontSize: 10, fontWeight: 600, textTransform: "none", minWidth: 0, px: 1, py: 0, color: "text.secondary" }}
+            sx={{
+              fontSize: "0.625rem",
+              fontWeight: 700,
+              textTransform: "none",
+              minWidth: 0,
+              px: 1,
+              py: 0,
+              color: "text.secondary",
+              "&:hover": { color: accentColor },
+            }}
           >
             See All →
           </Button>
         )}
       </Box>
-      <List dense disablePadding>
+
+      {/* Items */}
+      <Box>
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (
-              <ListItemButton key={i} sx={{ py: 1, px: 2 }}>
-                <Skeleton width="100%" height={20} />
-              </ListItemButton>
+              <Box key={i} sx={{ px: 2, py: 1.25, display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Skeleton width={14} height={16} />
+                <Skeleton variant="circular" width={28} height={28} />
+                <Box sx={{ flex: 1 }}>
+                  <Skeleton width="60%" height={14} />
+                  <Skeleton width="40%" height={12} />
+                </Box>
+                <Skeleton width={48} height={16} />
+              </Box>
             ))
           : items?.map((item, i) => (
-              <ListItemButton
+              <Box
                 key={item.id}
                 sx={{
-                  py: 0.75,
                   px: 2,
+                  py: 1.25,
+                  display: "flex",
+                  alignItems: "center",
                   gap: 1.5,
+                  cursor: "pointer",
+                  transition: "background-color 150ms ease",
+                  borderBottom: i < (items.length - 1) ? "1px solid" : "none",
+                  borderColor: "divider",
                   "&:hover": { bgcolor: "action.hover" },
                 }}
               >
+                {/* Rank */}
                 <Typography
                   sx={{
-                    fontSize: 10,
-                    fontWeight: 600,
+                    fontSize: "0.625rem",
+                    fontWeight: 700,
                     color: "text.disabled",
-                    width: 16,
+                    width: 14,
                     flexShrink: 0,
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   {i + 1}
                 </Typography>
-                <Box sx={{ flexShrink: 0 }}>{item.icon}</Box>
-                <ListItemText
-                  primary={item.label}
-                  secondary={item.sub}
-                  primaryTypographyProps={{ fontSize: 12, fontWeight: 600, noWrap: true }}
-                  secondaryTypographyProps={{ fontSize: 10, color: "text.disabled", noWrap: true }}
-                  sx={{ minWidth: 0 }}
-                />
+
+                {/* Icon */}
+                <Box
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    bgcolor: (t) =>
+                      t.palette.mode === "dark" ? "#1f262e" : "#f1f5f9",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  {item.icon}
+                </Box>
+
+                {/* Label */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      color: "text.primary",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.625rem",
+                      color: "text.disabled",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.sub}
+                  </Typography>
+                </Box>
+
+                {/* APY */}
                 <Typography
                   sx={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#22c55e",
+                    fontSize: "0.8125rem",
+                    fontWeight: 800,
+                    color: accentColor,
                     fontVariantNumeric: "tabular-nums",
                     flexShrink: 0,
+                    letterSpacing: "-0.02em",
                   }}
                 >
                   {item.apy}
                 </Typography>
-              </ListItemButton>
+              </Box>
             ))}
-      </List>
-    </Paper>
+      </Box>
+    </Box>
   );
 }
 
@@ -123,7 +200,6 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
   const topLending = useMemo(() => {
     if (!lending) return null;
     let filtered = lending;
-    // In borrow mode, exclude collateral-only markets (0 or null borrow APR)
     if (!isLending) filtered = filtered.filter((m) => m.borrowAPR != null && m.borrowAPR > 0);
     return [...filtered]
       .sort((a, b) => isLending ? (b.supplyAPY - a.supplyAPY) : ((a.borrowAPR ?? 999) - (b.borrowAPR ?? 999)))
@@ -133,7 +209,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         label: `${m.asset} · ${formatProtocolLabel(m)}`,
         sub: `${formatUSD(m.totalSupplyUSD)} TVL`,
         apy: formatPercent(isLending ? m.supplyAPY : m.borrowAPR),
-        icon: <AssetIcon symbol={m.asset} size={18} />,
+        icon: <AssetIcon symbol={m.asset} size={16} />,
       }));
   }, [lending, isLending]);
 
@@ -147,7 +223,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         label: v.name,
         sub: `${v.curator || v.protocol} · ${formatUSD(v.tvl)}`,
         apy: formatPercent(v.apy),
-        icon: <ProtocolIcon name={v.protocol} size={18} />,
+        icon: <ProtocolIcon name={v.protocol} size={16} />,
       }));
   }, [vaults]);
 
@@ -161,7 +237,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         label: p.name,
         sub: `${p.daysToMaturity}d to maturity · ${formatUSD(p.tvl)}`,
         apy: formatPercent(p.impliedAPY),
-        icon: <AssetIcon symbol={p.asset} size={18} />,
+        icon: <AssetIcon symbol={p.asset} size={16} />,
       }));
   }, [pendle]);
 
@@ -169,7 +245,9 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: isLending ? { xs: "1fr", md: "1fr 1fr 1fr" } : { xs: "1fr", md: "1fr" },
+        gridTemplateColumns: isLending
+          ? { xs: "1fr", md: "1fr 1fr 1fr" }
+          : { xs: "1fr", md: "1fr" },
         gap: 1.5,
       }}
     >
@@ -178,11 +256,24 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         items={topLending}
         loading={ll}
         onSeeAll={() => navigate(isLending ? "/lending/markets" : "/borrow/markets")}
+        accentColor="primary.main"
       />
       {isLending && (
         <>
-          <YieldCard title="Top Vault Yields" items={topVaults} loading={vl} onSeeAll={() => navigate("/lending/vaults")} />
-          <YieldCard title="Top Fixed Yields" items={topFixed} loading={pl} onSeeAll={() => navigate("/lending/fixed")} />
+          <YieldCard
+            title="Top Vault Yields"
+            items={topVaults}
+            loading={vl}
+            onSeeAll={() => navigate("/lending/vaults")}
+            accentColor="secondary.main"
+          />
+          <YieldCard
+            title="Top Fixed Yields"
+            items={topFixed}
+            loading={pl}
+            onSeeAll={() => navigate("/lending/fixed")}
+            accentColor="#78dfff"
+          />
         </>
       )}
     </Box>
