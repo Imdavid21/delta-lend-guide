@@ -214,13 +214,15 @@ async function fetchMorphoVaults(): Promise<any[]> {
         const asset = v.asset?.symbol ?? "";
         const tvl = v.state?.totalAssetsUsd ?? 0;
         const apy = (v.state?.apy ?? 0) * 100;
-        const displayName = v.name ?? v.symbol ?? `Morpho ${asset}`;
-        // Extract curator from metadata or infer from vault name
+        const chainId = v.chain?.id ?? 1;
+        const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
+        const rawName = v.name ?? v.symbol ?? `Morpho ${asset}`;
+        const displayName = chainLabel && !rawName.includes(chainLabel) ? `${rawName}${chainLabel}` : rawName;
         const curatorList = v.metadata?.curators ?? [];
         const curator = curatorList.length > 0 ? curatorList[0]?.name : undefined;
 
         return {
-          id: `morpho-vault:${v.address}`,
+          id: `morpho-vault:${chainId}:${v.address}`,
           marketUid: v.address ?? "",
           name: displayName,
           protocol: "Morpho Blue",
