@@ -68,9 +68,9 @@ function resolveLenderName(key: string, poolName = "", chainId?: number): string
 function normalizeRatePercent(raw: unknown): number | null {
   const n = typeof raw === "number" ? raw : parseFloat(String(raw));
   if (!Number.isFinite(n)) return null;
-  // Upstreams are inconsistent: some emit decimal annual rates (0.052),
-  // others emit percent rates (5.2). Normalize to percent for UI.
-  return Math.abs(n) <= 1 ? n * 100 : n;
+  // 1Delta API returns rates already as percentages (e.g. 2.44 = 2.44%).
+  // Do NOT multiply — just pass through.
+  return n;
 }
 
 function normalizePercent(raw: unknown): number | null {
