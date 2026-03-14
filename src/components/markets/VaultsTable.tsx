@@ -117,7 +117,7 @@ export default function VaultsTable({ showTitle = true }: { showTitle?: boolean 
                     sx={{
                       fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
                       color: "#a7abb2 !important",
-                      "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#86efac !important" },
+                      "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#00FF9D !important" },
                       "&.Mui-active": { color: "#eaeef5 !important" },
                       "&:hover": { color: "#eaeef5 !important" },
                     }}

@@ -12,7 +12,7 @@ type SortKey = "asset" | "protocolName" | "supplyAPY" | "borrowAPR" | "totalSupp
 
 function UtilBar({ value }: { value: number }) {
   const pct = Math.min(100, Math.max(0, value));
-  const color = pct > 90 ? "#ff716c" : pct > 75 ? "#f59e0b" : "#86efac";
+  const color = pct > 90 ? "#ff716c" : pct > 75 ? "#f59e0b" : "#00FF9D";
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
       <span style={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: "tabular-nums" as const, color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
@@ -157,7 +157,7 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
                     sx={{
                       fontSize: 11, fontWeight: 700, textTransform: "uppercase",
                       letterSpacing: "0.05em", color: "#a7abb2 !important",
-                      "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#86efac !important" },
+                      "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#00FF9D !important" },
                       "&.Mui-active": { color: "#eaeef5 !important" },
                       "&:hover": { color: "#eaeef5 !important" },
                     }}
