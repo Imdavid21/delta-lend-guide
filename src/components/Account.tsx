@@ -6,6 +6,7 @@ import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { useEnsIdentity } from "@/hooks/useEns";
 
 function SectionCard({ children, sx = {} }: { children: React.ReactNode; sx?: object }) {
   return (
@@ -45,6 +46,7 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 
 export default function Account() {
   const { isConnected, address } = useAccount();
+  const { ensName, ensAvatar, displayName } = useEnsIdentity(address);
 
   if (!isConnected) {
     return (
@@ -74,26 +76,48 @@ export default function Account() {
 
   return (
     <Box sx={{ maxWidth: 960, mx: "auto", mt: 2 }}>
-      {/* Page header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography
-          sx={{
-            fontSize: "0.625rem",
-            fontWeight: 800,
-            textTransform: "uppercase",
-            letterSpacing: "0.12em",
-            color: "primary.main",
-            mb: 0.5,
-          }}
-        >
-          Developer Portal
-        </Typography>
-        <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: "-0.03em" }}>
-          Account & Integration
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 560 }}>
-          Manage your API keys, configure Model Context Protocol servers, and connect external tools.
-        </Typography>
+      {/* ENS Identity Header */}
+      <Box sx={{ mb: 4, display: "flex", alignItems: "center", gap: 3 }}>
+        {/* Avatar */}
+        <Box sx={{ flexShrink: 0 }}>
+          {ensAvatar ? (
+            <Box
+              component="img"
+              src={ensAvatar}
+              alt={ensName ?? address}
+              sx={{
+                width: 64, height: 64, borderRadius: "50%",
+                border: "2px solid",
+                borderColor: "primary.main",
+                boxShadow: "0 0 20px rgba(0,255,157,0.25)",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            <Box sx={{
+              width: 64, height: 64, borderRadius: "50%",
+              background: "linear-gradient(135deg, rgba(0,255,157,0.25), rgba(82,152,255,0.25))",
+              border: "2px solid",
+              borderColor: "primary.main",
+              boxShadow: "0 0 20px rgba(0,255,157,0.2)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 24, fontWeight: 800, color: "primary.main",
+            }}>
+              {(address ?? "?")[2].toUpperCase()}
+            </Box>
+          )}
+        </Box>
+        <Box>
+          <Typography sx={{ fontSize: "0.625rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "primary.main", mb: 0.5 }}>
+            Developer Portal
+          </Typography>
+          <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: "-0.03em" }}>
+            {ensName ?? "Account & Integration"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontFamily: ensName ? "monospace" : "inherit", fontSize: ensName ? "0.75rem" : "0.875rem" }}>
+            {ensName ? address : "Manage your API keys, configure MCP servers, and connect external tools."}
+          </Typography>
+        </Box>
       </Box>
 
       {/* Bento grid */}
