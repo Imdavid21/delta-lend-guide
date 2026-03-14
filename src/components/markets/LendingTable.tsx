@@ -47,7 +47,7 @@ const selectSx = {
   "& .MuiSelect-icon": { color: "#a7abb2" },
 };
 
-export default function LendingTable({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
+export default function LendingTable({ viewMode = "lending", showTitle = true }: { viewMode?: "lending" | "borrow"; showTitle?: boolean }) {
   const { data, isLoading, error } = useMarkets();
   const [assetFilter, setAssetFilter] = useState<string>("");
   const [chainFilter, setChainFilter] = useState<string>("");
@@ -98,9 +98,11 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
     <Box>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
-          {isLending ? "Lending Markets" : "Borrow Markets"}
-        </div>
+        {showTitle && (
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+            {isLending ? "Lending Markets" : "Borrow Markets"}
+          </div>
+        )}
         <Box sx={{ display: "flex", gap: 1 }}>
           <Select
             value={chainFilter}

@@ -22,7 +22,7 @@ const selectSx = {
   "& .MuiSelect-icon": { color: "#a7abb2" },
 };
 
-export default function FixedYieldTable() {
+export default function FixedYieldTable({ showTitle = true }: { showTitle?: boolean }) {
   const { data, isLoading, error } = usePendle();
   const [assetFilter, setAssetFilter] = useState<string>("");
   const [chainFilter, setChainFilter] = useState<string>("");
@@ -72,9 +72,11 @@ export default function FixedYieldTable() {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1.5 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
-          Fixed Yield
-        </div>
+        {showTitle && (
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+            Fixed Rate Markets
+          </div>
+        )}
         <Box sx={{ display: "flex", gap: 1 }}>
           <Select
             value={chainFilter}
