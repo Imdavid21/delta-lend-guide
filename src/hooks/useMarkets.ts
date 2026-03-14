@@ -15,12 +15,20 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
+function isZeroLend(item: { protocol?: string; protocolName?: string; name?: string }): boolean {
+  const haystack = `${item.protocol ?? ""} ${item.protocolName ?? ""} ${item.name ?? ""}`.toLowerCase();
+  return haystack.includes("zerolend");
+}
+
 const opts = { refreshInterval: 60_000, revalidateOnFocus: true, dedupingInterval: 30_000 };
 
 export function useMarkets() {
   return useSWR<Market[]>(
     `${SUPABASE_URL}/functions/v1/markets?type=lending`,
-    fetcher,
+    async (url: string) => {
+      const data = await fetcher(url);
+      return (data as Market[]).filter((m) => !isZeroLend(m));
+    },
     opts,
   );
 }
@@ -28,7 +36,10 @@ export function useMarkets() {
 export function useVaults() {
   return useSWR<Vault[]>(
     `${SUPABASE_URL}/functions/v1/markets?type=vaults`,
-    fetcher,
+    async (url: string) => {
+      const data = await fetcher(url);
+      return (data as Vault[]).filter((v) => !isZeroLend(v));
+    },
     opts,
   );
 }
@@ -36,7 +47,10 @@ export function useVaults() {
 export function usePendle() {
   return useSWR<PendleMarket[]>(
     `${SUPABASE_URL}/functions/v1/markets?type=pendle`,
-    fetcher,
+    async (url: string) => {
+      const data = await fetcher(url);
+      return (data as PendleMarket[]).filter((p) => !isZeroLend(p));
+    },
     opts,
   );
 }
