@@ -122,7 +122,10 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
 
   const topLending = useMemo(() => {
     if (!lending) return null;
-    return [...lending]
+    let filtered = lending;
+    // In borrow mode, exclude collateral-only markets (0 or null borrow APR)
+    if (!isLending) filtered = filtered.filter((m) => m.borrowAPR != null && m.borrowAPR > 0);
+    return [...filtered]
       .sort((a, b) => isLending ? (b.supplyAPY - a.supplyAPY) : ((a.borrowAPR ?? 999) - (b.borrowAPR ?? 999)))
       .slice(0, 5)
       .map((m) => ({

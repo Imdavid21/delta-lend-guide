@@ -141,7 +141,7 @@ async function fetchLending(hdrs: Record<string, string>) {
       const chainId = resolveChainId(pool) ?? 1;
       const asset = extractAsset(pool);
       const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-      if (tvl < 10000) return null;
+      if (tvl < 10000 || tvl > 100_000_000_000) return null; // filter <$10k and >$100B (data artifacts)
       const utilPct = normalizePercent(pool.utilization);
       const util = utilPct != null ? utilPct / 100 : 0;
 

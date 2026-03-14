@@ -73,10 +73,12 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
   const isLending = viewMode === "lending";
 
   const bestLending = lending?.length
-    ? lending.reduce((a, b) => {
-        if (isLending) return a.supplyAPY > b.supplyAPY ? a : b;
-        return (a.borrowAPR ?? 999) < (b.borrowAPR ?? 999) ? a : b;
-      })
+    ? lending
+        .filter((m) => isLending ? true : (m.borrowAPR != null && m.borrowAPR > 0))
+        .reduce((a, b) => {
+          if (isLending) return a.supplyAPY > b.supplyAPY ? a : b;
+          return (a.borrowAPR ?? 999) < (b.borrowAPR ?? 999) ? a : b;
+        }, lending[0])
     : null;
 
   const bestVault = vaults?.length

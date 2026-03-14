@@ -26,13 +26,15 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
   const rows = useMemo(() => {
     if (!data) return [];
     let filtered = assetFilter ? data.filter((m) => m.asset === assetFilter) : data;
+    // In borrow view, hide collateral-only markets (0 or null borrow APR)
+    if (!isLending) filtered = filtered.filter((m) => m.borrowAPR != null && m.borrowAPR > 0);
     return [...filtered].sort((a, b) => {
       const av = (a as any)[sortKey] ?? 0;
       const bv = (b as any)[sortKey] ?? 0;
       if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       return sortDir === "asc" ? av - bv : bv - av;
     });
-  }, [data, assetFilter, sortKey, sortDir]);
+  }, [data, assetFilter, sortKey, sortDir, isLending]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
