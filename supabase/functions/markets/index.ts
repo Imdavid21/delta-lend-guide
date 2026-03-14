@@ -167,11 +167,12 @@ async function fetchLending(hdrs: Record<string, string>) {
 async function fetchMorphoVaults(): Promise<any[]> {
   try {
     const query = `{
-      vaults(first: 500, where: { chainId_in: [1] }) {
+      vaults(first: 500, where: { chainId_in: [1, 8453] }) {
         items {
           address
           name
           symbol
+          chain { id }
           asset { symbol }
           metadata { curators { name } }
           state {
