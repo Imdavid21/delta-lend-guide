@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
-import { AssetIcon, ProtocolIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
+import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -17,6 +17,15 @@ const LEND_SUBMODES: { id: LendSubMode; label: string; btnLabel: string; fromLab
   { id: "lending", label: "Lending",     btnLabel: "Deposit",    fromLabel: "Deposit Asset", toLabel: "You Receive"    },
   { id: "vault",   label: "Vault",       btnLabel: "Deposit",    fromLabel: "Deposit Asset", toLabel: "Vault Strategy" },
   { id: "fixed",   label: "Fixed Yield", btnLabel: "Lock Yield", fromLabel: "Source Asset",  toLabel: "Fixed Token"    },
+];
+
+/* ─── Chain config ─────────────────────────────────────── */
+
+interface ChainOption { id: string | null; label: string; color: string; letter: string }
+const CHAINS: ChainOption[] = [
+  { id: null,         label: "Any Chain", color: "#627EEA", letter: "A" },
+  { id: "Ethereum",   label: "Ethereum",  color: "#627EEA", letter: "E" },
+  { id: "Base",       label: "Base",      color: "#0052ff", letter: "B" },
 ];
 
 const GREEN = "#86efac";
@@ -276,7 +285,12 @@ export default function ExecutionPanel() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
+  const [chainId, setChainId] = useState<string | null>(null); // null = Any Chain
+  const [showChainPicker, setShowChainPicker] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const chainRef = useRef<HTMLDivElement>(null);
+
+  const selectedChain = CHAINS.find(c => c.id === chainId) ?? CHAINS[0];
 
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
   const accent = mode === "borrow" ? AMBER : GREEN;
@@ -286,18 +300,19 @@ export default function ExecutionPanel() {
   const toLabel   = mode === "borrow" ? "Borrow Asset" : subCfg.toLabel;
   const execBtnLabel = mode === "borrow" ? "Borrow" : subCfg.btnLabel;
 
-  // Reset route selection when mode/submode/asset changes
-  useEffect(() => { setSelectedRouteId(null); }, [mode, lendSubMode, fromAsset, toAsset]);
+  // Reset route selection when mode/submode/asset/chain changes
+  useEffect(() => { setSelectedRouteId(null); }, [mode, lendSubMode, fromAsset, toAsset, chainId]);
 
-  // Close settings on outside click
+  // Close popovers on outside click
   useEffect(() => {
-    if (!showSettings) return;
+    if (!showSettings && !showChainPicker) return;
     const handler = (e: MouseEvent) => {
       if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setShowSettings(false);
+      if (chainRef.current && !chainRef.current.contains(e.target as Node)) setShowChainPicker(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [showSettings]);
+  }, [showSettings, showChainPicker]);
 
   // ── Asset lists ──────────────────────────────────────────
   const lendingAssets = useMemo(() => [...new Set((markets ?? []).map(m => m.asset))].sort(), [markets]);
@@ -401,7 +416,16 @@ export default function ExecutionPanel() {
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults, pendle]);
 
-  const selectedRoute = routes.find(r => r.id === selectedRouteId) ?? routes[0] ?? null;
+  // Filter routes by selected chain (null route.chain = Ethereum mainnet)
+  const filteredRoutes = useMemo(() => {
+    if (!chainId) return routes; // Any Chain — show all
+    return routes.filter(r => {
+      const routeChain = r.chain ?? "Ethereum";
+      return routeChain === chainId;
+    });
+  }, [routes, chainId]);
+
+  const selectedRoute = filteredRoutes.find(r => r.id === selectedRouteId) ?? filteredRoutes[0] ?? null;
 
   // ── Borrow calculations ──────────────────────────────────
   const amountNum = parseFloat(amount) || 0;
@@ -582,15 +606,67 @@ export default function ExecutionPanel() {
                 onChange={a => setFromAsset(a)}
                 assets={fromAssets}
               />
-              <div style={{
-                display: "flex", alignItems: "center", gap: 4,
-                background: "#0a0f14", border: "1px solid rgba(67,72,78,0.3)",
-                borderRadius: 8, padding: "5px 9px", fontSize: 11, fontWeight: 600,
-                color: "#a7abb2", fontFamily: "Inter, sans-serif",
-              }}>
-                <div style={{ width: 13, height: 13, borderRadius: "50%", background: "#627EEA", fontSize: 7, color: "#fff", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>E</div>
-                Any Chain
-                <ChevronDown size={9} />
+              {/* Chain picker */}
+              <div ref={chainRef} style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowChainPicker(p => !p)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: showChainPicker ? "rgba(255,255,255,0.06)" : "#0a0f14",
+                    border: showChainPicker ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
+                    borderRadius: 8, padding: "5px 9px", fontSize: 11, fontWeight: 600,
+                    color: "#eaeef5", fontFamily: "Inter, sans-serif", cursor: "pointer",
+                    transition: "all 150ms",
+                  }}
+                  onMouseEnter={e => { if (!showChainPicker) e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
+                  onMouseLeave={e => { if (!showChainPicker) e.currentTarget.style.borderColor = "rgba(67,72,78,0.3)"; }}
+                >
+                  {chainId ? (
+                    <ChainIcon chainName={chainId} size={13} />
+                  ) : (
+                    <div style={{ width: 13, height: 13, borderRadius: "50%", background: "#627EEA", fontSize: 7, color: "#fff", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</div>
+                  )}
+                  {selectedChain.label}
+                  <ChevronDown size={9} />
+                </button>
+
+                {showChainPicker && (
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 4px)", right: 0,
+                    background: "#0e1419", border: "1px solid rgba(67,72,78,0.4)",
+                    borderRadius: 10, zIndex: 300, minWidth: 150,
+                    boxShadow: "0 16px 40px rgba(0,0,0,0.6)", overflow: "hidden",
+                    padding: 4,
+                  }}>
+                    {CHAINS.map(c => {
+                      const active = chainId === c.id;
+                      return (
+                        <button
+                          key={String(c.id)}
+                          onClick={() => { setChainId(c.id); setShowChainPicker(false); }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 8, width: "100%",
+                            padding: "7px 10px", border: "none", borderRadius: 7, cursor: "pointer",
+                            background: active ? "rgba(255,255,255,0.07)" : "transparent",
+                            color: active ? "#eaeef5" : "#a7abb2",
+                            fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, textAlign: "left",
+                            transition: "all 120ms",
+                          }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          {c.id ? (
+                            <ChainIcon chainName={c.id} size={15} />
+                          ) : (
+                            <div style={{ width: 15, height: 15, borderRadius: "50%", background: "#627EEA", fontSize: 7, color: "#fff", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</div>
+                          )}
+                          {c.label}
+                          {active && <span style={{ marginLeft: "auto", color: "#86efac", fontSize: 10 }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -771,14 +847,14 @@ export default function ExecutionPanel() {
             <span style={{ fontSize: 13, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.02em" }}>
               Best Routes
             </span>
-            {routes.length > 0 && (
+            {filteredRoutes.length > 0 && (
               <span style={{ fontSize: 10, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
-                {routes.length} option{routes.length !== 1 ? "s" : ""} · sorted by best return
+                {filteredRoutes.length} option{filteredRoutes.length !== 1 ? "s" : ""} · sorted by best return
               </span>
             )}
           </div>
 
-          {routes.length === 0 ? (
+          {filteredRoutes.length === 0 ? (
             <div style={{
               background: "#0e1419", border: "1px solid rgba(67,72,78,0.3)",
               borderRadius: 12, padding: "40px 24px", textAlign: "center",
@@ -788,16 +864,16 @@ export default function ExecutionPanel() {
                 No routes found
               </div>
               <div style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
-                {!markets ? "Loading market data..." : "Try selecting a different asset"}
+                {!markets ? "Loading market data..." : chainId ? `No ${chainId} routes for this asset` : "Try selecting a different asset"}
               </div>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {routes.map((route, i) => (
+              {filteredRoutes.map((route, i) => (
                 <RouteCard
                   key={route.id}
                   route={route}
-                  selected={route.id === (selectedRoute?.id ?? routes[0]?.id)}
+                  selected={route.id === (selectedRoute?.id ?? filteredRoutes[0]?.id)}
                   onSelect={() => setSelectedRouteId(route.id)}
                   accent={accent}
                   isBest={i === 0}
@@ -807,7 +883,7 @@ export default function ExecutionPanel() {
           )}
 
           {/* Info footer */}
-          {routes.length > 0 && (
+          {filteredRoutes.length > 0 && (
             <div style={{
               marginTop: 12, padding: "10px 14px",
               background: "#0e1419", borderRadius: 10,
