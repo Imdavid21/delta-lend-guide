@@ -106,10 +106,13 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
     ? pendle.reduce((a, b) => (a.impliedAPY > b.impliedAPY ? a : b))
     : null;
 
+  // Cap individual values to guard against API returning raw token units instead of USD.
+  // No single lending pool or vault can realistically hold more than $30B.
+  const MAX_ITEM_TVL = 30_000_000_000;
   const totalTVL =
     lending && vaults
-      ? lending.reduce((s, m) => s + m.totalSupplyUSD, 0) +
-        vaults.reduce((s, v) => s + v.tvl, 0)
+      ? lending.reduce((s, m) => s + Math.min(m.totalSupplyUSD, MAX_ITEM_TVL), 0) +
+        vaults.reduce((s, v) => s + Math.min(v.tvl, MAX_ITEM_TVL), 0)
       : null;
 
   const lendingMarketCount =

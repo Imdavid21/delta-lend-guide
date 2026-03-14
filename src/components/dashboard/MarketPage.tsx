@@ -4,16 +4,20 @@ import { useNavigate } from "react-router-dom";
 
 interface Props {
   children: React.ReactNode;
+  title: string;
 }
 
-export default function MarketPage({ children }: Props) {
+export default function MarketPage({ children, title }: Props) {
   const navigate = useNavigate();
   return (
     <Box>
-      <Box sx={{ mb: 1 }}>
-        <IconButton size="small" onClick={() => navigate(-1)} sx={{ color: "text.secondary" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 2 }}>
+        <IconButton size="small" onClick={() => navigate(-1)} sx={{ color: "text.secondary", ml: -0.5 }}>
           <ArrowBackIcon fontSize="small" />
         </IconButton>
+        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+          {title}
+        </div>
       </Box>
       {children}
     </Box>

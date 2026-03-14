@@ -176,9 +176,10 @@ async function fetchMorphoVaults(): Promise<any[]> {
           name
           symbol
           chain { id }
-          asset { symbol }
+          asset { symbol decimals priceUsd }
           metadata { curators { name } }
           state {
+            totalAssets
             totalAssetsUsd
             apy
           }
@@ -205,10 +206,27 @@ async function fetchMorphoVaults(): Promise<any[]> {
     console.log(`Morpho GraphQL: ${items.length} vaults`);
 
     return items
+      .map((v: any) => {
+        const asset = v.asset?.symbol ?? "";
+        // Prefer totalAssetsUsd; if it looks like raw token units, normalize it
+        const rawTvlUsd: number = v.state?.totalAssetsUsd ?? 0;
+        const totalAssets: number = v.state?.totalAssets ?? 0;
+        const decimals: number = v.asset?.decimals ?? 6;
+        const priceUsd: number = v.asset?.priceUsd ?? 0;
+        // If totalAssetsUsd looks implausible (> $10B per vault), recompute from raw amounts
+        const computedTvl = priceUsd > 0 && totalAssets > 0
+          ? (totalAssets / Math.pow(10, decimals)) * priceUsd
+          : 0;
+        const tvl = rawTvlUsd > 0 && rawTvlUsd < 10_000_000_000
+          ? rawTvlUsd
+          : computedTvl > 0 && computedTvl < 10_000_000_000
+          ? computedTvl
+          : 0;
+        return { ...v, _tvl: tvl };
+      })
       .filter((v: any) => {
-        const tvl = v.state?.totalAssetsUsd ?? 0;
+        const tvl = v._tvl;
         if (tvl < 10_000_000) return false;   // $10M minimum
-        if (tvl > 50_000_000_000) return false; // $50B max — guards against raw token unit values
         // Filter out unrealistic APYs (>100%) — likely reward-gaming or data artifacts
         const apy = (v.state?.apy ?? 0) * 100;
         if (apy > 100) return false;
@@ -216,7 +234,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
       })
       .map((v: any) => {
         const asset = v.asset?.symbol ?? "";
-        const tvl = v.state?.totalAssetsUsd ?? 0;
+        const tvl = v._tvl;
         const apy = (v.state?.apy ?? 0) * 100;
         const chainId = v.chain?.id ?? 1;
         const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
