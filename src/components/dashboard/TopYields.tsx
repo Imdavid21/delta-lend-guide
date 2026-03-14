@@ -38,7 +38,7 @@ function YieldCard({
   items,
   loading,
   onSeeAll,
-  accentColor = "#00FF9D",
+  accentColor = "#86efac",
 }: {
   title: string;
   items: YieldItem[] | null;
@@ -286,7 +286,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         items={topLending}
         loading={ll}
         onSeeAll={() => navigate(isLending ? "/lending/markets" : "/borrow/markets")}
-        accentColor="#00FF9D"
+        accentColor="#86efac"
       />
       {isLending && (
         <>

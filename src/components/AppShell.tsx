@@ -197,13 +197,13 @@ export default function AppShell({ mode, onToggle }: Props) {
 
             {/* ── Primary pages ── */}
             <Route path="/trade" element={<TradePage isDark={isDark} />} />
-            <Route path="/explore" element={<ExplorePage submitAction={submitAction} />} />
-            <Route path="/markets" element={<MarketsPage />} />
+            <Route path="/markets" element={<MarketsPage submitAction={submitAction} />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/settings" element={<SettingsPage />} />
 
             {/* ── Legacy redirects ── */}
-            <Route path="/lending" element={<Navigate to="/explore" replace />} />
+            <Route path="/explore" element={<Navigate to="/markets" replace />} />
+            <Route path="/lending" element={<Navigate to="/markets" replace />} />
             <Route path="/borrow"  element={<Navigate to="/trade"   replace />} />
 
             {/* ── Market detail pages ── */}
@@ -333,7 +333,7 @@ export default function AppShell({ mode, onToggle }: Props) {
               type="submit"
               size="small"
               disabled={!chatInput.trim() || loading}
-              sx={{ color: isDark ? "#00FF9D" : "text.primary" }}
+              sx={{ color: "text.primary" }}
             >
               <SendIcon fontSize="small" />
             </IconButton>
@@ -362,35 +362,22 @@ function TradePage({ isDark: _isDark }: { isDark: boolean }) {
   );
 }
 
-function ExplorePage({ submitAction }: { submitAction: (p: string) => void }) {
+function MarketsPage({ submitAction }: { submitAction: (p: string) => void }) {
   return (
-    <>
-      <Box sx={{ mb: 3 }}>
+    <Box>
+      <Box sx={{ mb: 2 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
           Market Intelligence
         </div>
         <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
-          Explore
+          Markets
         </div>
       </Box>
       <Box sx={{ mb: 3 }}>
         <HeroStats viewMode="lending" />
       </Box>
-      <TopYields viewMode="lending" onAction={submitAction} />
-    </>
-  );
-}
-
-function MarketsPage() {
-  return (
-    <Box>
-      <Box sx={{ mb: 2 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
-          Full Market Data
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
-          Markets
-        </div>
+      <Box sx={{ mb: 3 }}>
+        <TopYields viewMode="lending" onAction={submitAction} />
       </Box>
       <MarketExplorer viewMode="lending" />
     </Box>

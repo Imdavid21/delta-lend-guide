@@ -60,7 +60,7 @@ function Stat({ label, value, sub, accent }: StatProps) {
           fontWeight: 800,
           fontVariantNumeric: "tabular-nums" as const,
           letterSpacing: "-0.03em",
-          color: accent ? "#00FF9D" : "#eaeef5",
+          color: accent ? "#86efac" : "#eaeef5",
           fontSize: 22,
           lineHeight: 1.1,
           fontFamily: "Inter, sans-serif",

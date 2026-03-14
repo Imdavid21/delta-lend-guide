@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import { useNavigate } from "react-router-dom";
@@ -18,8 +19,8 @@ function EmptyState({ title, sub, action, onAction }: {
       <div style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif", marginBottom: action ? 14 : 0 }}>{sub}</div>
       {action && onAction && (
         <button onClick={onAction} style={{
-          padding: "7px 18px", borderRadius: 8, border: "none", cursor: "pointer",
-          background: "#00FF9D", color: "#004527", fontSize: 12, fontWeight: 800,
+          padding: "7px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
+          background: "rgba(255,255,255,0.08)", color: "#eaeef5", fontSize: 12, fontWeight: 800,
           fontFamily: "Inter, sans-serif",
         }}>
           {action}
@@ -68,11 +69,6 @@ function SummaryCard({ label, value, sub, accent }: { label: string; value: stri
 export default function PortfolioPage() {
   const { isConnected } = useAccount();
   const { open: openWallet } = useAppKit();
-  const navigate = useNavigate();
-
-  const { data: markets } = useMarkets();
-  const { data: vaults } = useVaults();
-  const { data: pendle } = usePendle();
 
   if (!isConnected) {
     return (
@@ -87,8 +83,8 @@ export default function PortfolioPage() {
         <button
           onClick={() => openWallet()}
           style={{
-            padding: "12px 32px", borderRadius: 12, border: "none", cursor: "pointer",
-            background: "#00FF9D", color: "#004527", fontSize: 14, fontWeight: 800,
+            padding: "12px 32px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer",
+            background: "rgba(255,255,255,0.1)", color: "#eaeef5", fontSize: 14, fontWeight: 800,
             fontFamily: "Inter, sans-serif",
           }}
         >
@@ -98,14 +94,24 @@ export default function PortfolioPage() {
     );
   }
 
-  // When connected but no positions yet (no real position data available from API),
-  // show the market opportunities to guide the user toward making their first deposit.
-  const topLending = markets
-    ? [...markets].sort((a, b) => b.supplyAPY - a.supplyAPY).slice(0, 3)
-    : [];
-  const topVaults = vaults
-    ? [...vaults].sort((a, b) => b.apy - a.apy).slice(0, 3)
-    : [];
+  return <ConnectedPortfolio />;
+}
+
+// Rendered only when wallet is connected — API hooks only fire when needed.
+function ConnectedPortfolio() {
+  const navigate = useNavigate();
+  const { data: markets } = useMarkets();
+  const { data: vaults } = useVaults();
+  usePendle(); // prefetch for when user navigates to fixed yield
+
+  const topLending = useMemo(
+    () => (markets ? [...markets].sort((a, b) => b.supplyAPY - a.supplyAPY).slice(0, 3) : []),
+    [markets],
+  );
+  const topVaults = useMemo(
+    () => (vaults ? [...vaults].sort((a, b) => b.apy - a.apy).slice(0, 3) : []),
+    [vaults],
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -115,7 +121,7 @@ export default function PortfolioPage() {
           Portfolio
         </h1>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-          <SummaryCard label="Net APY" value="—" sub="No active positions" accent="#00FF9D" />
+          <SummaryCard label="Net APY" value="—" sub="No active positions" accent="#86efac" />
           <SummaryCard label="Total Supplied" value="—" sub="Across all protocols" />
           <SummaryCard label="Total Borrowed" value="—" sub="Outstanding debt" />
           <SummaryCard label="Net Position" value="—" sub="Supplied − Borrowed" />
@@ -193,7 +199,7 @@ export default function PortfolioPage() {
                         {protoName}{chain ? ` · ${chain}` : ""}
                       </div>
                     </div>
-                    <div style={{ marginLeft: "auto", fontSize: 16, fontWeight: 800, color: "#00FF9D", fontFamily: "Inter, sans-serif" }}>
+                    <div style={{ marginLeft: "auto", fontSize: 16, fontWeight: 800, color: "#86efac", fontFamily: "Inter, sans-serif" }}>
                       {formatPercent(m.supplyAPY)}
                     </div>
                   </div>

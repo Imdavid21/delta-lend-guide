@@ -39,7 +39,7 @@ function SettingRow({ label, sub, children }: { label: string; sub?: string; chi
   );
 }
 
-function SegmentControl({ options, value, onChange, accent = "#00FF9D" }: {
+function SegmentControl({ options, value, onChange, accent = "#86efac" }: {
   options: string[]; value: string; onChange: (v: string) => void; accent?: string;
 }) {
   return (
@@ -52,7 +52,7 @@ function SegmentControl({ options, value, onChange, accent = "#00FF9D" }: {
             padding: "4px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
             fontFamily: "Inter, sans-serif",
             background: value === opt ? accent : "transparent",
-            color: value === opt ? "#004527" : "#a7abb2",
+            color: value === opt ? "#0a0f14" : "#a7abb2",
             transition: "all 150ms",
           }}
         >
@@ -72,6 +72,9 @@ export default function SettingsPage() {
   const [gasSpeed, setGasSpeed] = useState("Standard");
   const [currency, setCurrency] = useState("USD");
   const [healthAlert, setHealthAlert] = useState("1.3");
+  const [rpcUrl, setRpcUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [mcpEndpoint, setMcpEndpoint] = useState("");
 
   return (
     <div style={{ maxWidth: 600 }}>
@@ -88,7 +91,7 @@ export default function SettingsPage() {
           <>
             <SettingRow label="Connected Address" sub="Your active wallet">
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#00FF9D", boxShadow: "0 0 6px rgba(0,255,157,0.5)" }} />
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#86efac", boxShadow: "0 0 6px rgba(0,255,157,0.5)" }} />
                 <span style={{ fontFamily: "monospace", fontSize: 12, color: "#eaeef5" }}>
                   {address.slice(0, 6)}…{address.slice(-4)}
                 </span>
@@ -116,8 +119,8 @@ export default function SettingsPage() {
         ) : (
           <SettingRow label="No wallet connected" sub="Connect to view positions and execute transactions">
             <button onClick={() => openWallet()} style={{
-              padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer",
-              background: "#00FF9D", color: "#004527", fontSize: 12, fontWeight: 800,
+              padding: "7px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer",
+              background: "rgba(255,255,255,0.08)", color: "#eaeef5", fontSize: 12, fontWeight: 800,
               fontFamily: "Inter, sans-serif",
             }}>
               Connect Wallet
@@ -132,7 +135,7 @@ export default function SettingsPage() {
           <SegmentControl options={["0.1%", "0.5%", "1.0%"]} value={slippage + "%"} onChange={v => setSlippage(v.replace("%", ""))} />
         </SettingRow>
         <SettingRow label="Gas Speed" sub="Higher speed = higher gas cost">
-          <SegmentControl options={["Standard", "Fast", "Instant"]} value={gasSpeed} onChange={setGasSpeed} accent="#00FF9D" />
+          <SegmentControl options={["Standard", "Fast", "Instant"]} value={gasSpeed} onChange={setGasSpeed} accent="#86efac" />
         </SettingRow>
       </Section>
 
@@ -161,6 +164,75 @@ export default function SettingsPage() {
         </SettingRow>
         <SettingRow label="APY Drop Alert" sub="Notify when a deposited market's APY drops significantly">
           <SegmentControl options={["Off", "On"]} value="Off" onChange={() => {}} accent="#f59e0b" />
+        </SettingRow>
+      </Section>
+
+      {/* API Configuration */}
+      <Section title="API Configuration">
+        <SettingRow label="Custom RPC URL" sub="Override default RPC endpoint for on-chain calls">
+          <input
+            type="text"
+            value={rpcUrl}
+            onChange={e => setRpcUrl(e.target.value)}
+            placeholder="https://mainnet.infura.io/v3/..."
+            style={{
+              width: 240, background: "#141a20", border: "1px solid rgba(67,72,78,0.4)",
+              borderRadius: 7, padding: "5px 9px", color: "#eaeef5", fontSize: 11,
+              fontFamily: "monospace", outline: "none",
+            }}
+          />
+        </SettingRow>
+        <SettingRow label="API Key" sub="Optional key for higher rate limits on data providers">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            placeholder="sk-..."
+            style={{
+              width: 160, background: "#141a20", border: "1px solid rgba(67,72,78,0.4)",
+              borderRadius: 7, padding: "5px 9px", color: "#eaeef5", fontSize: 11,
+              fontFamily: "monospace", outline: "none",
+            }}
+          />
+        </SettingRow>
+      </Section>
+
+      {/* MCP Servers */}
+      <Section title="MCP Servers">
+        <SettingRow label="MCP Endpoint" sub="Model Context Protocol server for AI tool access">
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="text"
+              value={mcpEndpoint}
+              onChange={e => setMcpEndpoint(e.target.value)}
+              placeholder="http://localhost:3000"
+              style={{
+                width: 200, background: "#141a20", border: "1px solid rgba(67,72,78,0.4)",
+                borderRadius: 7, padding: "5px 9px", color: "#eaeef5", fontSize: 11,
+                fontFamily: "monospace", outline: "none",
+              }}
+            />
+            <button style={{
+              padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(67,72,78,0.4)",
+              background: "transparent", color: "#eaeef5", fontSize: 11, fontWeight: 700,
+              cursor: "pointer", fontFamily: "Inter, sans-serif",
+            }}>
+              Test
+            </button>
+          </div>
+        </SettingRow>
+        <SettingRow label="Available Tools" sub="MCP tools exposed to the AI assistant">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {["get_markets", "get_vaults", "get_positions", "execute_tx"].map(tool => (
+              <span key={tool} style={{
+                fontSize: 10, fontWeight: 600, color: "#a7abb2",
+                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(67,72,78,0.3)",
+                borderRadius: 4, padding: "2px 7px", fontFamily: "monospace",
+              }}>
+                {tool}
+              </span>
+            ))}
+          </div>
         </SettingRow>
       </Section>
 

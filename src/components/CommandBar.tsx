@@ -245,18 +245,18 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
   const bg = isDark ? "#0a0f14" : "#ffffff";
   const cardBg = isDark ? "#0e1419" : "#f8fafc";
   const border = isDark ? "rgba(67,72,78,0.4)" : "rgba(0,0,0,0.1)";
-  const borderFocused = "#00FF9D";
+  const borderFocused = "#86efac";
   const textPrimary = isDark ? "#eaeef5" : "#0a0a0a";
   const textSecondary = isDark ? "#a7abb2" : "#737373";
   const textDisabled = isDark ? "rgba(167,171,178,0.45)" : "rgba(0,0,0,0.3)";
   const itemHover = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
-  const green = "#00FF9D";
+  const green = "#86efac";
 
   /** Icon-only type indicator (no text labels) */
   function TypeIcon({ type }: { type: SearchResult["type"] | string }) {
     const style: React.CSSProperties = { width: 14, height: 14, flexShrink: 0 };
     if (type === "market") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#00FF9D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Lending">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Lending">
         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
       </svg>
     );
