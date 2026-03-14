@@ -51,7 +51,10 @@ export default function LendingTable({ viewMode = "lending" }: { viewMode?: "len
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h6" fontWeight={800}>{isLending ? "Lending Markets" : "Borrow Markets"}</Typography>
+        <Box>
+          <Typography variant="h6" fontWeight={800}>{isLending ? "Lending Markets" : "Borrow Markets"}</Typography>
+          <Typography variant="caption" color="text.secondary">Rates via 1Delta · Base rates only (excl. reward incentives)</Typography>
+        </Box>
         <AssetFilter assets={assets} value={assetFilter} onChange={setAssetFilter} />
       </Box>
       {error && <Typography color="error" variant="body2">Failed to load markets</Typography>}

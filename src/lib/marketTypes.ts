@@ -71,18 +71,6 @@ function resolveProtocolInstance(protocol: string, poolName?: string): string | 
 }
 
 export function formatProtocolLabel(market: Pick<Market, "protocol" | "protocolName" | "poolName" | "marketUid">): string {
-  const chainId = parseChainIdFromMarketUid(market.marketUid);
-  const chain = chainId ? CHAIN_NAMES[chainId] ?? `Chain ${chainId}` : null;
-
-  // If backend already appended chain info, trust it.
-  if (/\(.+\)$/.test(market.protocolName)) return market.protocolName;
-
-  const instance = resolveProtocolInstance(market.protocol, market.poolName);
-
-  let base = market.protocolName;
-  if (market.protocol.startsWith("AAVE_V3")) base = `Aave V3${instance ? ` ${instance}` : ""}`;
-  else if (market.protocol.startsWith("AAVE_V2")) base = "Aave V2";
-  else if (market.protocol.startsWith("COMPOUND_V3")) base = `Compound ${instance ?? "Blue"}`;
-
-  return chain ? `${base} (${chain})` : base;
+  // Trust backend-resolved labels (already include instance + chain info)
+  return market.protocolName;
 }

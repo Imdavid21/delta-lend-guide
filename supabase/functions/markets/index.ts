@@ -167,11 +167,12 @@ async function fetchLending(hdrs: Record<string, string>) {
 async function fetchMorphoVaults(): Promise<any[]> {
   try {
     const query = `{
-      vaults(first: 500, where: { chainId_in: [1] }) {
+      vaults(first: 500, where: { chainId_in: [1, 8453] }) {
         items {
           address
           name
           symbol
+          chain { id }
           asset { symbol }
           metadata { curators { name } }
           state {
@@ -213,13 +214,15 @@ async function fetchMorphoVaults(): Promise<any[]> {
         const asset = v.asset?.symbol ?? "";
         const tvl = v.state?.totalAssetsUsd ?? 0;
         const apy = (v.state?.apy ?? 0) * 100;
-        const displayName = v.name ?? v.symbol ?? `Morpho ${asset}`;
-        // Extract curator from metadata or infer from vault name
+        const chainId = v.chain?.id ?? 1;
+        const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
+        const rawName = v.name ?? v.symbol ?? `Morpho ${asset}`;
+        const displayName = chainLabel && !rawName.includes(chainLabel) ? `${rawName}${chainLabel}` : rawName;
         const curatorList = v.metadata?.curators ?? [];
         const curator = curatorList.length > 0 ? curatorList[0]?.name : undefined;
 
         return {
-          id: `morpho-vault:${v.address}`,
+          id: `morpho-vault:${chainId}:${v.address}`,
           marketUid: v.address ?? "",
           name: displayName,
           protocol: "Morpho Blue",
@@ -267,24 +270,25 @@ async function fetchVaults(hdrs: Record<string, string>) {
 }
 
 
-async function fetchPendle() {
-  console.log("Fetching Pendle markets...");
+async function fetchPendleForChain(chainId: number): Promise<any[]> {
+  const chainLabel = CHAIN_NAMES[chainId] ?? `Chain ${chainId}`;
+  console.log(`Fetching Pendle markets for ${chainLabel}...`);
   const raw = await fetchJSON(
-    "https://api-v2.pendle.finance/core/v1/markets/all?chainId=1",
+    `https://api-v2.pendle.finance/core/v1/markets/all?chainId=${chainId}`,
     {},
     20000,
   );
 
   if (!raw) {
-    console.log("Pendle API returned null");
+    console.log(`Pendle API returned null for ${chainLabel}`);
     return [];
   }
 
   const items: any[] = raw.markets ?? (Array.isArray(raw) ? raw : (raw.results ?? raw.data ?? []));
-  console.log(`Pendle: ${items.length} raw markets`);
+  console.log(`Pendle ${chainLabel}: ${items.length} raw markets`);
 
   const now = Date.now();
-  const results = items
+  return items
     .filter((m: any) => {
       const details = m.details;
       if (!details) return false;
@@ -300,9 +304,10 @@ async function fetchPendle() {
       const daysToMaturity = expiry > now ? Math.ceil((expiry - now) / 86400000) : 0;
       const nameParts = (m.name ?? "").split(" ");
       const asset = nameParts.length > 1 ? nameParts.slice(0, -1).join(" ") : m.name ?? "";
+      const suffix = chainId !== 1 ? ` (${chainLabel})` : "";
       return {
-        id: m.address ?? `pendle:${m.name}`,
-        name: m.name ?? "",
+        id: m.address ?? `pendle:${chainId}:${m.name}`,
+        name: `${m.name ?? ""}${suffix}`,
         asset,
         impliedAPY: normalizeRatePercent(details.impliedApy) ?? 0,
         expiry: m.expiry ?? "",
@@ -310,8 +315,15 @@ async function fetchPendle() {
         tvl: details.liquidity ?? details.totalTvl ?? 0,
       };
     });
+}
 
-  console.log(`Pendle: ${results.length} active markets after filtering`);
+async function fetchPendle() {
+  const [eth, base] = await Promise.all([
+    fetchPendleForChain(1),
+    fetchPendleForChain(8453),
+  ]);
+  const results = [...eth, ...base];
+  console.log(`Pendle: ${results.length} total active markets`);
   return results;
 }
 

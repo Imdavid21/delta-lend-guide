@@ -51,7 +51,7 @@ export default function FixedYieldTable() {
         <Box>
           <Typography variant="h6" fontWeight={800}>Fixed Yield</Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="caption" color="text.secondary">Pendle markets on Ethereum</Typography>
+            <Typography variant="caption" color="text.secondary">Implied APY via Pendle API · Ethereum & Base</Typography>
             <Chip
               label="Execution coming soon"
               size="small"

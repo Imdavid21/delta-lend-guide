@@ -57,7 +57,10 @@ export default function VaultsTable() {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, gap: 1.5 }}>
-        <Typography variant="h6" fontWeight={800}>Vaults</Typography>
+        <Box>
+          <Typography variant="h6" fontWeight={800}>Vaults</Typography>
+          <Typography variant="caption" color="text.secondary">APY via Morpho Blue API / 1Delta</Typography>
+        </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
           <Autocomplete
             size="small"
