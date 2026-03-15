@@ -117,7 +117,7 @@ function PositionCard({ pos, onManage }: { pos: ProtocolPosition; onManage: () =
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-          {pos.healthFactor != null && pos.hasBorrow && (
+          {pos.healthFactor != null && pos.borrowUSD >= 0.01 && (
             <HealthBadge value={pos.healthFactor} />
           )}
         </div>

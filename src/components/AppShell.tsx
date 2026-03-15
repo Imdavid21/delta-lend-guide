@@ -18,6 +18,7 @@ import VaultsTable from "./markets/VaultsTable";
 import ExecutionPanel from "./execution/ExecutionPanel";
 import PortfolioPage from "../pages/PortfolioPage";
 import SettingsPage from "../pages/SettingsPage";
+import DocsPage from "../pages/DocsPage";
 import Account from "./Account";
 import { useChats, type ChatMessage } from "../hooks/useChats";
 import type { TransitionProps } from "@mui/material/transitions";
@@ -199,6 +200,7 @@ export default function AppShell({ mode, onToggle }: Props) {
             <Route path="/markets" element={<MarketsPage submitAction={submitAction} />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/docs" element={<DocsPage />} />
 
             {/* ── Legacy redirects ── */}
             <Route path="/explore" element={<Navigate to="/markets" replace />} />

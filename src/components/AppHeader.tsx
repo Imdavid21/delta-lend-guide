@@ -24,6 +24,7 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
     { label: "Trade",     path: "/trade"     },
     { label: "Markets",   path: "/markets"   },
     { label: "Portfolio", path: "/portfolio" },
+    { label: "Docs",      path: "/docs"      },
   ];
 
   function isActive(path: string) {
@@ -114,25 +115,46 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
           onClick={onToggleChat}
           title="AI Assistant"
           style={{
-            width: 34,
             height: 34,
+            padding: "0 14px",
             borderRadius: 8,
-            border: chatOpen ? `1px solid rgba(0,255,157,0.3)` : `1px solid transparent`,
-            background: chatOpen ? "rgba(0,255,157,0.08)" : "transparent",
+            border: chatOpen
+              ? `1px solid rgba(0,255,157,0.5)`
+              : `1px solid rgba(0,255,157,0.25)`,
+            background: chatOpen
+              ? green
+              : "rgba(0,255,157,0.10)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            color: chatOpen ? green : textSecondary,
-            transition: "all 200ms ease",
+            gap: 6,
+            color: chatOpen ? "#004527" : green,
+            fontFamily: "Inter, sans-serif",
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: "-0.01em",
+            transition: "all 180ms ease",
+            whiteSpace: "nowrap",
+            boxShadow: chatOpen ? "none" : "0 0 12px rgba(0,255,157,0.15)",
           }}
-          onMouseEnter={(e) => { if (!chatOpen) e.currentTarget.style.background = surfaceHigh; }}
-          onMouseLeave={(e) => { if (!chatOpen) e.currentTarget.style.background = "transparent"; }}
+          onMouseEnter={(e) => {
+            if (!chatOpen) {
+              e.currentTarget.style.background = "rgba(0,255,157,0.18)";
+              e.currentTarget.style.boxShadow = "0 0 18px rgba(0,255,157,0.25)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!chatOpen) {
+              e.currentTarget.style.background = "rgba(0,255,157,0.10)";
+              e.currentTarget.style.boxShadow = "0 0 12px rgba(0,255,157,0.15)";
+            }
+          }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2a10 10 0 0 1 7.38 16.74L21 21l-2.26-1.62A10 10 0 1 1 12 2z"/>
             <path d="M8 10h.01M12 10h.01M16 10h.01"/>
           </svg>
+          Ask AI
         </button>
 
         {/* Dark mode toggle */}
