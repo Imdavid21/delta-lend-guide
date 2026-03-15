@@ -2,11 +2,9 @@ import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
 import LendingTable from "../markets/LendingTable";
 import VaultsTable from "../markets/VaultsTable";
-import FixedYieldTable from "../markets/FixedYieldTable";
-// import Compare from "./Compare";
 import LoopingStrategies from "./LoopingStrategies";
 
-type MarketTab = "lending" | "vaults" | "fixed" | "looping";
+type MarketTab = "lending" | "vaults" | "looping";
 
 export default function MarketExplorer({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
   const [tab, setTab] = useState<MarketTab>("lending");
@@ -37,13 +35,11 @@ export default function MarketExplorer({ viewMode = "lending" }: { viewMode?: "l
       >
         <Tab label={isLending ? "Lending" : "Markets"} value="lending" />
         {isLending && <Tab label="Vaults" value="vaults" />}
-        {isLending && <Tab label="Fixed Yield" value="fixed" />}
         <Tab label="Looping" value="looping" />
       </Tabs>
       <Box>
         {tab === "lending" && <LendingTable viewMode={viewMode} />}
         {isLending && tab === "vaults" && <VaultsTable />}
-        {isLending && tab === "fixed" && <FixedYieldTable />}
         {tab === "looping" && <LoopingStrategies />}
       </Box>
     </Box>

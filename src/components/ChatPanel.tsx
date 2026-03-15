@@ -10,7 +10,6 @@ const SUGGESTIONS = [
   "Lowest USDC borrow APR on Ethereum",
   "Compare ETH supply APY across protocols",
   "Show top Morpho vault yields",
-  "What Pendle fixed yields are available?",
   "Top 5 markets by TVL",
   "Look up vitalik.eth's DeFi positions",
   "Show my positions",
@@ -62,7 +61,7 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
           How can I help?
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Ask about lending and borrowing rates, vault yields, fixed-rate markets, or execute DeFi transactions. Search any ENS name to explore their portfolio.
+          Ask about lending and borrowing rates, vault yields, or execute DeFi transactions. Search any ENS name to explore their portfolio.
         </Typography>
 
         {/* Quick Actions */}

@@ -24,16 +24,6 @@ export interface Vault {
   curator?: string;
 }
 
-export interface PendleMarket {
-  id: string;
-  name: string;
-  asset: string;
-  impliedAPY: number;
-  expiry: string;
-  daysToMaturity: number;
-  tvl: number;
-}
-
 export function formatPercent(v: number | null | undefined): string {
   if (v == null) return "—";
   if (v > 0 && v < 0.01) return "<0.01%";
