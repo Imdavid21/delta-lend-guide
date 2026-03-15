@@ -75,6 +75,33 @@ export default function SettingsPage() {
   const [rpcUrl, setRpcUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [mcpEndpoint, setMcpEndpoint] = useState("");
+  const [apiStatus, setApiStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
+  const [apiStatusMsg, setApiStatusMsg] = useState("");
+
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
+  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+
+  const testApiConnection = async () => {
+    setApiStatus("testing");
+    setApiStatusMsg("");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/markets?type=lending`, {
+        headers: { Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setApiStatus("ok");
+        setApiStatusMsg(`Connected · ${Array.isArray(data) ? data.length : 0} markets loaded`);
+      } else {
+        setApiStatus("error");
+        setApiStatusMsg(`HTTP ${res.status} — check function deployment`);
+      }
+    } catch (e: any) {
+      setApiStatus("error");
+      setApiStatusMsg(e.message?.includes("timeout") ? "Timed out" : "Network error — function may not be deployed");
+    }
+  };
 
   return (
     <div style={{ maxWidth: 600 }}>
@@ -197,33 +224,34 @@ export default function SettingsPage() {
         </SettingRow>
       </Section>
 
-      {/* MCP Servers */}
-      <Section title="MCP Servers">
-        <SettingRow label="MCP Endpoint" sub="Model Context Protocol server for AI tool access">
+      {/* API & AI */}
+      <Section title="API & AI Connection">
+        <SettingRow label="Markets API" sub="Live market data from 1Delta and Morpho">
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input
-              type="text"
-              value={mcpEndpoint}
-              onChange={e => setMcpEndpoint(e.target.value)}
-              placeholder="http://localhost:3000"
+            {apiStatus !== "idle" && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, fontFamily: "Inter, sans-serif",
+                color: apiStatus === "ok" ? "#86efac" : apiStatus === "testing" ? "#a7abb2" : "#ef4444",
+              }}>
+                {apiStatus === "testing" ? "Testing…" : apiStatusMsg}
+              </span>
+            )}
+            <button
+              onClick={testApiConnection}
+              disabled={apiStatus === "testing"}
               style={{
-                width: 200, background: "#141a20", border: "1px solid rgba(67,72,78,0.4)",
-                borderRadius: 7, padding: "5px 9px", color: "#eaeef5", fontSize: 11,
-                fontFamily: "monospace", outline: "none",
+                padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(67,72,78,0.4)",
+                background: "transparent", color: apiStatus === "ok" ? "#86efac" : "#eaeef5", fontSize: 11, fontWeight: 700,
+                cursor: apiStatus === "testing" ? "default" : "pointer", fontFamily: "Inter, sans-serif",
               }}
-            />
-            <button style={{
-              padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(67,72,78,0.4)",
-              background: "transparent", color: "#eaeef5", fontSize: 11, fontWeight: 700,
-              cursor: "pointer", fontFamily: "Inter, sans-serif",
-            }}>
-              Test
+            >
+              {apiStatus === "ok" ? "✓ Online" : "Test Connection"}
             </button>
           </div>
         </SettingRow>
-        <SettingRow label="Available Tools" sub="MCP tools exposed to the AI assistant">
+        <SettingRow label="AI Tools" sub="Tools available to the AI assistant">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {["get_markets", "get_vaults", "get_positions", "execute_tx"].map(tool => (
+            {["search_markets", "get_user_positions", "get_deposit_calldata", "get_borrow_calldata", "vault_deposit", "resolve_ens_name"].map(tool => (
               <span key={tool} style={{
                 fontSize: 10, fontWeight: 600, color: "#a7abb2",
                 background: "rgba(255,255,255,0.05)", border: "1px solid rgba(67,72,78,0.3)",
@@ -245,7 +273,7 @@ export default function SettingsPage() {
         </SettingRow>
         <SettingRow label="Data Sources" sub="Market data refreshed every 60 seconds">
           <span style={{ fontSize: 10, color: "rgba(167,171,178,0.5)", fontFamily: "Inter, sans-serif" }}>
-            1Delta · Morpho · Pendle
+            1Delta · Morpho · Euler
           </span>
         </SettingRow>
       </Section>

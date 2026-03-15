@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import { useNavigate } from "react-router-dom";
-import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
+import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 
@@ -78,7 +78,7 @@ export default function PortfolioPage() {
           Connect your wallet
         </div>
         <div style={{ fontSize: 13, color: "#a7abb2", fontFamily: "Inter, sans-serif", marginBottom: 24, lineHeight: 1.6 }}>
-          Connect your wallet to view your active positions across lending markets, vaults, and fixed yield strategies.
+          Connect your wallet to view your active positions across lending markets and vaults.
         </div>
         <button
           onClick={() => openWallet()}
@@ -102,8 +102,6 @@ function ConnectedPortfolio() {
   const navigate = useNavigate();
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
-  usePendle(); // prefetch for when user navigates to fixed yield
-
   const topLending = useMemo(
     () => (markets ? [...markets].sort((a, b) => b.supplyAPY - a.supplyAPY).slice(0, 3) : []),
     [markets],
@@ -157,17 +155,6 @@ function ConnectedPortfolio() {
           title="No vault positions"
           sub="Deposit into curated vaults for optimized yield strategies"
           action="Browse Vaults"
-          onAction={() => navigate("/trade")}
-        />
-      </div>
-
-      {/* Fixed yield positions */}
-      <div>
-        <SectionHeader title="Fixed Yield Positions" count={0} />
-        <EmptyState
-          title="No fixed yield positions"
-          sub="Lock in guaranteed APY through Pendle fixed-rate markets"
-          action="Explore Fixed Yield"
           onAction={() => navigate("/trade")}
         />
       </div>

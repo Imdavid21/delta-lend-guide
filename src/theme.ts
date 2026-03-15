@@ -3,12 +3,12 @@ import { createTheme, alpha } from "@mui/material/styles";
 // Nebula color palette (dark mode)
 const nebula = {
   // Backgrounds / surfaces
-  bg:        "#0a0f14",
-  surface:   "#0e1419", // surface-container-low — cards
-  surfaceMid: "#141a20", // surface-container
-  surfaceHi: "#1a2027", // surface-container-high — table headers
-  surfaceTop:"#1f262e", // surface-container-highest — hover states
-  surfaceBright:"#252d35",
+  bg:        "#060b10",
+  surface:   "#0a1017", // surface-container-low — cards
+  surfaceMid: "#101820", // surface-container
+  surfaceHi: "#161f28", // surface-container-high — table headers
+  surfaceTop:"#1c2530", // surface-container-highest — hover states
+  surfaceBright:"#222d38",
 
   // Accents
   primary:   "#86efac",  // soft green

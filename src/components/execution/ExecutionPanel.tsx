@@ -4,32 +4,43 @@ import { useAppKit } from "@reown/appkit/react";
 import {
   ArrowDown, ChevronDown, Clock, Fuel, Info, Lock, Settings,
 } from "lucide-react";
-import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
+import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
+import TxExecutor from "@/components/TxExecutor";
+import type { TxStep } from "@/hooks/useChats";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+const INITIAL_LIMIT = 6;
 
 /* ─── Types ─────────────────────────────────────────────── */
 
 type ExecMode = "lend" | "borrow";
-type LendSubMode = "lending" | "vault" | "fixed";
+type LendSubMode = "lending" | "vault";
 
 const LEND_SUBMODES: { id: LendSubMode; label: string; btnLabel: string; fromLabel: string; toLabel: string }[] = [
-  { id: "lending", label: "Lending",     btnLabel: "Deposit",    fromLabel: "Deposit Asset", toLabel: "You Receive"    },
-  { id: "vault",   label: "Vault",       btnLabel: "Deposit",    fromLabel: "Deposit Asset", toLabel: "Vault Strategy" },
-  { id: "fixed",   label: "Fixed Yield", btnLabel: "Lock Yield", fromLabel: "Source Asset",  toLabel: "Fixed Token"    },
-];
-
-/* ─── Chain config ─────────────────────────────────────── */
-
-interface ChainOption { id: string | null; label: string; color: string; letter: string }
-const CHAINS: ChainOption[] = [
-  { id: null,         label: "Any Chain", color: "#627EEA", letter: "A" },
-  { id: "Ethereum",   label: "Ethereum",  color: "#627EEA", letter: "E" },
-  { id: "Base",       label: "Base",      color: "#0052ff", letter: "B" },
+  { id: "lending", label: "Lending", btnLabel: "Deposit", fromLabel: "Deposit Asset", toLabel: "You Receive"    },
+  { id: "vault",   label: "Vault",   btnLabel: "Deposit", fromLabel: "Deposit Asset", toLabel: "Vault Strategy" },
 ];
 
 const GREEN = "#86efac";
 const AMBER = "#fbbf24";
+
+interface ChainOption { id: string | null; label: string }
+const CHAINS: ChainOption[] = [
+  { id: null,       label: "Any Chain" },
+  { id: "Ethereum", label: "Ethereum"  },
+  { id: "Base",     label: "Base"      },
+];
+
+const TVL_OPTIONS = [
+  { value: 0,            label: "Any TVL" },
+  { value: 100_000,      label: ">$100K"  },
+  { value: 1_000_000,    label: ">$1M"    },
+  { value: 10_000_000,   label: ">$10M"   },
+  { value: 100_000_000,  label: ">$100M"  },
+];
 
 interface ExecRoute {
   id: string;
@@ -164,6 +175,84 @@ function AssetDropdown({ asset, onChange, assets }: {
   );
 }
 
+/* ─── Filter Pill ───────────────────────────────────────── */
+
+function FilterPill<T>({ label, value, options, onChange, renderOption }: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+  renderOption?: (o: { value: T; label: string }) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const active = options.find(o => o.value === value) ?? options[0];
+  const isFiltered = value !== options[0].value;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen(p => !p)}
+        style={{
+          display: "flex", alignItems: "center", gap: 5,
+          background: isFiltered ? "rgba(255,255,255,0.08)" : "#0e1419",
+          border: isFiltered ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
+          borderRadius: 7, padding: "4px 9px", fontSize: 11, fontWeight: 600,
+          color: isFiltered ? "#eaeef5" : "#a7abb2", fontFamily: "Inter, sans-serif",
+          cursor: "pointer", transition: "all 150ms", whiteSpace: "nowrap",
+        }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
+        onMouseLeave={e => { if (!open && !isFiltered) e.currentTarget.style.borderColor = "rgba(67,72,78,0.3)"; }}
+      >
+        {renderOption ? renderOption(active) : null}
+        {!renderOption && <span>{isFiltered ? active.label : label}</span>}
+        <ChevronDown size={9} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0,
+          background: "#0e1419", border: "1px solid rgba(67,72,78,0.4)",
+          borderRadius: 10, zIndex: 300, minWidth: 150,
+          boxShadow: "0 16px 40px rgba(0,0,0,0.6)", padding: 4,
+        }}>
+          {options.map(o => {
+            const sel = o.value === value;
+            return (
+              <button
+                key={String(o.value)}
+                onClick={() => { onChange(o.value); setOpen(false); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, width: "100%",
+                  padding: "7px 10px", border: "none", borderRadius: 7, cursor: "pointer",
+                  background: sel ? "rgba(255,255,255,0.07)" : "transparent",
+                  color: sel ? "#eaeef5" : "#a7abb2",
+                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, textAlign: "left",
+                  transition: "background 120ms",
+                }}
+                onMouseEnter={e => { if (!sel) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                onMouseLeave={e => { if (!sel) e.currentTarget.style.background = "transparent"; }}
+              >
+                {renderOption ? renderOption(o) : o.label}
+                {sel && <span style={{ marginLeft: "auto", color: GREEN, fontSize: 10 }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Route Card ────────────────────────────────────────── */
 
 function RouteCard({ route, selected, onSelect, isBest, accent }: {
@@ -271,11 +360,10 @@ function FieldRow({ label, value, accent, tooltip }: { label: string; value: str
 /* ─── Main Component ────────────────────────────────────── */
 
 export default function ExecutionPanel() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { open: openWallet } = useAppKit();
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
-  const { data: pendle } = usePendle();
 
   const [mode, setMode] = useState<ExecMode>("lend");
   const [lendSubMode, setLendSubMode] = useState<LendSubMode>("lending");
@@ -285,39 +373,51 @@ export default function ExecutionPanel() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
-  const [chainId, setChainId] = useState<string | null>(null); // null = Any Chain
-  const [showChainPicker, setShowChainPicker] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const chainRef = useRef<HTMLDivElement>(null);
 
-  const selectedChain = CHAINS.find(c => c.id === chainId) ?? CHAINS[0];
+  // Filters (live in right panel)
+  const [chainId, setChainId] = useState<string | null>(null);
+  const [filterProtocol, setFilterProtocol] = useState<string | null>(null);
+  const [filterMinTvl, setFilterMinTvl] = useState(0);
+
+  // Pagination
+  const [showAll, setShowAll] = useState(false);
+
+  // Transaction preparation
+  const [txLoading, setTxLoading] = useState(false);
+  const [txSteps, setTxSteps] = useState<TxStep[] | null>(null);
+  const [txQuote, setTxQuote] = useState<any>(null);
+  const [txError, setTxError] = useState<string | null>(null);
+
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
   const accent = mode === "borrow" ? AMBER : GREEN;
-
-  // Button label + "from/to" labels
   const fromLabel = mode === "borrow" ? "Collateral" : subCfg.fromLabel;
   const toLabel   = mode === "borrow" ? "Borrow Asset" : subCfg.toLabel;
   const execBtnLabel = mode === "borrow" ? "Borrow" : subCfg.btnLabel;
 
-  // Reset route selection when mode/submode/asset/chain changes
-  useEffect(() => { setSelectedRouteId(null); }, [mode, lendSubMode, fromAsset, toAsset, chainId]);
-
-  // Close popovers on outside click
+  // Reset when context changes
   useEffect(() => {
-    if (!showSettings && !showChainPicker) return;
+    setSelectedRouteId(null);
+    setShowAll(false);
+    setTxSteps(null);
+    setTxQuote(null);
+    setTxError(null);
+  }, [mode, lendSubMode, fromAsset, toAsset, chainId, filterProtocol, filterMinTvl]);
+
+  // Close settings popover on outside click
+  useEffect(() => {
+    if (!showSettings) return;
     const handler = (e: MouseEvent) => {
       if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setShowSettings(false);
-      if (chainRef.current && !chainRef.current.contains(e.target as Node)) setShowChainPicker(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [showSettings, showChainPicker]);
+  }, [showSettings]);
 
   // ── Asset lists ──────────────────────────────────────────
   const lendingAssets = useMemo(() => [...new Set((markets ?? []).map(m => m.asset))].sort(), [markets]);
   const vaultAssets   = useMemo(() => [...new Set((vaults  ?? []).map(v => v.asset))].sort(), [vaults]);
-  const pendleAssets  = useMemo(() => [...new Set((pendle  ?? []).map(p => p.asset))].sort(), [pendle]);
   const borrowableAssets = useMemo(() =>
     [...new Set((markets ?? []).filter(m => m.borrowAPR != null && m.borrowAPR > 0).map(m => m.asset))].sort(),
   [markets]);
@@ -325,16 +425,15 @@ export default function ExecutionPanel() {
   const fromAssets = useMemo(() => {
     const fallback = ["USDC", "ETH", "WBTC", "USDT"];
     if (mode === "lend") {
-      if (lendSubMode === "vault")  return vaultAssets.length  ? vaultAssets  : fallback;
-      if (lendSubMode === "fixed")  return pendleAssets.length ? pendleAssets : ["USDe", "USDC", "ETH"];
+      if (lendSubMode === "vault") return vaultAssets.length ? vaultAssets : fallback;
       return lendingAssets.length ? lendingAssets : fallback;
     }
     return lendingAssets.length ? lendingAssets : fallback;
-  }, [mode, lendSubMode, lendingAssets, vaultAssets, pendleAssets]);
+  }, [mode, lendSubMode, lendingAssets, vaultAssets]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
-  // ── Routes ───────────────────────────────────────────────
+  // ── All routes (no slice) ────────────────────────────────
   const routes = useMemo((): ExecRoute[] => {
     const asset = validFromAsset;
 
@@ -342,7 +441,6 @@ export default function ExecutionPanel() {
       return (markets ?? [])
         .filter(m => m.asset === toAsset && m.borrowAPR != null && m.borrowAPR > 0)
         .sort((a, b) => (a.borrowAPR ?? 999) - (b.borrowAPR ?? 999))
-        .slice(0, 6)
         .map(m => {
           const { chain } = parseChainFromLabel(m.protocolName);
           return {
@@ -357,12 +455,10 @@ export default function ExecutionPanel() {
         });
     }
 
-    // lend mode — differentiate by sub-mode
     if (lendSubMode === "lending") {
       return (markets ?? [])
         .filter(m => m.asset === asset && m.supplyAPY > 0)
         .sort((a, b) => b.supplyAPY - a.supplyAPY)
-        .slice(0, 6)
         .map(m => {
           const { chain } = parseChainFromLabel(m.protocolName);
           const prefix = m.protocol.startsWith("AAVE") ? "a" : m.protocol.startsWith("COMPOUND") ? "c" : "";
@@ -378,52 +474,39 @@ export default function ExecutionPanel() {
         });
     }
 
-    if (lendSubMode === "vault") {
-      return (vaults ?? [])
-        .filter(v => v.asset === asset && v.apy > 0)
-        .sort((a, b) => b.apy - a.apy)
-        .slice(0, 6)
-        .map(v => {
-          const { name: vaultDisplay, chain } = parseChainFromLabel(v.name);
-          return {
-            id: v.id, protocol: v.protocol, chain,
-            outputLabel: vaultDisplay,
-            returnValue: v.apy,
-            returnLabel: formatPercent(v.apy) + " APY",
-            tvlLabel: formatUSD(v.tvl) + " TVL",
-            tvlRaw: v.tvl,
-            gasEst: "<$0.01", timeEst: "~15s",
-          };
-        });
-    }
-
-    // fixed
-    return (pendle ?? [])
-      .filter(p => p.asset === asset || p.name.toLowerCase().includes(asset.toLowerCase()))
-      .sort((a, b) => b.impliedAPY - a.impliedAPY)
-      .slice(0, 6)
-      .map(p => {
-        const { chain } = parseChainFromLabel(p.name);
+    return (vaults ?? [])
+      .filter(v => v.asset === asset && v.apy > 0)
+      .sort((a, b) => b.apy - a.apy)
+      .map(v => {
+        const { name: vaultDisplay, chain } = parseChainFromLabel(v.name);
         return {
-          id: p.id, protocol: "Pendle", chain,
-          outputLabel: `PT-${p.asset} · ${p.daysToMaturity}d maturity`,
-          returnValue: p.impliedAPY,
-          returnLabel: formatPercent(p.impliedAPY) + " Fixed APY",
-          tvlLabel: formatUSD(p.tvl) + " TVL",
-          tvlRaw: p.tvl,
+          id: v.id, protocol: v.protocol, chain,
+          outputLabel: vaultDisplay,
+          returnValue: v.apy,
+          returnLabel: formatPercent(v.apy) + " APY",
+          tvlLabel: formatUSD(v.tvl) + " TVL",
+          tvlRaw: v.tvl,
           gasEst: "<$0.01", timeEst: "~15s",
         };
       });
-  }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults, pendle]);
+  }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults]);
 
-  // Filter routes by selected chain (null route.chain = Ethereum mainnet)
-  const filteredRoutes = useMemo(() => {
-    if (!chainId) return routes; // Any Chain — show all
-    return routes.filter(r => {
-      const routeChain = r.chain ?? "Ethereum";
-      return routeChain === chainId;
-    });
-  }, [routes, chainId]);
+  // ── Available protocols for filter ───────────────────────
+  const availableProtocols = useMemo(
+    () => [...new Set(routes.map(r => parseChainFromLabel(r.protocol).name))].sort(),
+    [routes],
+  );
+
+  // ── Apply filters ────────────────────────────────────────
+  const filteredRoutes = useMemo(() => routes.filter(r => {
+    if (chainId && (r.chain ?? "Ethereum") !== chainId) return false;
+    if (filterProtocol && parseChainFromLabel(r.protocol).name !== filterProtocol) return false;
+    if (filterMinTvl > 0 && r.tvlRaw < filterMinTvl) return false;
+    return true;
+  }), [routes, chainId, filterProtocol, filterMinTvl]);
+
+  const displayRoutes = showAll ? filteredRoutes : filteredRoutes.slice(0, INITIAL_LIMIT);
+  const hiddenCount = filteredRoutes.length - displayRoutes.length;
 
   const selectedRoute = filteredRoutes.find(r => r.id === selectedRouteId) ?? filteredRoutes[0] ?? null;
 
@@ -445,22 +528,66 @@ export default function ExecutionPanel() {
     ? (amountNum * 0.5) / (amountNum * ltv)
     : 0;
 
-  // ── Button state ─────────────────────────────────────────
+  // ── Button / Exec state ──────────────────────────────────
   type BtnState = "connect" | "enter" | "exec";
   const btnState: BtnState = !isConnected ? "connect" : !amountNum ? "enter" : "exec";
-  const btnLabels: Record<BtnState, string> = {
-    connect: "Connect Wallet",
-    enter:   "Enter Amount",
-    exec:    execBtnLabel,
-  };
-  const btnDisabled = btnState === "enter";
+  const btnDisabled = btnState === "enter" || txLoading;
+  const btnLabel = txLoading
+    ? "Preparing transaction…"
+    : btnState === "connect" ? "Connect Wallet"
+    : btnState === "enter"   ? "Enter Amount"
+    : execBtnLabel;
 
-  const handleButton = () => {
-    if (btnState === "connect") openWallet();
+  const handleExecute = async () => {
+    if (btnState === "connect") { openWallet(); return; }
+    if (btnState !== "exec" || !selectedRoute) return;
+
+    setTxLoading(true);
+    setTxSteps(null);
+    setTxQuote(null);
+    setTxError(null);
+
+    try {
+      const protoName = parseChainFromLabel(selectedRoute.protocol).name;
+      const action = mode === "borrow" ? "borrow" : subCfg.btnLabel.toLowerCase();
+      const query = `${action} ${amountNum} ${validFromAsset} on ${protoName}. Market ID: ${selectedRoute.id}.`;
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+        body: JSON.stringify({ query, userAddress: address }),
+      });
+
+      if (!res.ok) throw new Error(`Server error (${res.status})`);
+      const data = await res.json();
+
+      if (data.transactions?.length) {
+        setTxSteps(data.transactions);
+        setTxQuote(data.quote ?? null);
+      } else {
+        setTxError("No transaction steps returned. The AI may need more context.");
+      }
+    } catch (err: any) {
+      setTxError(err.message ?? "Failed to prepare transaction");
+    } finally {
+      setTxLoading(false);
+    }
   };
 
-  const inputBg = "#141a20";
+  const inputBg = "#0d1520";
   const sectionBorder = "1px solid rgba(67,72,78,0.25)";
+
+  // Protocol filter options with "All" first
+  const protocolOptions = [
+    { value: null as string | null, label: "All Protocols" },
+    ...availableProtocols.map(p => ({ value: p as string | null, label: p })),
+  ];
+
+  // Chain filter options for FilterPill
+  const chainOptions = CHAINS.map(c => ({ value: c.id as string | null, label: c.label }));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -496,9 +623,8 @@ export default function ExecutionPanel() {
           background: "#0e1419", border: "1px solid rgba(67,72,78,0.3)",
           borderRadius: 16, padding: 16, width: 370, flexShrink: 0, minWidth: 300,
         }}>
-          {/* Panel header */}
+          {/* Panel header: sub-mode tabs + settings gear */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            {/* Lend sub-mode tabs */}
             {mode === "lend" ? (
               <div style={{ display: "flex", gap: 2, background: "#141a20", borderRadius: 8, padding: 2, border: "1px solid rgba(67,72,78,0.3)" }}>
                 {LEND_SUBMODES.map(s => {
@@ -526,7 +652,7 @@ export default function ExecutionPanel() {
               </span>
             )}
 
-            {/* Settings gear + popover */}
+            {/* Settings gear */}
             <div ref={settingsRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setShowSettings(p => !p)}
@@ -606,68 +732,6 @@ export default function ExecutionPanel() {
                 onChange={a => setFromAsset(a)}
                 assets={fromAssets}
               />
-              {/* Chain picker */}
-              <div ref={chainRef} style={{ position: "relative" }}>
-                <button
-                  onClick={() => setShowChainPicker(p => !p)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    background: showChainPicker ? "rgba(255,255,255,0.06)" : "#0a0f14",
-                    border: showChainPicker ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
-                    borderRadius: 8, padding: "5px 9px", fontSize: 11, fontWeight: 600,
-                    color: "#eaeef5", fontFamily: "Inter, sans-serif", cursor: "pointer",
-                    transition: "all 150ms",
-                  }}
-                  onMouseEnter={e => { if (!showChainPicker) e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
-                  onMouseLeave={e => { if (!showChainPicker) e.currentTarget.style.borderColor = "rgba(67,72,78,0.3)"; }}
-                >
-                  {chainId ? (
-                    <ChainIcon chainName={chainId} size={13} />
-                  ) : (
-                    <div style={{ width: 13, height: 13, borderRadius: "50%", background: "#627EEA", fontSize: 7, color: "#fff", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</div>
-                  )}
-                  {selectedChain.label}
-                  <ChevronDown size={9} />
-                </button>
-
-                {showChainPicker && (
-                  <div style={{
-                    position: "absolute", top: "calc(100% + 4px)", right: 0,
-                    background: "#0e1419", border: "1px solid rgba(67,72,78,0.4)",
-                    borderRadius: 10, zIndex: 300, minWidth: 150,
-                    boxShadow: "0 16px 40px rgba(0,0,0,0.6)", overflow: "hidden",
-                    padding: 4,
-                  }}>
-                    {CHAINS.map(c => {
-                      const active = chainId === c.id;
-                      return (
-                        <button
-                          key={String(c.id)}
-                          onClick={() => { setChainId(c.id); setShowChainPicker(false); }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8, width: "100%",
-                            padding: "7px 10px", border: "none", borderRadius: 7, cursor: "pointer",
-                            background: active ? "rgba(255,255,255,0.07)" : "transparent",
-                            color: active ? "#eaeef5" : "#a7abb2",
-                            fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, textAlign: "left",
-                            transition: "all 120ms",
-                          }}
-                          onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-                          onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
-                        >
-                          {c.id ? (
-                            <ChainIcon chainName={c.id} size={15} />
-                          ) : (
-                            <div style={{ width: 15, height: 15, borderRadius: "50%", background: "#627EEA", fontSize: 7, color: "#fff", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</div>
-                          )}
-                          {c.label}
-                          {active && <span style={{ marginLeft: "auto", color: "#86efac", fontSize: 10 }}>✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Amount input */}
@@ -779,8 +843,6 @@ export default function ExecutionPanel() {
             )}
           </div>
 
-          {/* ── Dynamic fields by mode ── */}
-
           {/* BORROW: health factor + risk info */}
           {mode === "borrow" && amountNum > 0 && (
             <div style={{ marginBottom: 12, background: inputBg, borderRadius: 12, padding: 12, border: sectionBorder }}>
@@ -817,24 +879,36 @@ export default function ExecutionPanel() {
           {/* Execute button */}
           <button
             disabled={btnDisabled}
-            onClick={handleButton}
+            onClick={handleExecute}
             style={{
-              width: "100%", padding: "13px 0", borderRadius: 12, border: "none",
+              width: "100%", padding: "13px 0", borderRadius: 12,
               cursor: btnDisabled ? "not-allowed" : "pointer",
-              background: btnDisabled
-                ? "rgba(255,255,255,0.06)"
-                : mode === "borrow" ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.1)",
+              background: btnDisabled ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.1)",
               color: btnDisabled ? "#a7abb2" : "#eaeef5",
               fontSize: 14, fontWeight: 800, letterSpacing: "-0.01em",
               fontFamily: "Inter, sans-serif", transition: "all 200ms ease",
               border: btnDisabled ? "1px solid transparent" : "1px solid rgba(255,255,255,0.15)",
               opacity: btnDisabled ? 0.7 : 1,
             }}
-            onMouseEnter={e => { if (!btnDisabled) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.14)"; } }}
-            onMouseLeave={e => { if (!btnDisabled) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)"; } }}
+            onMouseEnter={e => { if (!btnDisabled) (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.14)"; }}
+            onMouseLeave={e => { if (!btnDisabled) (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)"; }}
           >
-            {btnLabels[btnState]}
+            {btnLabel}
           </button>
+
+          {/* Tx error */}
+          {txError && (
+            <div style={{ marginTop: 8, padding: "6px 10px", background: "rgba(239,68,68,0.06)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)" }}>
+              <span style={{ fontSize: 10, color: "#ef4444", fontFamily: "Inter, sans-serif" }}>⚠ {txError}</span>
+            </div>
+          )}
+
+          {/* TxExecutor */}
+          {txSteps && txSteps.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <TxExecutor transactions={txSteps} quote={txQuote} />
+            </div>
+          )}
 
           <div style={{ marginTop: 7, textAlign: "center", fontSize: 10, color: "rgba(167,171,178,0.4)", fontFamily: "Inter, sans-serif" }}>
             Slippage {slippage}% · Rates update every 60s
@@ -843,6 +917,7 @@ export default function ExecutionPanel() {
 
         {/* ═══ RIGHT PANEL (routes) ═══ */}
         <div style={{ flex: 1, minWidth: 260 }}>
+          {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.02em" }}>
               Best Routes
@@ -854,6 +929,58 @@ export default function ExecutionPanel() {
             )}
           </div>
 
+          {/* ── Filter bar ── */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+            {/* Protocol filter */}
+            <FilterPill
+              label="Protocol"
+              value={filterProtocol}
+              options={protocolOptions}
+              onChange={setFilterProtocol}
+            />
+
+            {/* TVL filter */}
+            <FilterPill
+              label="Min TVL"
+              value={filterMinTvl}
+              options={TVL_OPTIONS}
+              onChange={setFilterMinTvl}
+            />
+
+            {/* Chain filter */}
+            <FilterPill
+              label="Chain"
+              value={chainId}
+              options={chainOptions}
+              onChange={setChainId}
+              renderOption={o => (
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  {o.value ? (
+                    <ChainIcon chainName={o.value} size={13} />
+                  ) : (
+                    <div style={{ width: 13, height: 13, borderRadius: "50%", background: "#627EEA", fontSize: 7, color: "#fff", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</div>
+                  )}
+                  {o.label}
+                </span>
+              )}
+            />
+
+            {/* Clear filters */}
+            {(chainId || filterProtocol || filterMinTvl > 0) && (
+              <button
+                onClick={() => { setChainId(null); setFilterProtocol(null); setFilterMinTvl(0); }}
+                style={{
+                  padding: "4px 8px", borderRadius: 6, border: "1px solid rgba(67,72,78,0.3)",
+                  background: "transparent", color: "#a7abb2", fontSize: 10, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "Inter, sans-serif",
+                }}
+              >
+                Clear filters ×
+              </button>
+            )}
+          </div>
+
+          {/* Routes list */}
           {filteredRoutes.length === 0 ? (
             <div style={{
               background: "#0e1419", border: "1px solid rgba(67,72,78,0.3)",
@@ -864,12 +991,12 @@ export default function ExecutionPanel() {
                 No routes found
               </div>
               <div style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
-                {!markets ? "Loading market data..." : chainId ? `No ${chainId} routes for this asset` : "Try selecting a different asset"}
+                {!markets ? "Loading market data…" : "Try adjusting the filters or selecting a different asset"}
               </div>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filteredRoutes.map((route, i) => (
+              {displayRoutes.map((route, i) => (
                 <RouteCard
                   key={route.id}
                   route={route}
@@ -879,6 +1006,37 @@ export default function ExecutionPanel() {
                   isBest={i === 0}
                 />
               ))}
+
+              {/* Show more / show less */}
+              {hiddenCount > 0 && (
+                <button
+                  onClick={() => setShowAll(true)}
+                  style={{
+                    padding: "10px 0", borderRadius: 10,
+                    border: "1px dashed rgba(67,72,78,0.4)",
+                    background: "transparent", color: "#a7abb2",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    fontFamily: "Inter, sans-serif", transition: "all 150ms",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.color = "#eaeef5"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(67,72,78,0.4)"; e.currentTarget.style.color = "#a7abb2"; }}
+                >
+                  Show {hiddenCount} more option{hiddenCount !== 1 ? "s" : ""}
+                </button>
+              )}
+              {showAll && filteredRoutes.length > INITIAL_LIMIT && (
+                <button
+                  onClick={() => setShowAll(false)}
+                  style={{
+                    padding: "8px 0", borderRadius: 10, border: "none",
+                    background: "transparent", color: "rgba(167,171,178,0.5)",
+                    fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    fontFamily: "Inter, sans-serif",
+                  }}
+                >
+                  Show less ↑
+                </button>
+              )}
             </div>
           )}
 

@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
 const ONEDELTA_API_KEY = Deno.env.get("ONEDELTA_API_KEY");
 const BASE = "https://portal.1delta.io/v1";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -44,7 +44,7 @@ async function deltaPost(endpoint: string, body: Record<string, any>) {
 
 /* ── Internal markets endpoint (single source of truth) ── */
 
-async function fetchMarketsEndpoint(type: "lending" | "vaults" | "pendle"): Promise<any[]> {
+async function fetchMarketsEndpoint(type: "lending" | "vaults"): Promise<any[]> {
   const url = `${SUPABASE_URL}/functions/v1/markets?type=${type}`;
   const res = await fetch(url, {
     headers: {
@@ -86,7 +86,7 @@ async function dispatchTool(name: string, input: any): Promise<string> {
   try {
   switch (name) {
     case "search_markets": {
-      const types: ("lending" | "vaults" | "pendle")[] = input.types ?? ["lending", "vaults", "pendle"];
+      const types: ("lending" | "vaults")[] = (input.types ?? ["lending", "vaults"]).filter((t: string) => t !== "pendle") as ("lending" | "vaults")[];
       const results = await Promise.all(types.map(fetchMarketsEndpoint));
       const allItems: any[] = [];
       types.forEach((t, i) => {
@@ -353,8 +353,8 @@ const TOOLS: any[] = [
           },
           types: {
             type: "array",
-            items: { type: "string", enum: ["lending", "vaults", "pendle"] },
-            description: "Which market types to search. Default: all three.",
+            items: { type: "string", enum: ["lending", "vaults"] },
+            description: "Which market types to search. Default: both.",
           },
           limit: { type: "number", description: "Max results to return, default 20" },
         },
@@ -907,7 +907,7 @@ ID-BASED MARKET MAPPING (CRITICAL):
 search_markets FIELD REFERENCE:
 - Lending results: id, marketUid, protocolName, asset, supplyAPY (percentage), borrowAPR (percentage or null), totalSupplyUSD, availableLiquidityUSD, utilizationRate
 - Vault results: id, marketUid, name, protocol, asset, apy (percentage), tvl, curator (optional — the vault curator/manager name, e.g. "Gauntlet", "Steakhouse", "RE7 Labs")
-- Pendle results: id, name, asset, impliedAPY (percentage), expiry, daysToMaturity, tvl
+- Vault results: id, name, asset, apy (percentage), tvl, protocol, curator
 Display APY/APR values directly with % sign — they are already percentages.
 
 MORPHO CURATOR INFO:
@@ -1000,7 +1000,7 @@ VAULT vs LENDING DEPOSITS (CRITICAL — READ CAREFULLY):
 - **Lending pools** (Aave V3, Compound V3, Spark, etc.) with marketUid format "LENDER:chainId:tokenAddress":
   → Use **get_deposit_calldata** / **get_withdraw_calldata** for these.
 - Yearn vaults are NOT displayed in the UI and are not supported for actions.
-- Pendle fixed-yield markets are displayed in the UI and available via search_markets for informational queries (APY, TVL, maturity). However, Pendle PT/YT trading execution is NOT supported yet via action tools. If a user asks to buy a Pendle PT or trade on Pendle, explain that execution isn't available yet but show them the market data.
+- Supported protocols: Aave V2/V3, Compound V2/V3, Spark, Morpho Blue, Euler, Silo, Moonwell, and more across Ethereum and Base.
 
 
 ENS IDENTITY INTEGRATION:
@@ -1148,6 +1148,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    if (!OPENAI_API_KEY) {
+      return new Response(JSON.stringify({ error: "AI service not configured — OPENAI_API_KEY is missing. Please set this secret in your Supabase project dashboard under Settings > Edge Functions." }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const { query, userAddress, history } = await req.json();
     const result = await runAgent(query, userAddress, history ?? []);
     return new Response(JSON.stringify(result), {

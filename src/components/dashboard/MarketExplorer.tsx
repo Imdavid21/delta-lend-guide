@@ -2,15 +2,12 @@ import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
 import LendingTable from "../markets/LendingTable";
 import VaultsTable from "../markets/VaultsTable";
-import FixedYieldTable from "../markets/FixedYieldTable";
-// import Compare from "./Compare";
 import LoopingStrategies from "./LoopingStrategies";
 
-type MarketTab = "lending" | "vaults" | "fixed" | "looping";
+type MarketTab = "all_yields" | "borrow" | "looping";
 
 export default function MarketExplorer({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
-  const [tab, setTab] = useState<MarketTab>("lending");
-  const isLending = viewMode === "lending";
+  const [tab, setTab] = useState<MarketTab>("all_yields");
 
   return (
     <Box>
@@ -30,20 +27,21 @@ export default function MarketExplorer({ viewMode = "lending" }: { viewMode?: "l
             py: 0.5,
             px: 2,
           },
-          "& .MuiTabs-indicator": {
-            height: 2,
-          },
+          "& .MuiTabs-indicator": { height: 2 },
         }}
       >
-        <Tab label={isLending ? "Lending" : "Markets"} value="lending" />
-        {isLending && <Tab label="Vaults" value="vaults" />}
-        {isLending && <Tab label="Fixed Yield" value="fixed" />}
+        <Tab label="Lending & Vaults" value="all_yields" />
+        <Tab label="Borrow" value="borrow" />
         <Tab label="Looping" value="looping" />
       </Tabs>
       <Box>
-        {tab === "lending" && <LendingTable viewMode={viewMode} />}
-        {isLending && tab === "vaults" && <VaultsTable />}
-        {isLending && tab === "fixed" && <FixedYieldTable />}
+        {tab === "all_yields" && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <LendingTable viewMode="lending" showTitle={false} />
+            <VaultsTable showTitle={false} />
+          </Box>
+        )}
+        {tab === "borrow" && <LendingTable viewMode="borrow" showTitle={false} />}
         {tab === "looping" && <LoopingStrategies />}
       </Box>
     </Box>

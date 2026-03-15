@@ -1,8 +1,7 @@
 import { Box, Paper, Typography, Skeleton } from "@mui/material";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import LockClockIcon from "@mui/icons-material/LockClock";
-import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
+import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { formatUSD, formatPercent } from "@/lib/marketTypes";
 import type { TabId } from "../AppShell";
 
@@ -68,7 +67,6 @@ function StatCard({
 export default function OverviewDashboard({ onNavigate }: Props) {
   const { data: lending } = useMarkets();
   const { data: vaults } = useVaults();
-  const { data: pendle } = usePendle();
 
   const bestLendingAPY = lending?.length ? Math.max(...lending.map((m) => m.supplyAPY)) : null;
   const bestLendingAsset = lending?.length
@@ -76,7 +74,6 @@ export default function OverviewDashboard({ onNavigate }: Props) {
     : null;
   const bestVaultAPY = vaults?.length ? Math.max(...vaults.map((v) => v.apy)) : null;
   const bestVault = vaults?.length ? vaults.reduce((a, b) => (a.apy > b.apy ? a : b)) : null;
-  const bestFixedAPY = pendle?.length ? Math.max(...pendle.map((m) => m.impliedAPY)) : null;
 
   const totalLendingTVL = lending?.reduce((s, m) => s + m.totalSupplyUSD, 0) ?? null;
   const totalVaultsTVL = vaults?.reduce((s, v) => s + v.tvl, 0) ?? null;
@@ -88,11 +85,11 @@ export default function OverviewDashboard({ onNavigate }: Props) {
           Ethereum Yield Overview
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Real-time rates across lending, vaults, and fixed yield protocols
+          Real-time rates across lending pools and yield vaults
         </Typography>
       </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" }, gap: 2 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
         <StatCard
           title="Best Lending APY"
           value={bestLendingAPY !== null ? formatPercent(bestLendingAPY) : null}
@@ -107,16 +104,9 @@ export default function OverviewDashboard({ onNavigate }: Props) {
           icon={<AccountBalanceIcon />}
           onClick={() => onNavigate("vaults")}
         />
-        <StatCard
-          title="Best Fixed Yield"
-          value={bestFixedAPY !== null ? formatPercent(bestFixedAPY) : null}
-          sub="Pendle on Ethereum"
-          icon={<LockClockIcon />}
-          onClick={() => onNavigate("fixed")}
-        />
       </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, gap: 2, mt: 2 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mt: 2 }}>
         <StatCard
           title="Lending Markets"
           value={lending ? String(lending.length) : null}
@@ -130,13 +120,6 @@ export default function OverviewDashboard({ onNavigate }: Props) {
           sub={totalVaultsTVL !== null ? `${formatUSD(totalVaultsTVL)} TVL` : undefined}
           icon={<AccountBalanceIcon />}
           onClick={() => onNavigate("vaults")}
-        />
-        <StatCard
-          title="Fixed Markets"
-          value={pendle ? String(pendle.length) : null}
-          sub="Pendle markets"
-          icon={<LockClockIcon />}
-          onClick={() => onNavigate("fixed")}
         />
       </Box>
     </Box>

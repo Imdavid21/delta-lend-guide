@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Typography, Skeleton, Chip,
+  Typography, Skeleton,
 } from "@mui/material";
-import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
+import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import MarketActionButton from "../markets/MarketActionButton";
@@ -11,19 +11,17 @@ import MarketActionButton from "../markets/MarketActionButton";
 export default function AssetCompare() {
   const { data: lending, isLoading: ll } = useMarkets();
   const { data: vaults, isLoading: vl } = useVaults();
-  const { data: pendle, isLoading: pl } = usePendle();
 
   // Group all assets with their best opportunities
   const assetData = useMemo(() => {
     const assetMap = new Map<string, {
       lending: { apy: number; protocol: string; marketUid: string } | null;
       vault: { apy: number; name: string; id: string } | null;
-      fixed: { apy: number; name: string; daysToMaturity: number } | null;
     }>();
 
     // Process lending
     lending?.forEach((m) => {
-      const existing = assetMap.get(m.asset) || { lending: null, vault: null, fixed: null };
+      const existing = assetMap.get(m.asset) || { lending: null, vault: null };
       if (!existing.lending || m.supplyAPY > existing.lending.apy) {
         existing.lending = { apy: m.supplyAPY, protocol: m.protocolName, marketUid: m.marketUid };
       }
@@ -32,20 +30,11 @@ export default function AssetCompare() {
 
     // Process vaults
     vaults?.forEach((v) => {
-      const existing = assetMap.get(v.asset) || { lending: null, vault: null, fixed: null };
+      const existing = assetMap.get(v.asset) || { lending: null, vault: null };
       if (!existing.vault || v.apy > existing.vault.apy) {
         existing.vault = { apy: v.apy, name: v.name, id: v.id };
       }
       assetMap.set(v.asset, existing);
-    });
-
-    // Process pendle
-    pendle?.forEach((p) => {
-      const existing = assetMap.get(p.asset) || { lending: null, vault: null, fixed: null };
-      if (!existing.fixed || p.impliedAPY > existing.fixed.apy) {
-        existing.fixed = { apy: p.impliedAPY, name: p.name, daysToMaturity: p.daysToMaturity };
-      }
-      assetMap.set(p.asset, existing);
     });
 
     // Convert to array and sort by best overall APY
@@ -56,13 +45,12 @@ export default function AssetCompare() {
         bestAPY: Math.max(
           data.lending?.apy || 0,
           data.vault?.apy || 0,
-          data.fixed?.apy || 0
         ),
       }))
       .sort((a, b) => b.bestAPY - a.bestAPY);
-  }, [lending, vaults, pendle]);
+  }, [lending, vaults]);
 
-  const isLoading = ll || vl || pl;
+  const isLoading = ll || vl;
 
   return (
     <Box>
@@ -84,7 +72,6 @@ export default function AssetCompare() {
               <TableCell>Asset</TableCell>
               <TableCell align="right">Best Lending</TableCell>
               <TableCell align="right">Best Vault</TableCell>
-              <TableCell align="right">Best Fixed</TableCell>
               <TableCell />
             </TableRow>
           </TableHead>
@@ -92,7 +79,7 @@ export default function AssetCompare() {
             {isLoading
               ? Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 5 }).map((_, j) => (
+                    {Array.from({ length: 4 }).map((_, j) => (
                       <TableCell key={j}><Skeleton width={60} /></TableCell>
                     ))}
                   </TableRow>
@@ -134,22 +121,6 @@ export default function AssetCompare() {
                           <Typography fontSize={10} color="text.secondary" noWrap sx={{ maxWidth: 100 }}>
                             {row.vault.name}
                           </Typography>
-                        </Box>
-                      ) : (
-                        <Typography fontSize={12} color="text.disabled">—</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell align="right">
-                      {row.fixed ? (
-                        <Box>
-                          <Typography
-                            fontSize={13}
-                            fontWeight={700}
-                            sx={{ fontVariantNumeric: "tabular-nums", color: row.fixed.apy > 5 ? "#22c55e" : "text.primary" }}
-                          >
-                            {formatPercent(row.fixed.apy)}
-                          </Typography>
-                          <Typography fontSize={10} color="text.secondary">{row.fixed.daysToMaturity}d</Typography>
                         </Box>
                       ) : (
                         <Typography fontSize={12} color="text.disabled">—</Typography>

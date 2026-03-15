@@ -15,7 +15,6 @@ import MarketPage from "./dashboard/MarketPage";
 import MarketExplorer from "./dashboard/MarketExplorer";
 import LendingTable from "./markets/LendingTable";
 import VaultsTable from "./markets/VaultsTable";
-import FixedYieldTable from "./markets/FixedYieldTable";
 import ExecutionPanel from "./execution/ExecutionPanel";
 import PortfolioPage from "../pages/PortfolioPage";
 import SettingsPage from "../pages/SettingsPage";
@@ -23,7 +22,7 @@ import Account from "./Account";
 import { useChats, type ChatMessage } from "../hooks/useChats";
 import type { TransitionProps } from "@mui/material/transitions";
 
-export type TabId = "overview" | "lending" | "vaults" | "fixed" | "chat";
+export type TabId = "overview" | "lending" | "vaults" | "chat";
 
 interface ShellCtx {
   submitAction: (prompt: string) => void;
@@ -160,7 +159,7 @@ export default function AppShell({ mode, onToggle }: Props) {
           display: "flex",
           flexDirection: "column",
           height: "100vh",
-          bgcolor: isDark ? "#0a0f14" : "#f4f6f9",
+          bgcolor: isDark ? "#060b10" : "#f4f6f9",
           color: isDark ? "#eaeef5" : "#0a0a0a",
           position: "relative",
         }}
@@ -204,27 +203,27 @@ export default function AppShell({ mode, onToggle }: Props) {
             {/* ── Legacy redirects ── */}
             <Route path="/explore" element={<Navigate to="/markets" replace />} />
             <Route path="/lending" element={<Navigate to="/markets" replace />} />
-            <Route path="/borrow"  element={<Navigate to="/trade"   replace />} />
+
+            {/* ── Borrow page ── */}
+            <Route path="/borrow" element={<BorrowPage submitAction={submitAction} />} />
 
             {/* ── Market detail pages ── */}
             <Route path="/markets/lending" element={
-              <MarketPage title="Lending Markets"><LendingTable viewMode="lending" showTitle={false} /></MarketPage>
+              <MarketPage title="Lending & Vault Markets">
+                <LendingTable viewMode="lending" showTitle={false} />
+                <VaultsTable showTitle={false} />
+              </MarketPage>
             } />
-            <Route path="/markets/borrow" element={
-              <MarketPage title="Borrow Markets"><LendingTable viewMode="borrow" showTitle={false} /></MarketPage>
-            } />
+            <Route path="/markets/borrow" element={<Navigate to="/borrow" replace />} />
             <Route path="/markets/vaults" element={
               <MarketPage title="Yield Vaults"><VaultsTable showTitle={false} /></MarketPage>
-            } />
-            <Route path="/markets/fixed" element={
-              <MarketPage title="Fixed Rate Markets"><FixedYieldTable showTitle={false} /></MarketPage>
             } />
 
             {/* ── Legacy detail routes (keep for backward compat) ── */}
             <Route path="/lending/markets" element={<Navigate to="/markets/lending" replace />} />
-            <Route path="/borrow/markets"  element={<Navigate to="/markets/borrow"  replace />} />
+            <Route path="/borrow/markets"  element={<Navigate to="/borrow"  replace />} />
             <Route path="/lending/vaults"  element={<Navigate to="/markets/vaults"  replace />} />
-            <Route path="/lending/fixed"   element={<Navigate to="/markets/fixed"   replace />} />
+            <Route path="/lending/fixed"   element={<Navigate to="/markets" replace />} />
 
             <Route path="/account" element={<Account />} />
           </Routes>
@@ -256,7 +255,7 @@ export default function AppShell({ mode, onToggle }: Props) {
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              bgcolor: isDark ? "#0e1419" : "background.default",
+              bgcolor: isDark ? "#0a1017" : "background.default",
               border: "1px solid",
               borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
             },
@@ -358,6 +357,28 @@ function TradePage({ isDark: _isDark }: { isDark: boolean }) {
         </div>
       </Box>
       <ExecutionPanel />
+    </Box>
+  );
+}
+
+function BorrowPage({ submitAction }: { submitAction: (p: string) => void }) {
+  return (
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
+          Borrow Markets
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
+          Borrow
+        </div>
+      </Box>
+      <Box sx={{ mb: 3 }}>
+        <HeroStats viewMode="borrow" />
+      </Box>
+      <Box sx={{ mb: 3 }}>
+        <TopYields viewMode="borrow" onAction={submitAction} />
+      </Box>
+      <LendingTable viewMode="borrow" showTitle={false} />
     </Box>
   );
 }

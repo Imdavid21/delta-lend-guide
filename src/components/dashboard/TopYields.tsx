@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
+import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 
@@ -12,11 +12,12 @@ interface Props {
 interface YieldItem {
   id: string;
   label: string;
-  protocolName?: string; // shown with ProtocolIcon (lending rows)
-  chain?: string | null; // shown with ChainIcon
+  protocolName?: string;
+  chain?: string | null;
   sub: string;
   apy: string;
   icon: React.ReactNode;
+  kind: "lending" | "vault" | "borrow";
 }
 
 function SkeletonRow() {
@@ -52,12 +53,11 @@ function YieldCard({
         border: "1px solid rgba(67,72,78,0.3)",
         borderRadius: 12,
         overflow: "hidden",
-        background: "#0e1419",
+        background: "#0a1017",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* Header */}
       <div
         style={{
           padding: "12px 16px",
@@ -99,7 +99,6 @@ function YieldCard({
         )}
       </div>
 
-      {/* Items */}
       <div style={{ flex: 1 }}>
         {loading
           ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
@@ -118,7 +117,6 @@ function YieldCard({
                 onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.03)")}
                 onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = "transparent")}
               >
-                {/* Rank */}
                 <span style={{
                   fontSize: 10,
                   fontWeight: 700,
@@ -131,12 +129,11 @@ function YieldCard({
                   {i + 1}
                 </span>
 
-                {/* Icon circle */}
                 <div style={{
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
-                  background: "#141a20",
+                  background: "#101820",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -146,14 +143,8 @@ function YieldCard({
                   {item.icon}
                 </div>
 
-                {/* Label */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    overflow: "hidden",
-                  }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, overflow: "hidden" }}>
                     <span style={{
                       fontSize: 12,
                       fontWeight: 700,
@@ -173,9 +164,7 @@ function YieldCard({
                         <ProtocolIcon name={item.protocolName} size={13} />
                       </>
                     )}
-                    {item.chain && (
-                      <ChainIcon chainName={item.chain} size={13} />
-                    )}
+                    {item.chain && <ChainIcon chainName={item.chain} size={13} />}
                   </div>
                   <div style={{
                     fontSize: 10,
@@ -186,10 +175,12 @@ function YieldCard({
                     fontFamily: "Inter, sans-serif",
                   }}>
                     {item.sub}
+                    {item.kind === "vault" && (
+                      <span style={{ marginLeft: 4, color: "rgba(100,249,195,0.6)", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Vault</span>
+                    )}
                   </div>
                 </div>
 
-                {/* APY */}
                 <span style={{
                   fontSize: 13,
                   fontWeight: 800,
@@ -211,18 +202,15 @@ function YieldCard({
 export default function TopYields({ viewMode = "lending", onAction }: Props) {
   const { data: lending, isLoading: ll } = useMarkets();
   const { data: vaults, isLoading: vl } = useVaults();
-  const { data: pendle, isLoading: pl } = usePendle();
   const navigate = useNavigate();
 
   const isLending = viewMode === "lending";
 
-  const topLending = useMemo(() => {
-    if (!lending) return null;
-    let filtered = lending;
-    if (!isLending) filtered = filtered.filter((m) => m.borrowAPR != null && m.borrowAPR > 0);
-    return [...filtered]
-      .sort((a, b) => isLending ? (b.supplyAPY - a.supplyAPY) : ((a.borrowAPR ?? 999) - (b.borrowAPR ?? 999)))
-      .slice(0, 5)
+  // Combined top yields: lending + vaults sorted by APY
+  const topCombined = useMemo(() => {
+    if (!lending && !vaults) return null;
+    const lendingItems: YieldItem[] = (lending ?? [])
+      .filter((m) => m.supplyAPY > 0)
       .map((m) => {
         const { name: protoName, chain } = parseChainFromLabel(formatProtocolLabel(m));
         return {
@@ -231,17 +219,14 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
           protocolName: protoName,
           chain,
           sub: `${formatUSD(m.totalSupplyUSD)} TVL`,
-          apy: formatPercent(isLending ? m.supplyAPY : m.borrowAPR),
+          apy: formatPercent(m.supplyAPY),
+          apyNum: m.supplyAPY,
           icon: <AssetIcon symbol={m.asset} size={16} />,
+          kind: "lending" as const,
         };
       });
-  }, [lending, isLending]);
-
-  const topVaults = useMemo(() => {
-    if (!vaults) return null;
-    return [...vaults]
-      .sort((a, b) => b.apy - a.apy)
-      .slice(0, 5)
+    const vaultItems: YieldItem[] = (vaults ?? [])
+      .filter((v) => v.apy > 0)
       .map((v) => {
         const { name: vaultName, chain } = parseChainFromLabel(v.name);
         return {
@@ -250,62 +235,87 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
           chain,
           sub: `${v.curator || v.protocol} · ${formatUSD(v.tvl)}`,
           apy: formatPercent(v.apy),
+          apyNum: v.apy,
           icon: <ProtocolIcon name={v.protocol} size={16} />,
+          kind: "vault" as const,
         };
       });
-  }, [vaults]);
+    return [...lendingItems, ...vaultItems]
+      .sort((a: any, b: any) => b.apyNum - a.apyNum)
+      .slice(0, 8);
+  }, [lending, vaults]);
 
-  const topFixed = useMemo(() => {
-    if (!pendle) return null;
-    return [...pendle]
-      .sort((a, b) => b.impliedAPY - a.impliedAPY)
+  const topBorrow = useMemo(() => {
+    if (!lending) return null;
+    return [...lending]
+      .filter((m) => m.borrowAPR != null && m.borrowAPR > 0)
+      .sort((a, b) => ((a.borrowAPR ?? 999) - (b.borrowAPR ?? 999)))
       .slice(0, 5)
-      .map((p) => {
-        const { name: marketName, chain } = parseChainFromLabel(p.name);
+      .map((m) => {
+        const { name: protoName, chain } = parseChainFromLabel(formatProtocolLabel(m));
         return {
-          id: p.id,
-          label: marketName,
+          id: m.id,
+          label: m.asset,
+          protocolName: protoName,
           chain,
-          sub: `${p.daysToMaturity}d to maturity · ${formatUSD(p.tvl)}`,
-          apy: formatPercent(p.impliedAPY),
-          icon: <AssetIcon symbol={p.asset} size={16} />,
+          sub: `${formatUSD(m.availableLiquidityUSD)} available`,
+          apy: formatPercent(m.borrowAPR),
+          icon: <AssetIcon symbol={m.asset} size={16} />,
+          kind: "borrow" as const,
         };
       });
-  }, [pendle]);
+  }, [lending]);
+
+  // Legacy borrow mode (for borrow page)
+  const topBorrowOnly = useMemo(() => {
+    if (!lending || isLending) return null;
+    return [...lending]
+      .filter((m) => m.borrowAPR != null && m.borrowAPR > 0)
+      .sort((a, b) => ((a.borrowAPR ?? 999) - (b.borrowAPR ?? 999)))
+      .slice(0, 8)
+      .map((m) => {
+        const { name: protoName, chain } = parseChainFromLabel(formatProtocolLabel(m));
+        return {
+          id: m.id,
+          label: m.asset,
+          protocolName: protoName,
+          chain,
+          sub: `${formatUSD(m.totalSupplyUSD)} TVL`,
+          apy: formatPercent(m.borrowAPR),
+          icon: <AssetIcon symbol={m.asset} size={16} />,
+          kind: "borrow" as const,
+        };
+      });
+  }, [lending, isLending]);
+
+  if (!isLending) {
+    return (
+      <YieldCard
+        title="Lowest Borrow Rates"
+        items={topBorrowOnly}
+        loading={ll}
+        onSeeAll={() => navigate("/borrow")}
+        accentColor="#fbbf24"
+      />
+    );
+  }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isLending ? "1fr 1fr 1fr" : "1fr",
-        gap: 12,
-      }}
-    >
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
       <YieldCard
-        title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"}
-        items={topLending}
-        loading={ll}
-        onSeeAll={() => navigate(isLending ? "/lending/markets" : "/borrow/markets")}
+        title="Top Yields — Lending & Vaults"
+        items={topCombined}
+        loading={ll || vl}
+        onSeeAll={() => navigate("/markets/lending")}
         accentColor="#86efac"
       />
-      {isLending && (
-        <>
-          <YieldCard
-            title="Top Vault Yields"
-            items={topVaults}
-            loading={vl}
-            onSeeAll={() => navigate("/lending/vaults")}
-            accentColor="#64f9c3"
-          />
-          <YieldCard
-            title="Top Fixed Yields"
-            items={topFixed}
-            loading={pl}
-            onSeeAll={() => navigate("/lending/fixed")}
-            accentColor="#78dfff"
-          />
-        </>
-      )}
+      <YieldCard
+        title="Lowest Borrow Rates"
+        items={topBorrow}
+        loading={ll}
+        onSeeAll={() => navigate("/borrow")}
+        accentColor="#fbbf24"
+      />
     </div>
   );
 }
