@@ -1164,10 +1164,41 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   let preResolvedLabel: string | undefined;
   let preResolvedPositions: string | undefined;
   let preFetchedOpportunities: string | undefined;
+  let preFetchedMarket: string | undefined;
 
   const ensMatch = query.match(ENS_PATTERN);
   const addrMatch = query.match(ADDR_PATTERN);
   const isPositionQuery = POSITION_KEYWORDS.test(query);
+
+  // ── Pre-resolve market when user clicks a market card ──────────────────
+  // "(market id: LENDER:chainId:0xABC)" is injected by the UI when a card is clicked.
+  // Pre-fetch it here so the AI never needs to call search_markets / find_market,
+  // saving an entire tool round (≈38s LLM + 20s fetch) and preventing edge-function timeouts.
+  const MARKET_ID_PATTERN = /\(market\s+id:\s*([^)]+)\)/i;
+  const marketIdMatch = query.match(MARKET_ID_PATTERN);
+  if (marketIdMatch) {
+    const rawId = marketIdMatch[1].trim();
+    // Parse lender:chainId:token from the market ID (format may include extra prefix like COMPOUND_V3_USDC:...)
+    const parts = rawId.split(":");
+    if (parts.length >= 3) {
+      // Extract chainId (second-to-last numeric part) and token (last part)
+      const chainId = parts[parts.length - 2];
+      const token = parts[parts.length - 1];
+      // Derive lender: last segment before chainId that looks like a lender ID
+      const lenderRaw = parts.slice(0, parts.length - 2).join("_");
+      // Strip asset suffix from lender key (e.g. COMPOUND_V3_USDC → COMPOUND_V3)
+      const lender = lenderRaw.replace(/_[A-Z]+$/, "");
+      try {
+        const marketData = await dispatchTool("find_market", {
+          chainId,
+          lender,
+          underlyings: token,
+          count: 5,
+        });
+        preFetchedMarket = `MARKET PRE-FETCHED (id: ${rawId}):\n${marketData}\n\nDo NOT call search_markets, find_market, or get_lending_markets — use this data directly.`;
+      } catch { /* non-fatal */ }
+    }
+  }
 
   // Resolve ENS or raw address for third-party position lookups
   if (isPositionQuery && (ensMatch || addrMatch)) {
@@ -1261,6 +1292,11 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
     });
   }
 
+  // Inject pre-fetched market data (from clicked market card) — eliminates one full tool round
+  if (preFetchedMarket) {
+    messages.push({ role: "system", content: preFetchedMarket });
+  }
+
   messages.push({ role: "user", content: userAddress ? `[Wallet: ${userAddress}]\n${query}` : query });
   const collectedSteps: any[] = [];
   let collectedQuote: any;
@@ -1274,7 +1310,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
           tools: TOOLS,
           messages: msgs,
         },
-        { signal: AbortSignal.timeout(38_000) }, // 38s per LLM call — leaves room for tool execution within 55s total
+        { signal: AbortSignal.timeout(28_000) }, // 28s per LLM call — leaves room for pre-flight + tool execution within 55s total
       );
     } catch (err: any) {
       console.error("OpenAI API error:", err.message);
