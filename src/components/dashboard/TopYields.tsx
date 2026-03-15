@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
+import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 
@@ -205,7 +205,6 @@ function YieldCard({
 export default function TopYields({ viewMode = "lending", onAction }: Props) {
   const { data: lending, isLoading: ll } = useMarkets();
   const { data: vaults, isLoading: vl } = useVaults();
-  const { data: pendle, isLoading: pl } = usePendle();
   const navigate = useNavigate();
 
   const isLending = viewMode === "lending";
@@ -249,29 +248,13 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
       });
   }, [vaults]);
 
-  const topFixed = useMemo(() => {
-    if (!pendle) return null;
-    return [...pendle]
-      .sort((a, b) => b.impliedAPY - a.impliedAPY)
-      .slice(0, 5)
-      .map((p) => {
-        const { name: marketName, chain } = parseChainFromLabel(p.name);
-        return {
-          id: p.id,
-          label: marketName,
-          chain,
-          sub: `${p.daysToMaturity}d to maturity · ${formatUSD(p.tvl)}`,
-          apy: formatPercent(p.impliedAPY),
-          icon: <AssetIcon symbol={p.asset} size={16} />,
-        };
-      });
-  }, [pendle]);
+
 
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: isLending ? "1fr 1fr 1fr" : "1fr",
+        gridTemplateColumns: isLending ? "1fr 1fr" : "1fr",
         gap: 12,
       }}
     >
@@ -283,7 +266,6 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         accentColor="#00FF9D"
       />
       {isLending && (
-        <>
           <YieldCard
             title="Top Vault Yields"
             items={topVaults}
@@ -291,14 +273,6 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
             onSeeAll={() => navigate("/lending/vaults")}
             accentColor="#64f9c3"
           />
-          <YieldCard
-            title="Top Fixed Yields"
-            items={topFixed}
-            loading={pl}
-            onSeeAll={() => navigate("/lending/fixed")}
-            accentColor="#78dfff"
-          />
-        </>
       )}
     </div>
   );

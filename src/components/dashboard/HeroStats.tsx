@@ -1,4 +1,4 @@
-import { useMarkets, useVaults, usePendle } from "@/hooks/useMarkets";
+import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
 
 function SkeletonRect({ width, height }: { width: number; height: number }) {
@@ -89,7 +89,6 @@ function Stat({ label, value, sub, accent }: StatProps) {
 export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
   const { data: lending } = useMarkets();
   const { data: vaults } = useVaults();
-  const { data: pendle } = usePendle();
 
   const isLending = viewMode === "lending";
 
@@ -101,9 +100,6 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
     ? vaults.reduce((a, b) => (a.apy > b.apy ? a : b))
     : null;
 
-  const bestFixed = pendle?.length
-    ? pendle.reduce((a, b) => (a.impliedAPY > b.impliedAPY ? a : b))
-    : null;
 
   const MAX_ITEM_TVL = 30_000_000_000;
   const totalTVL =
@@ -112,10 +108,7 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
         vaults.reduce((s, v) => s + Math.min(v.tvl, MAX_ITEM_TVL), 0)
       : null;
 
-  const lendingMarketCount =
-    lending && vaults && pendle
-      ? lending.length + vaults.length + pendle.length
-      : null;
+  const lendingMarketCount = lending && vaults ? lending.length + vaults.length : null;
 
   const borrowMarkets = lending?.filter((m) => m.borrowAPR != null && m.borrowAPR > 0) ?? [];
 
@@ -146,7 +139,7 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
   return (
     <>
       <style>{`@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }`}</style>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         {isLending ? (
           <>
             <Stat
@@ -161,11 +154,6 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
               sub={bestVault ? bestVault.name : undefined}
             />
             <Stat
-              label="Best Fixed Yield"
-              value={bestFixed ? formatPercent(bestFixed.impliedAPY) : null}
-              sub={bestFixed ? bestFixed.name : undefined}
-            />
-            <Stat
               label="Total TVL"
               value={totalTVL !== null ? formatUSD(totalTVL) : null}
               sub="Across all tracked protocols"
@@ -173,7 +161,7 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
             <Stat
               label="Markets Tracked"
               value={lendingMarketCount !== null ? String(lendingMarketCount) : null}
-              sub="Lending · Vaults · Fixed Yield"
+              sub="Lending · Vaults"
             />
           </>
         ) : (

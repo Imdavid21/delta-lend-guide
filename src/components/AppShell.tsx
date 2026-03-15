@@ -14,12 +14,11 @@ import TopYields from "./dashboard/TopYields";
 import MarketPage from "./dashboard/MarketPage";
 import LendingTable from "./markets/LendingTable";
 import VaultsTable from "./markets/VaultsTable";
-import FixedYieldTable from "./markets/FixedYieldTable";
 import Account from "./Account";
 import { useChats, type ChatMessage } from "../hooks/useChats";
 import type { TransitionProps } from "@mui/material/transitions";
 
-export type TabId = "overview" | "lending" | "vaults" | "fixed" | "chat";
+export type TabId = "overview" | "lending" | "vaults" | "chat";
 
 interface ShellCtx {
   submitAction: (prompt: string) => void;
@@ -200,9 +199,6 @@ export default function AppShell({ mode, onToggle }: Props) {
             } />
             <Route path="/lending/vaults" element={
               <MarketPage title="Yield Vaults"><VaultsTable showTitle={false} /></MarketPage>
-            } />
-            <Route path="/lending/fixed" element={
-              <MarketPage title="Fixed Rate Markets"><FixedYieldTable showTitle={false} /></MarketPage>
             } />
             <Route path="/account" element={<Account />} />
           </Routes>

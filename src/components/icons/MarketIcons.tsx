@@ -27,7 +27,6 @@ const PROTOCOL_SLUGS: Record<string, string> = {
   "Yearn": "yearn-finance",
   "Lendle": "lendle",
   "Granary": "granary-finance",
-  "Pendle": "pendle",
 };
 
 /**
