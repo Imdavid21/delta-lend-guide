@@ -5,6 +5,7 @@ import {
   ArrowDown, ChevronDown, Clock, Fuel, Info, Lock, Settings,
 } from "lucide-react";
 import { useMarkets, useVaults } from "@/hooks/useMarkets";
+import { usePrices } from "@/hooks/usePrices";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 import TxExecutor from "@/components/TxExecutor";
@@ -19,37 +20,47 @@ const NATIVE_SYMBOLS = new Set(["ETH", "MATIC", "BNB", "AVAX"]);
 const TOKEN_ADDRESSES: Record<string, Record<number, `0x${string}`>> = {
   USDC: {
     1:     "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    10:    "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+    137:   "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
     8453:  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     42161: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-    10:    "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+    56:    "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+    43114: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
   },
   USDT: {
     1:     "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    10:    "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+    137:   "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
     8453:  "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
     42161: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
-    10:    "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+    56:    "0x55d398326f99059fF775485246999027B3197955",
+    43114: "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
   },
   DAI: {
     1:     "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+    10:    "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
     8453:  "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
     42161: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
-    10:    "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+    137:   "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
   },
   WBTC: {
     1:     "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
     42161: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+    137:   "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6",
   },
   WETH: {
     1:     "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    10:    "0x4200000000000000000000000000000000000006",
+    137:   "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
     8453:  "0x4200000000000000000000000000000000000006",
     42161: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-    10:    "0x4200000000000000000000000000000000000006",
+    43114: "0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB",
   },
   wstETH: {
     1:     "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+    10:    "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb",
     8453:  "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
     42161: "0x5979D7b546E38E414F7E9822514be443A4800529",
-    10:    "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb",
   },
   cbBTC: { 8453: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf" },
   cbETH: {
@@ -418,6 +429,7 @@ export default function ExecutionPanel() {
   const { open: openWallet } = useAppKit();
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
+  const prices = usePrices();
 
   const [mode, setMode] = useState<ExecMode>("lend");
   const [lendSubMode, setLendSubMode] = useState<LendSubMode>("lending");
@@ -614,13 +626,10 @@ export default function ExecutionPanel() {
 
   // ── Borrow calculations ──────────────────────────────────
   const amountNum = parseFloat(amount) || 0;
-  const COLLATERAL_PRICES: Record<string, number> = {
-    ETH: 3000, WETH: 3000, WBTC: 65000, USDC: 1, USDT: 1, DAI: 1, wstETH: 3300,
-  };
   const LTV_RATIOS: Record<string, number> = {
-    ETH: 0.80, WETH: 0.80, WBTC: 0.75, USDC: 0.87, USDT: 0.87, DAI: 0.87, wstETH: 0.78,
+    ETH: 0.80, WETH: 0.80, WBTC: 0.75, USDC: 0.87, USDT: 0.87, DAI: 0.87, wstETH: 0.78, cbBTC: 0.75, cbETH: 0.78,
   };
-  const collateralPrice = COLLATERAL_PRICES[validFromAsset] ?? 1;
+  const collateralPrice = prices[validFromAsset] ?? 1;
   const ltv = LTV_RATIOS[validFromAsset] ?? 0.75;
   const maxBorrow = amountNum * collateralPrice * ltv;
   const healthFactor = amountNum > 0 && selectedRoute
