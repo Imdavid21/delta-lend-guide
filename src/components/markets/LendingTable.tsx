@@ -85,14 +85,21 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  const cols: { key: SortKey; label: string; align?: "right" }[] = [
-    { key: "asset", label: "Asset" },
-    { key: "protocolName", label: "Protocol" },
-    { key: "supplyAPY", label: "Supply APY", align: "right" },
-    { key: "borrowAPR", label: "Borrow APR", align: "right" },
-    { key: "totalSupplyUSD", label: "TVL", align: "right" },
-    { key: "utilizationRate", label: "Utilization", align: "right" },
-  ];
+  const cols: { key: SortKey; label: string; align?: "right" }[] = isLending
+    ? [
+        { key: "asset", label: "Asset" },
+        { key: "protocolName", label: "Protocol" },
+        { key: "supplyAPY", label: "Supply APY", align: "right" },
+        { key: "totalSupplyUSD", label: "TVL", align: "right" },
+        { key: "utilizationRate", label: "Utilization", align: "right" },
+      ]
+    : [
+        { key: "asset", label: "Asset" },
+        { key: "protocolName", label: "Protocol" },
+        { key: "borrowAPR", label: "Borrow APR", align: "right" },
+        { key: "totalSupplyUSD", label: "TVL", align: "right" },
+        { key: "utilizationRate", label: "Utilization", align: "right" },
+      ];
 
   return (
     <Box>
