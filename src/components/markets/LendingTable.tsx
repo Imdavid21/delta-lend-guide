@@ -230,20 +230,22 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
                         </Box>
                       </TableCell>
 
-                      <TableCell align="right">
-                        <Typography sx={{
-                          fontSize: 13, fontWeight: 800, fontVariantNumeric: "tabular-nums",
-                          color: supplyHighlight ? "#00FF9D" : "#eaeef5", letterSpacing: "-0.02em",
-                        }}>
-                          {formatPercent(m.supplyAPY)}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#a7abb2" }}>
-                          {formatPercent(m.borrowAPR)}
-                        </Typography>
-                      </TableCell>
+                      {isLending ? (
+                        <TableCell align="right">
+                          <Typography sx={{
+                            fontSize: 13, fontWeight: 800, fontVariantNumeric: "tabular-nums",
+                            color: supplyHighlight ? "#00FF9D" : "#eaeef5", letterSpacing: "-0.02em",
+                          }}>
+                            {formatPercent(m.supplyAPY)}
+                          </Typography>
+                        </TableCell>
+                      ) : (
+                        <TableCell align="right">
+                          <Typography sx={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#a7abb2" }}>
+                            {formatPercent(m.borrowAPR)}
+                          </Typography>
+                        </TableCell>
+                      )}
 
                       <TableCell align="right">
                         <Typography sx={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>
