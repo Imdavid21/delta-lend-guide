@@ -106,7 +106,7 @@ async function dispatchTool(name: string, input: any): Promise<string> {
         : allItems;
       // Sort: lending by supplyAPY desc, vaults by apy desc, pendle by impliedAPY desc
       filtered.sort((a, b) => (b.supplyAPY ?? b.apy ?? b.impliedAPY ?? 0) - (a.supplyAPY ?? a.apy ?? a.impliedAPY ?? 0));
-      const top = filtered.slice(0, input.limit ?? 20);
+      const top = filtered.slice(0, input.limit ?? 30);
       return JSON.stringify({ count: filtered.length, markets: top });
     }
     case "find_market":
@@ -1106,7 +1106,45 @@ ERROR RECOVERY (when action tools fail):
 POSITION AWARENESS:
 - Always check get_user_positions before suggesting borrow/withdraw/repay to avoid recommending actions on empty positions.
 - Health factor below 1.5 = dangerous. Warn the user before executing any borrow that would lower health factor below 1.5.
-- A health factor below 1.0 = liquidatable. REFUSE to execute borrows that would cause this.`;
+- A health factor below 1.0 = liquidatable. REFUSE to execute borrows that would cause this.
+
+AFTER SHOWING POSITIONS — ALWAYS APPEND OPPORTUNITIES (CRITICAL):
+After displaying any user's positions (whether they have positions or not), ALWAYS append 3–5 top opportunities.
+The pre-fetched market data will be injected as a TOP OPPORTUNITIES system message — use that data directly.
+Do NOT make an additional search_markets call for opportunities after positions — use the pre-fetched data.
+Present them under the heading: "**💡 Top Opportunities on Ethereum & Base**"
+Prioritize: USDC markets for users with stablecoin holdings, ETH markets for ETH/WETH holders.
+Format each as a {{market:...}} card on its own line.
+
+USDC QUERY OPTIMIZATION (most common query type):
+When user asks about USDC: lending, borrowing, or depositing USDC:
+- Always search both types=["lending","vaults"] to include Morpho Blue USDC vaults
+- Top USDC lending markets typically: Aave V3 Core (Ethereum & Base), Compound V3, Spark, Moonwell (Base)
+- Top USDC vault markets: Gauntlet USDC, Steakhouse USDC, Re7 USDC (all Morpho Blue)
+- Morpho USDC vaults on Ethereum generally yield 2–3x higher APY than direct Aave V3 USDC lending
+- For "best USDC yield": always include both lending AND vault results — vaults almost always win on APY
+- USDC decimals = 6. 1000 USDC = "1000000000". Always use this — never call get_token_info for USDC.
+- Ethereum USDC address: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+- Base USDC address: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+
+ETH QUERY OPTIMIZATION (second most common):
+When user asks about ETH: depositing ETH, borrowing against ETH, ETH yield:
+- Use asset group "ETH" for WETH in action tools (1delta uses ETH as the group key for WETH)
+- Top ETH lending: Aave V3 Prime/Core (Ethereum), Aave V3 (Base), Compound Blue (Ethereum & Base)
+- Top ETH vaults: wstETH Morpho vaults (highest ETH-correlated yield), cbETH Morpho vaults on Base
+- For "best ETH yield": include ETH + wstETH + cbETH results — sometimes LSD vaults > direct ETH lending
+- ETH/WETH decimals = 18. 1 ETH = "1000000000000000000". Never call get_token_info for ETH.
+- Ethereum WETH: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+- Base WETH: 0x4200000000000000000000000000000000000006
+- When user says "deposit ETH" they almost always mean the native asset or WETH — use ETH asset group.
+- Looping strategy: deposit wstETH, borrow USDC at low rate, deposit USDC → good base-rate amplification.
+
+MARKET COVERAGE — ETHEREUM & BASE (both chains always searched):
+The search_markets tool queries BOTH Ethereum (chain 1) AND Base (chain 8453) simultaneously.
+- Ethereum: Aave V3 Core, Aave V3 Prime, Compound Blue, Spark, Morpho Blue vaults, Euler vaults, Granary
+- Base: Aave V3 Core, Compound Blue (Base), Moonwell, Seamless, Morpho Blue vaults
+- When user asks about a specific chain, filter in your response — but always fetch all chains.
+- Morpho Blue vaults (id starts "morpho-vault:") appear in "vaults" type — always include vaults type for Morpho queries.`;
 
 /* ───── agent loop ───── */
 
@@ -1120,11 +1158,13 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   let preResolvedAddress: string | undefined;
   let preResolvedLabel: string | undefined;
   let preResolvedPositions: string | undefined;
+  let preFetchedOpportunities: string | undefined;
 
   const ensMatch = query.match(ENS_PATTERN);
   const addrMatch = query.match(ADDR_PATTERN);
   const isPositionQuery = POSITION_KEYWORDS.test(query);
 
+  // Resolve ENS or raw address for third-party position lookups
   if (isPositionQuery && (ensMatch || addrMatch)) {
     if (ensMatch) {
       const name = ensMatch[1].toLowerCase();
@@ -1139,7 +1179,6 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
       } catch { /* fall through */ }
     } else if (addrMatch) {
       const addr = addrMatch[1];
-      // Only pre-resolve when it's a different address than the connected wallet
       if (!userAddress || addr.toLowerCase() !== userAddress.toLowerCase()) {
         preResolvedAddress = addr;
         preResolvedLabel = addr;
@@ -1156,6 +1195,45 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
     }
   }
 
+  // For any position query (own wallet or third-party), pre-fetch top USDC + ETH markets
+  // so the AI can immediately suggest opportunities without an extra tool round.
+  if (isPositionQuery || /\bportfolio\b/i.test(query)) {
+    try {
+      const [lendingRaw, vaultsRaw] = await Promise.all([
+        fetchMarketsEndpoint("lending"),
+        fetchMarketsEndpoint("vaults"),
+      ]);
+      const all = [...lendingRaw, ...vaultsRaw];
+
+      const byAPY = (a: any, b: any) =>
+        (b.supplyAPY ?? b.apy ?? 0) - (a.supplyAPY ?? a.apy ?? 0);
+
+      const usdcTop = all
+        .filter((m: any) => (m.asset ?? "").toUpperCase() === "USDC")
+        .sort(byAPY)
+        .slice(0, 3);
+
+      const ethTop = all
+        .filter((m: any) => ["ETH", "WETH"].includes((m.asset ?? "").toUpperCase()))
+        .sort(byAPY)
+        .slice(0, 2);
+
+      const top = [...usdcTop, ...ethTop].map((m: any) => ({
+        id: m.id ?? m.marketUid,
+        marketUid: m.marketUid ?? m.id,
+        protocol: m.protocolName ?? m.protocol ?? m.name,
+        asset: m.asset,
+        apy: +(m.supplyAPY ?? m.apy ?? 0).toFixed(2),
+        tvl: Math.round(m.totalSupplyUSD ?? m.tvl ?? 0),
+        action: "deposit",
+      }));
+
+      if (top.length > 0) {
+        preFetchedOpportunities = JSON.stringify(top);
+      }
+    } catch { /* non-fatal */ }
+  }
+
   const messages: any[] = [
     { role: "system", content: SYSTEM_PROMPT },
     ...history.slice(-20),
@@ -1166,6 +1244,14 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
     messages.push({
       role: "system",
       content: `PUBLIC LOOKUP ALREADY COMPLETED: The user asked about ${preResolvedLabel}. The raw position data has been fetched directly from the blockchain data provider:\n\n${preResolvedPositions}\n\nPresent this data clearly and helpfully. Do NOT mention wallet connection.`,
+    });
+  }
+
+  // Inject pre-fetched top USDC + ETH opportunities so the AI can suggest them without a tool round
+  if (preFetchedOpportunities) {
+    messages.push({
+      role: "system",
+      content: `TOP OPPORTUNITIES PRE-FETCHED (Ethereum & Base — use these, do NOT call search_markets again):\n${preFetchedOpportunities}\n\nAfter showing the user's positions, append a "**💡 Top Opportunities on Ethereum & Base**" section with 3–5 of these as {{market:...}} cards. Pick the most relevant ones based on the user's holdings.`,
     });
   }
 
