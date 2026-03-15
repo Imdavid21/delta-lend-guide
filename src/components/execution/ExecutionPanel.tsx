@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useAccount, useBalance, useReadContract } from "wagmi";
+import { useAccount, useBalance, useReadContract, useSwitchChain } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import {
   ArrowDown, ChevronDown, Clock, Fuel, Info, Lock, Settings,
@@ -89,12 +89,14 @@ const LEND_SUBMODES: { id: LendSubMode; label: string; btnLabel: string; fromLab
 const GREEN = "#86efac";
 const AMBER = "#fbbf24";
 
-interface ChainOption { id: string | null; label: string }
+interface ChainOption { id: string | null; label: string; chainId?: number }
 const CHAINS: ChainOption[] = [
-  { id: null,       label: "Any Chain" },
-  { id: "Ethereum", label: "Ethereum"  },
-  { id: "Base",     label: "Base"      },
+  { id: null,       label: "Any Chain"           },
+  { id: "Ethereum", label: "Ethereum", chainId: 1     },
+  { id: "Base",     label: "Base",     chainId: 8453  },
 ];
+const CHAIN_NAME_TO_ID: Record<string, number> = { Ethereum: 1, Base: 8453 };
+const CHAIN_ID_TO_NAME: Record<number, string> = { 1: "Ethereum", 8453: "Base" };
 
 const TVL_OPTIONS = [
   { value: 0,            label: "Any TVL" },
@@ -426,6 +428,7 @@ function FieldRow({ label, value, accent, tooltip }: { label: string; value: str
 
 export default function ExecutionPanel() {
   const { isConnected, address, chainId: connectedChainId } = useAccount();
+  const { switchChain } = useSwitchChain();
   const { open: openWallet } = useAppKit();
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
@@ -441,10 +444,20 @@ export default function ExecutionPanel() {
   const [slippage, setSlippage] = useState("0.5");
   const [mevProtection, setMevProtection] = useState(false);
 
-  // Filters (live in right panel)
-  const [chainId, setChainId] = useState<string | null>(null);
+  // Chain filter — seeded from the connected wallet's chain
+  const [chainId, setChainId] = useState<string | null>(() =>
+    connectedChainId ? (CHAIN_ID_TO_NAME[connectedChainId] ?? null) : null
+  );
   const [filterProtocol, setFilterProtocol] = useState<string | null>(null);
   const [filterMinTvl, setFilterMinTvl] = useState(0);
+
+  // Keep chain filter in sync when wallet switches chain externally
+  useEffect(() => {
+    if (connectedChainId) {
+      const name = CHAIN_ID_TO_NAME[connectedChainId];
+      if (name) setChainId(name);
+    }
+  }, [connectedChainId]);
 
   // Pagination
   const [showAll, setShowAll] = useState(false);
@@ -456,6 +469,18 @@ export default function ExecutionPanel() {
   const [txError, setTxError] = useState<string | null>(null);
 
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Chain selector: update filter + switch wallet chain
+  const handleChainSelect = (name: string | null) => {
+    setChainId(name);
+    setSelectedRouteId(null);
+    if (name && isConnected) {
+      const targetId = CHAIN_NAME_TO_ID[name];
+      if (targetId && connectedChainId !== targetId) {
+        switchChain({ chainId: targetId });
+      }
+    }
+  };
 
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
   const accent = mode === "borrow" ? AMBER : GREEN;
@@ -1114,7 +1139,7 @@ export default function ExecutionPanel() {
               label="Chain"
               value={chainId}
               options={chainOptions}
-              onChange={setChainId}
+              onChange={handleChainSelect}
               renderOption={o => (
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   {o.value ? (
@@ -1130,7 +1155,7 @@ export default function ExecutionPanel() {
             {/* Clear filters */}
             {(chainId || filterProtocol || filterMinTvl > 0) && (
               <button
-                onClick={() => { setChainId(null); setFilterProtocol(null); setFilterMinTvl(0); }}
+                onClick={() => { handleChainSelect(null); setFilterProtocol(null); setFilterMinTvl(0); }}
                 style={{
                   padding: "4px 8px", borderRadius: 6, border: "1px solid rgba(67,72,78,0.3)",
                   background: "transparent", color: "#a7abb2", fontSize: 10, fontWeight: 600,
