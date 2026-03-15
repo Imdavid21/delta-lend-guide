@@ -26,7 +26,7 @@ async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
   }
   const headers: Record<string, string> = {};
   if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
-  const res = await fetch(url.toString(), { headers });
+  const res = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(12_000) });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`1delta ${res.status}: ${body}`);
@@ -37,7 +37,7 @@ async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
 async function deltaPost(endpoint: string, body: Record<string, any>) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
-  const res = await fetch(BASE + endpoint, { method: "POST", headers, body: JSON.stringify(body) });
+  const res = await fetch(BASE + endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(12_000) });
   if (!res.ok) throw new Error(`1delta POST ${res.status}`);
   return res.json();
 }
@@ -51,6 +51,7 @@ async function fetchMarketsEndpoint(type: "lending" | "vaults"): Promise<any[]> 
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       "Content-Type": "application/json",
     },
+    signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) return [];
   return res.json();
