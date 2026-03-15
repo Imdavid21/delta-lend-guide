@@ -85,14 +85,21 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  const cols: { key: SortKey; label: string; align?: "right" }[] = [
-    { key: "asset", label: "Asset" },
-    { key: "protocolName", label: "Protocol" },
-    { key: "supplyAPY", label: "Supply APY", align: "right" },
-    { key: "borrowAPR", label: "Borrow APR", align: "right" },
-    { key: "totalSupplyUSD", label: "TVL", align: "right" },
-    { key: "utilizationRate", label: "Utilization", align: "right" },
-  ];
+  const cols: { key: SortKey; label: string; align?: "right" }[] = isLending
+    ? [
+        { key: "asset", label: "Asset" },
+        { key: "protocolName", label: "Protocol" },
+        { key: "supplyAPY", label: "Supply APY", align: "right" },
+        { key: "totalSupplyUSD", label: "TVL", align: "right" },
+        { key: "utilizationRate", label: "Utilization", align: "right" },
+      ]
+    : [
+        { key: "asset", label: "Asset" },
+        { key: "protocolName", label: "Protocol" },
+        { key: "borrowAPR", label: "Borrow APR", align: "right" },
+        { key: "totalSupplyUSD", label: "TVL", align: "right" },
+        { key: "utilizationRate", label: "Utilization", align: "right" },
+      ];
 
   return (
     <Box>
@@ -223,20 +230,22 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
                         </Box>
                       </TableCell>
 
-                      <TableCell align="right">
-                        <Typography sx={{
-                          fontSize: 13, fontWeight: 800, fontVariantNumeric: "tabular-nums",
-                          color: supplyHighlight ? "#00FF9D" : "#eaeef5", letterSpacing: "-0.02em",
-                        }}>
-                          {formatPercent(m.supplyAPY)}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#a7abb2" }}>
-                          {formatPercent(m.borrowAPR)}
-                        </Typography>
-                      </TableCell>
+                      {isLending ? (
+                        <TableCell align="right">
+                          <Typography sx={{
+                            fontSize: 13, fontWeight: 800, fontVariantNumeric: "tabular-nums",
+                            color: supplyHighlight ? "#00FF9D" : "#eaeef5", letterSpacing: "-0.02em",
+                          }}>
+                            {formatPercent(m.supplyAPY)}
+                          </Typography>
+                        </TableCell>
+                      ) : (
+                        <TableCell align="right">
+                          <Typography sx={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#a7abb2" }}>
+                            {formatPercent(m.borrowAPR)}
+                          </Typography>
+                        </TableCell>
+                      )}
 
                       <TableCell align="right">
                         <Typography sx={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>
