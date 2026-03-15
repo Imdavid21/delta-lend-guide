@@ -1024,7 +1024,89 @@ BORROW MARKET RESPONSES (CRITICAL — ALWAYS USE MARKET CARDS):
 
 AFTER ACTION TOOLS: The UI renders a Simulation panel automatically.
 Respond with ONE sentence only, e.g. "Opening 2x leveraged [ETH](token:ETH) position on Aave V3." or "Preparing to borrow [USDC](token:USDC) from Aave V3."
-No summaries, no tables, no bullet points after actions.`;
+No summaries, no tables, no bullet points after actions.
+
+HANDLING LAZY / INCOMPLETE PROMPTS — CRITICAL:
+When the user gives vague or partial action commands, infer context intelligently — never say "please be more specific":
+
+1. "deposit [ASSET]" with no amount or protocol:
+   → Call search_markets(types=["lending","vaults"], query="{ASSET}"), find the highest APY option.
+   → Reply: "The best market for [ASSET] right now is [Protocol] at X% APY on [Chain]. How much [ASSET] would you like to deposit?"
+   → Do NOT call any action tool until the user gives an amount.
+
+2. "borrow [ASSET]" with no amount or collateral:
+   → Call search_markets, pick the lowest borrow APR.
+   → Reply: "The cheapest [ASSET] borrow is [Protocol] at X% APR. What collateral asset will you use, and how much [ASSET] do you need?"
+
+3. "deposit [AMOUNT] [ASSET]" — amount given, no protocol specified:
+   → Auto-select the highest APY market across all chains, execute immediately.
+   → State in response: "Depositing [AMOUNT] [ASSET] into [Protocol] on [Chain] at X% APY."
+
+4. "borrow [AMOUNT] [ASSET]" — amount given, no protocol:
+   → Auto-select lowest borrow APR market, execute immediately.
+
+5. "lend" / "earn" / "best yield" / "where should I put my money" (no specific asset):
+   → Call search_markets(types=["lending","vaults"]), show top 5 opportunities as market cards.
+
+6. "withdraw" / "repay" (no specifics):
+   → Call get_user_positions(account=wallet) first, then ask which position to act on.
+
+7. "max" / "all" / "everything" as amount:
+   → Use the wallet's full balance. If unknown, build the tx with amount="0" and note the user should edit.
+
+8. "what chains are supported" / "which protocols" / "what can you do":
+   → Use get_supported_chains or get_lender_ids respectively. Keep response concise.
+
+AMOUNT-TO-WEI CONVERSION — BUILT-IN DECIMAL TABLE (do NOT call get_token_info for these):
+ETH = 18 decimals   → 1 ETH = "1000000000000000000"
+WETH = 18 decimals  → 1 WETH = "1000000000000000000"
+wstETH = 18 dec     → 1 wstETH = "1000000000000000000"
+cbETH = 18 dec      → same
+DAI = 18 decimals   → 1000 DAI = "1000000000000000000000"
+USDC = 6 decimals   → 100 USDC = "100000000"
+USDT = 6 decimals   → 500 USDT = "500000000"
+PYUSD = 6 dec       → same as USDC
+EURC = 6 dec        → same
+WBTC = 8 decimals   → 0.5 WBTC = "50000000"
+cbBTC = 8 dec       → same as WBTC
+Only call get_token_info for EXOTIC or UNKNOWN tokens not listed above.
+
+AVOIDING UNNECESSARY TOOL ROUNDS (speed-critical — max 4 rounds total):
+- If the user message contains "(market id: XXX:chainId:0xABC)", use that ID DIRECTLY — skip all lookup tools.
+- If context from earlier messages already has a marketUid, reuse it without re-fetching.
+- Combine multiple tool calls into ONE round whenever possible (parallel calls).
+- For deposit/borrow/withdraw/repay with a KNOWN marketUid: call the action tool immediately in round 1.
+- For vault deposits (MetaMorpho/Euler): call vault_deposit in round 1 using the vault address from search results.
+- Never do a redundant search_markets if the user clicked a market card (market id is already in the message).
+
+CHAIN AND PROTOCOL DEFAULTS:
+- If no chain specified: search all chains, pick highest APY (for lending) or lowest APR (for borrowing).
+- Always mention which chain you chose: "Using Aave V3 on [Base](chain:8453)…"
+- Prefer these protocols in this order for reliability: Aave V3 > Morpho Blue > Compound V3 > Spark > others.
+- For Ethereum mainnet: AAVE_V3 lender ID, chain 1.
+- For Base: AAVE_V3 lender ID, chain 8453.
+- For Arbitrum: AAVE_V3 lender ID, chain 42161.
+- Morpho Blue vaults (id starts "morpho-vault:") → vault_deposit, NOT get_deposit_calldata.
+
+MARKETUID CONSTRUCTION (when you need to build it manually):
+- Format: "LENDER:chainId:tokenAddress"
+- Aave V3 USDC on Ethereum: "AAVE_V3:1:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+- Aave V3 ETH on Ethereum: "AAVE_V3:1:0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+- Aave V3 USDC on Base: "AAVE_V3:8453:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+- Aave V3 ETH on Base: "AAVE_V3:8453:0x4200000000000000000000000000000000000006"
+- Compound V3 USDC on Ethereum: "COMPOUND_V3:1:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+
+ERROR RECOVERY (when action tools fail):
+- If get_deposit_calldata returns error "1delta 500" for a vault market → switch to vault_deposit.
+- If get_deposit_calldata returns "1delta 400" → the marketUid is likely wrong; call find_market to get correct one.
+- If search_markets returns 0 results → broaden: remove chain filter, include both types=["lending","vaults"].
+- If ENS resolution fails → ask user for their 0x address directly.
+- After one retry, if still failing: "I couldn't prepare this transaction — please try selecting the market from the Trade page instead."
+
+POSITION AWARENESS:
+- Always check get_user_positions before suggesting borrow/withdraw/repay to avoid recommending actions on empty positions.
+- Health factor below 1.5 = dangerous. Warn the user before executing any borrow that would lower health factor below 1.5.
+- A health factor below 1.0 = liquidatable. REFUSE to execute borrows that would cause this.`;
 
 /* ───── agent loop ───── */
 
@@ -1093,12 +1175,15 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
 
   const createCompletion = async (msgs: any[]) => {
     try {
-      return await openai.chat.completions.create({
-        model: "gpt-4o",
-        max_completion_tokens: 4096,
-        tools: TOOLS,
-        messages: msgs,
-      });
+      return await openai.chat.completions.create(
+        {
+          model: "gpt-4o",
+          max_completion_tokens: 2048,
+          tools: TOOLS,
+          messages: msgs,
+        },
+        { signal: AbortSignal.timeout(38_000) }, // 38s per LLM call — leaves room for tool execution within 55s total
+      );
     } catch (err: any) {
       console.error("OpenAI API error:", err.message);
       return {
@@ -1112,7 +1197,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
 
   let response = await createCompletion(messages);
   let toolRounds = 0;
-  const MAX_TOOL_ROUNDS = 5;
+  const MAX_TOOL_ROUNDS = 4; // Reduced from 5 — the built-in decimal table eliminates get_token_info round trips
 
   while (response.choices[0].finish_reason === "tool_calls" && toolRounds < MAX_TOOL_ROUNDS) {
     toolRounds++;

@@ -507,7 +507,8 @@ export default function ExecutionPanel() {
   [validFromAsset, connectedChainId]);
 
   const { data: nativeBalance } = useBalance({
-    address: isConnected && isNative ? address : undefined,
+    address,
+    query: { enabled: isConnected && isNative && !!address },
   });
   const { data: erc20BalanceRaw } = useReadContract({
     address: erc20Address,
@@ -525,7 +526,10 @@ export default function ExecutionPanel() {
 
   const walletBalanceNum = useMemo(() => {
     if (!isConnected) return 0;
-    if (isNative && nativeBalance) return parseFloat(nativeBalance.formatted);
+    if (isNative && nativeBalance) {
+      const n = parseFloat(nativeBalance.formatted);
+      return isNaN(n) ? 0 : n;
+    }
     if (!isNative && erc20BalanceRaw != null && erc20Decimals != null)
       return Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals);
     return 0;
@@ -533,8 +537,10 @@ export default function ExecutionPanel() {
 
   const walletBalanceLabel = useMemo(() => {
     if (!isConnected) return null;
-    if (isNative && nativeBalance)
-      return `${parseFloat(nativeBalance.formatted).toFixed(4)} ${validFromAsset}`;
+    if (isNative && nativeBalance) {
+      const n = parseFloat(nativeBalance.formatted);
+      if (!isNaN(n)) return `${n.toFixed(4)} ${validFromAsset}`;
+    }
     if (!isNative && erc20Address && erc20BalanceRaw != null && erc20Decimals != null)
       return `${(Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals)).toFixed(4)} ${validFromAsset}`;
     if (!isNative && !erc20Address) return `— ${validFromAsset}`;
