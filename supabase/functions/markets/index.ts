@@ -119,7 +119,7 @@ async function fetch1DeltaPools(hdrs: Record<string, string>) {
     chainIds.map((chainId) => {
       const url = new URL(BASE + "/data/lending/pools");
       url.searchParams.set("chainId", chainId);
-      url.searchParams.set("count", "500");
+      url.searchParams.set("count", "200");
       return fetchJSON(url.toString(), hdrs, 15000);
     }),
   );
@@ -152,7 +152,7 @@ async function fetchLending(hdrs: Record<string, string>) {
       const chainId = resolveChainId(pool) ?? 1;
       const asset = extractAsset(pool);
       const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-      if (tvl < 10000 || tvl > 100_000_000_000) return null; // filter <$10k and >$100B (data artifacts)
+      if (tvl < 10_000_000 || tvl > 100_000_000_000) return null; // filter <$10M and >$100B (data artifacts)
       const utilPct = normalizePercent(pool.utilization);
       const util = utilPct != null ? utilPct / 100 : 0;
 
