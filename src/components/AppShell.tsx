@@ -375,9 +375,6 @@ function BorrowPage({ submitAction }: { submitAction: (p: string) => void }) {
       <Box sx={{ mb: 3 }}>
         <HeroStats viewMode="borrow" />
       </Box>
-      <Box sx={{ mb: 3 }}>
-        <TopYields viewMode="borrow" onAction={submitAction} />
-      </Box>
       <LendingTable viewMode="borrow" showTitle={false} />
     </Box>
   );
@@ -396,9 +393,6 @@ function MarketsPage({ submitAction }: { submitAction: (p: string) => void }) {
       </Box>
       <Box sx={{ mb: 3 }}>
         <HeroStats viewMode="lending" />
-      </Box>
-      <Box sx={{ mb: 3 }}>
-        <TopYields viewMode="lending" onAction={submitAction} />
       </Box>
       <MarketExplorer viewMode="lending" />
     </Box>

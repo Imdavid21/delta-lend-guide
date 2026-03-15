@@ -23,7 +23,6 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
   const navItems = [
     { label: "Trade",     path: "/trade"     },
     { label: "Markets",   path: "/markets"   },
-    { label: "Borrow",    path: "/borrow"    },
     { label: "Portfolio", path: "/portfolio" },
   ];
 
