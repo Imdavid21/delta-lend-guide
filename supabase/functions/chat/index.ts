@@ -1156,7 +1156,9 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   // This bypasses model refusals entirely — the tool is called in code, not by the model.
   const ENS_PATTERN = /\b([a-zA-Z0-9][a-zA-Z0-9-]*\.eth)\b/i;
   const ADDR_PATTERN = /\b(0x[a-fA-F0-9]{40})\b/;
-  const POSITION_KEYWORDS = /position|portfolio|hold(ing)?|balance|deposit|borrow|lend|own/i;
+  // Narrow pattern: only unambiguous "show me my portfolio" phrases — NOT action words like
+  // deposit/borrow/lend which match simple market queries and trigger expensive pre-flights.
+  const POSITION_KEYWORDS = /\b(position|portfolio|hold(ing)?|net.?worth|my\s+(balance|wallet|account|deposit|borrow))\b/i;
 
   let preResolvedAddress: string | undefined;
   let preResolvedLabel: string | undefined;
@@ -1200,7 +1202,8 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
 
   // For any position query (own wallet or third-party), pre-fetch top USDC + ETH markets
   // so the AI can immediately suggest opportunities without an extra tool round.
-  if (isPositionQuery || /\bportfolio\b/i.test(query)) {
+  // Only pre-fetch opportunities when there's a connected wallet (otherwise no positions to supplement)
+  if (userAddress && (isPositionQuery || /\bportfolio\b/i.test(query))) {
     try {
       const [lendingRaw, vaultsRaw] = await Promise.all([
         fetchMarketsEndpoint("lending"),
