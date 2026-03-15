@@ -1,23 +1,25 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Typography, Skeleton,
 } from "@mui/material";
 import { useMarkets, useVaults } from "@/hooks/useMarkets";
-import { formatPercent } from "@/lib/marketTypes";
-import { AssetIcon } from "@/components/icons/MarketIcons";
+import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { AssetIcon, ProtocolIcon } from "@/components/icons/MarketIcons";
 import MarketActionButton from "../markets/MarketActionButton";
 
 export default function AssetCompare() {
   const { data: lending, isLoading: ll } = useMarkets();
   const { data: vaults, isLoading: vl } = useVaults();
 
+  // Group all assets with their best opportunities
   const assetData = useMemo(() => {
     const assetMap = new Map<string, {
       lending: { apy: number; protocol: string; marketUid: string } | null;
-      vault: { apy: number; name: string } | null;
+      vault: { apy: number; name: string; id: string } | null;
     }>();
 
+    // Process lending
     lending?.forEach((m) => {
       const existing = assetMap.get(m.asset) || { lending: null, vault: null };
       if (!existing.lending || m.supplyAPY > existing.lending.apy) {
@@ -26,19 +28,24 @@ export default function AssetCompare() {
       assetMap.set(m.asset, existing);
     });
 
+    // Process vaults
     vaults?.forEach((v) => {
       const existing = assetMap.get(v.asset) || { lending: null, vault: null };
       if (!existing.vault || v.apy > existing.vault.apy) {
-        existing.vault = { apy: v.apy, name: v.name };
+        existing.vault = { apy: v.apy, name: v.name, id: v.id };
       }
       assetMap.set(v.asset, existing);
     });
 
+    // Convert to array and sort by best overall APY
     return [...assetMap.entries()]
       .map(([asset, data]) => ({
         asset,
         ...data,
-        bestAPY: Math.max(data.lending?.apy || 0, data.vault?.apy || 0),
+        bestAPY: Math.max(
+          data.lending?.apy || 0,
+          data.vault?.apy || 0,
+        ),
       }))
       .sort((a, b) => b.bestAPY - a.bestAPY);
   }, [lending, vaults]);
@@ -53,7 +60,7 @@ export default function AssetCompare() {
             Asset Comparison
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Best yields for each asset across lending and vaults
+            Best yields for each asset across all market types
           </Typography>
         </Box>
       </Box>
@@ -88,7 +95,11 @@ export default function AssetCompare() {
                     <TableCell align="right">
                       {row.lending ? (
                         <Box>
-                          <Typography fontSize={13} fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums", color: row.lending.apy > 5 ? "#22c55e" : "text.primary" }}>
+                          <Typography
+                            fontSize={13}
+                            fontWeight={700}
+                            sx={{ fontVariantNumeric: "tabular-nums", color: row.lending.apy > 5 ? "#22c55e" : "text.primary" }}
+                          >
                             {formatPercent(row.lending.apy)}
                           </Typography>
                           <Typography fontSize={10} color="text.secondary">{row.lending.protocol}</Typography>
@@ -100,7 +111,11 @@ export default function AssetCompare() {
                     <TableCell align="right">
                       {row.vault ? (
                         <Box>
-                          <Typography fontSize={13} fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums", color: row.vault.apy > 5 ? "#22c55e" : "text.primary" }}>
+                          <Typography
+                            fontSize={13}
+                            fontWeight={700}
+                            sx={{ fontVariantNumeric: "tabular-nums", color: row.vault.apy > 5 ? "#22c55e" : "text.primary" }}
+                          >
                             {formatPercent(row.vault.apy)}
                           </Typography>
                           <Typography fontSize={10} color="text.secondary" noWrap sx={{ maxWidth: 100 }}>

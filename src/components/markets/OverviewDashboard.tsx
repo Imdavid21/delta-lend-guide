@@ -85,7 +85,7 @@ export default function OverviewDashboard({ onNavigate }: Props) {
           Ethereum Yield Overview
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Real-time rates across lending and vault protocols
+          Real-time rates across lending pools and yield vaults
         </Typography>
       </Box>
 

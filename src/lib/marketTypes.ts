@@ -24,6 +24,7 @@ export interface Vault {
   curator?: string;
 }
 
+
 export function formatPercent(v: number | null | undefined): string {
   if (v == null) return "—";
   if (v > 0 && v < 0.01) return "<0.01%";

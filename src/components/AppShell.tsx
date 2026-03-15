@@ -12,8 +12,12 @@ import ChatPanel from "./ChatPanel";
 import HeroStats from "./dashboard/HeroStats";
 import TopYields from "./dashboard/TopYields";
 import MarketPage from "./dashboard/MarketPage";
+import MarketExplorer from "./dashboard/MarketExplorer";
 import LendingTable from "./markets/LendingTable";
 import VaultsTable from "./markets/VaultsTable";
+import ExecutionPanel from "./execution/ExecutionPanel";
+import PortfolioPage from "../pages/PortfolioPage";
+import SettingsPage from "../pages/SettingsPage";
 import Account from "./Account";
 import { useChats, type ChatMessage } from "../hooks/useChats";
 import type { TransitionProps } from "@mui/material/transitions";
@@ -155,14 +159,14 @@ export default function AppShell({ mode, onToggle }: Props) {
           display: "flex",
           flexDirection: "column",
           height: "100vh",
-          bgcolor: isDark ? "#060809" : "#ffffff",
-          color: isDark ? "#e0e4eb" : "#0a0a0a",
+          bgcolor: isDark ? "#060b10" : "#f4f6f9",
+          color: isDark ? "#eaeef5" : "#0a0a0a",
           position: "relative",
         }}
       >
         {/* Background glows */}
-        <Box aria-hidden sx={{ position: "fixed", top: 0, right: 0, width: 500, height: 500, borderRadius: "50%", bgcolor: isDark ? "rgba(0,255,157,0.025)" : "transparent", filter: "blur(120px)", pointerEvents: "none", zIndex: 0 }} />
-        <Box aria-hidden sx={{ position: "fixed", bottom: 0, left: 0, width: 600, height: 600, borderRadius: "50%", bgcolor: isDark ? "rgba(120,223,255,0.02)" : "transparent", filter: "blur(150px)", pointerEvents: "none", zIndex: 0 }} />
+        <Box aria-hidden sx={{ position: "fixed", top: 0, right: 0, width: 500, height: 500, borderRadius: "50%", bgcolor: isDark ? "rgba(0,255,157,0.03)" : "transparent", filter: "blur(120px)", pointerEvents: "none", zIndex: 0 }} />
+        <Box aria-hidden sx={{ position: "fixed", bottom: 0, left: 0, width: 600, height: 600, borderRadius: "50%", bgcolor: isDark ? "rgba(120,223,255,0.025)" : "transparent", filter: "blur(150px)", pointerEvents: "none", zIndex: 0 }} />
 
         <AppHeader
           mode={mode}
@@ -187,19 +191,40 @@ export default function AppShell({ mode, onToggle }: Props) {
           }}
         >
           <Routes>
-            <Route path="/" element={<Navigate to="/lending" replace />} />
-            <Route path="/lending" element={
-              <DashboardContainer viewMode="lending" submitAction={submitAction} isDark={isDark} />
+            {/* Default redirect */}
+            <Route path="/" element={<Navigate to="/trade" replace />} />
+
+            {/* ── Primary pages ── */}
+            <Route path="/trade" element={<TradePage isDark={isDark} />} />
+            <Route path="/markets" element={<MarketsPage submitAction={submitAction} />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+
+            {/* ── Legacy redirects ── */}
+            <Route path="/explore" element={<Navigate to="/markets" replace />} />
+            <Route path="/lending" element={<Navigate to="/markets" replace />} />
+
+            {/* ── Borrow page ── */}
+            <Route path="/borrow" element={<BorrowPage submitAction={submitAction} />} />
+
+            {/* ── Market detail pages ── */}
+            <Route path="/markets/lending" element={
+              <MarketPage title="Lending & Vault Markets">
+                <LendingTable viewMode="lending" showTitle={false} />
+                <VaultsTable showTitle={false} />
+              </MarketPage>
             } />
-            <Route path="/borrow" element={
-              <BorrowPage isDark={isDark} />
-            } />
-            <Route path="/lending/markets" element={
-              <MarketPage title="Lending Markets"><LendingTable viewMode="lending" showTitle={false} /></MarketPage>
-            } />
-            <Route path="/lending/vaults" element={
+            <Route path="/markets/borrow" element={<Navigate to="/borrow" replace />} />
+            <Route path="/markets/vaults" element={
               <MarketPage title="Yield Vaults"><VaultsTable showTitle={false} /></MarketPage>
             } />
+
+            {/* ── Legacy detail routes (keep for backward compat) ── */}
+            <Route path="/lending/markets" element={<Navigate to="/markets/lending" replace />} />
+            <Route path="/borrow/markets"  element={<Navigate to="/borrow"  replace />} />
+            <Route path="/lending/vaults"  element={<Navigate to="/markets/vaults"  replace />} />
+            <Route path="/lending/fixed"   element={<Navigate to="/markets" replace />} />
+
             <Route path="/account" element={<Account />} />
           </Routes>
         </Box>
@@ -230,14 +255,14 @@ export default function AppShell({ mode, onToggle }: Props) {
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              bgcolor: isDark ? "#0a0d10" : "background.default",
+              bgcolor: isDark ? "#0a1017" : "background.default",
               border: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "divider",
+              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
             },
           }}
           sx={{
             "& .MuiBackdrop-root": {
-              backgroundColor: "rgba(0,0,0,0.5)",
+              backgroundColor: "rgba(0,0,0,0.4)",
               backdropFilter: "blur(6px)",
             },
           }}
@@ -247,10 +272,9 @@ export default function AppShell({ mode, onToggle }: Props) {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              px: 2,
-              py: 1,
+              px: 2, py: 1,
               borderBottom: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "divider",
+              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
               minHeight: 44,
               flexShrink: 0,
             }}
@@ -290,10 +314,9 @@ export default function AppShell({ mode, onToggle }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 1,
-              px: 2,
-              py: 1.5,
+              px: 2, py: 1.5,
               borderTop: "1px solid",
-              borderColor: isDark ? "rgba(255,255,255,0.06)" : "divider",
+              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
               flexShrink: 0,
             }}
           >
@@ -303,13 +326,13 @@ export default function AppShell({ mode, onToggle }: Props) {
               placeholder="Ask anything..."
               fullWidth
               autoFocus
-              sx={{ fontSize: 14, px: 1.5, py: 0.75, borderRadius: 2, bgcolor: isDark ? "rgba(255,255,255,0.04)" : "action.hover" }}
+              sx={{ fontSize: 14, px: 1.5, py: 0.75, borderRadius: 2, bgcolor: isDark ? "rgba(31,38,46,0.5)" : "action.hover" }}
             />
             <IconButton
               type="submit"
               size="small"
               disabled={!chatInput.trim() || loading}
-              sx={{ color: isDark ? "#00FF9D" : "text.primary" }}
+              sx={{ color: "text.primary" }}
             >
               <SendIcon fontSize="small" />
             </IconButton>
@@ -320,28 +343,64 @@ export default function AppShell({ mode, onToggle }: Props) {
   );
 }
 
-function DashboardContainer({ viewMode, submitAction, isDark }: {
-  viewMode: "lending" | "borrow";
-  submitAction: (p: string) => void;
-  isDark: boolean;
-}) {
+/* ─── Page components ─────────────────────────────────── */
+
+function TradePage({ isDark: _isDark }: { isDark: boolean }) {
   return (
-    <>
-      <Box sx={{ mb: 3 }}>
-        <HeroStats viewMode={viewMode} />
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
+          Execution Interface
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
+          Trade
+        </div>
       </Box>
-      <TopYields viewMode={viewMode} onAction={submitAction} />
-    </>
+      <ExecutionPanel />
+    </Box>
   );
 }
 
-function BorrowPage({ isDark }: { isDark: boolean }) {
+function BorrowPage({ submitAction }: { submitAction: (p: string) => void }) {
   return (
-    <>
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
+          Borrow Markets
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
+          Borrow
+        </div>
+      </Box>
       <Box sx={{ mb: 3 }}>
         <HeroStats viewMode="borrow" />
       </Box>
-      <LendingTable viewMode="borrow" showTitle={true} />
-    </>
+      <Box sx={{ mb: 3 }}>
+        <TopYields viewMode="borrow" onAction={submitAction} />
+      </Box>
+      <LendingTable viewMode="borrow" showTitle={false} />
+    </Box>
+  );
+}
+
+function MarketsPage({ submitAction }: { submitAction: (p: string) => void }) {
+  return (
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
+          Market Intelligence
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
+          Markets
+        </div>
+      </Box>
+      <Box sx={{ mb: 3 }}>
+        <HeroStats viewMode="lending" />
+      </Box>
+      <Box sx={{ mb: 3 }}>
+        <TopYields viewMode="lending" onAction={submitAction} />
+      </Box>
+      <MarketExplorer viewMode="lending" />
+    </Box>
   );
 }

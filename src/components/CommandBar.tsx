@@ -188,7 +188,6 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
       }
     }
 
-
     // ENS / address lookup
     if (isEnsOrAddress(q)) {
       items.unshift({
@@ -221,42 +220,42 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
 
   const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
 
-  const bg = isDark ? "#060809" : "#ffffff";
-  const cardBg = isDark ? "#0a0d10" : "#f8fafc";
-  const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)";
-  const borderFocused = "#00FF9D";
-  const textPrimary = isDark ? "#e0e4eb" : "#0a0a0a";
-  const textSecondary = isDark ? "#6b7280" : "#737373";
-  const textDisabled = isDark ? "rgba(107,114,128,0.45)" : "rgba(0,0,0,0.3)";
-  const itemHover = isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)";
-  const green = "#00FF9D";
+  const bg = isDark ? "#0a0f14" : "#ffffff";
+  const cardBg = isDark ? "#0e1419" : "#f8fafc";
+  const border = isDark ? "rgba(67,72,78,0.4)" : "rgba(0,0,0,0.1)";
+  const borderFocused = "#86efac";
+  const textPrimary = isDark ? "#eaeef5" : "#0a0a0a";
+  const textSecondary = isDark ? "#a7abb2" : "#737373";
+  const textDisabled = isDark ? "rgba(167,171,178,0.45)" : "rgba(0,0,0,0.3)";
+  const itemHover = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
+  const green = "#86efac";
 
   /** Icon-only type indicator (no text labels) */
   function TypeIcon({ type }: { type: SearchResult["type"] | string }) {
     const style: React.CSSProperties = { width: 14, height: 14, flexShrink: 0 };
     if (type === "market") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#00FF9D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Lending">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Lending">
         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
       </svg>
     );
     if (type === "vault") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#64f9c3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Vault">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#64f9c3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Vault">
         <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
     );
     if (type === "history") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Recent">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Recent">
         <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.41"/>
       </svg>
     );
     if (type === "ens") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="ENS">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="ENS">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
     );
     // nav
     return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Navigate">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Navigate">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
     );
@@ -382,12 +381,12 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
               </div>
             )}
 
-            {/* Quick actions & alpha scanner when empty */}
+            {/* Quick actions when empty */}
             {results.length === 0 && !value.trim() && !quickActionsDismissed && (
               <div style={{ padding: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: textDisabled }}>
-                    Quick actions & alpha scanner
+                    Quick actions
                   </span>
                   <button
                     type="button"
@@ -403,29 +402,53 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
                     </svg>
                   </button>
                 </div>
-                {[...QUICK_ACTIONS.map((a) => ({ ...a, group: "quick" as const })), ...ALPHA_SCANNER_ACTIONS.map((a) => ({ ...a, group: "alpha" as const }))].map((a) => (
+                {QUICK_ACTIONS.map((a) => (
                   <button
                     key={a.label}
                     onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
                     style={{
-                      width: "100%", display: "flex", alignItems: a.group === "alpha" ? "flex-start" : "center", gap: 8,
+                      width: "100%", display: "flex", alignItems: "center", gap: 8,
                       padding: "6px 8px", border: "none", borderRadius: 8, background: "transparent",
                       cursor: "pointer", textAlign: "left", transition: "background 150ms ease",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = itemHover)}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    {a.group === "alpha" ? (
-                      <span style={{ color: "rgba(82,152,255,0.5)", fontSize: 9, fontWeight: 700, fontFamily: "monospace", marginTop: 1, flexShrink: 0 }}>›</span>
-                    ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2a10 10 0 0 1 7.38 16.74L21 21l-2.26-1.62A10 10 0 1 1 12 2z"/>
-                        <path d="M8 10h.01M12 10h.01M16 10h.01"/>
-                      </svg>
-                    )}
-                    <span style={{ fontSize: a.group === "alpha" ? 11 : 12, fontWeight: a.group === "alpha" ? 500 : 600, color: textSecondary, lineHeight: 1.4 }}>{a.label}</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a10 10 0 0 1 7.38 16.74L21 21l-2.26-1.62A10 10 0 1 1 12 2z"/>
+                      <path d="M8 10h.01M12 10h.01M16 10h.01"/>
+                    </svg>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: textSecondary }}>{a.label}</span>
                   </button>
                 ))}
+
+                {/* Alpha Scanner section */}
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${isDark ? "rgba(67,72,78,0.25)" : "rgba(0,0,0,0.06)"}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#5298FF" }}>
+                      Alpha Scanner
+                    </span>
+                  </div>
+                  {ALPHA_SCANNER_ACTIONS.map((a) => (
+                    <button
+                      key={a.label}
+                      onClick={() => { onNewChat(a.prompt); setValue(""); setFocused(false); }}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "flex-start", gap: 8,
+                        padding: "5px 8px", border: "none", borderRadius: 8, background: "transparent",
+                        cursor: "pointer", textAlign: "left", transition: "background 150ms ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = itemHover)}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span style={{ color: "rgba(82,152,255,0.5)", fontSize: 9, fontWeight: 700, fontFamily: "monospace", marginTop: 1, flexShrink: 0 }}>›</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: textSecondary, lineHeight: 1.4 }}>{a.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
