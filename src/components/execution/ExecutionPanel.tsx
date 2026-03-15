@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useBalance, useReadContract } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import {
   ArrowDown, ChevronDown, Clock, Fuel, Info, Lock, Settings,
@@ -13,6 +13,57 @@ import type { TxStep } from "@/hooks/useChats";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
 const INITIAL_LIMIT = 6;
+
+const NATIVE_SYMBOLS = new Set(["ETH", "MATIC", "BNB", "AVAX"]);
+
+const TOKEN_ADDRESSES: Record<string, Record<number, `0x${string}`>> = {
+  USDC: {
+    1:     "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    8453:  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    42161: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    10:    "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+  },
+  USDT: {
+    1:     "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    8453:  "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+    42161: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+    10:    "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+  },
+  DAI: {
+    1:     "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+    8453:  "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+    42161: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+    10:    "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+  },
+  WBTC: {
+    1:     "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    42161: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+  },
+  WETH: {
+    1:     "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    8453:  "0x4200000000000000000000000000000000000006",
+    42161: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    10:    "0x4200000000000000000000000000000000000006",
+  },
+  wstETH: {
+    1:     "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+    8453:  "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+    42161: "0x5979D7b546E38E414F7E9822514be443A4800529",
+    10:    "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb",
+  },
+  cbBTC: { 8453: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf" },
+  cbETH: {
+    1:    "0xBe9895146f7AF43049ca1c1AE358B0541Ea49704",
+    8453: "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+  },
+};
+
+const ERC20_BALANCE_ABI = [
+  { name: "balanceOf", type: "function", stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  { name: "decimals", type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ name: "", type: "uint8" }] },
+] as const;
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -44,6 +95,7 @@ const TVL_OPTIONS = [
 
 interface ExecRoute {
   id: string;
+  marketUid: string;
   protocol: string;
   chain: string | null;
   outputLabel: string;
@@ -51,6 +103,8 @@ interface ExecRoute {
   returnLabel: string;
   tvlLabel: string;
   tvlRaw: number;
+  availableLiquidityUSD: number;
+  utilizationRate: number | null;
   gasEst: string;
   timeEst: string;
 }
@@ -360,7 +414,7 @@ function FieldRow({ label, value, accent, tooltip }: { label: string; value: str
 /* ─── Main Component ────────────────────────────────────── */
 
 export default function ExecutionPanel() {
-  const { isConnected, address } = useAccount();
+  const { isConnected, address, chainId: connectedChainId } = useAccount();
   const { open: openWallet } = useAppKit();
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
@@ -373,6 +427,7 @@ export default function ExecutionPanel() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
+  const [mevProtection, setMevProtection] = useState(false);
 
   // Filters (live in right panel)
   const [chainId, setChainId] = useState<string | null>(null);
@@ -389,6 +444,51 @@ export default function ExecutionPanel() {
   const [txError, setTxError] = useState<string | null>(null);
 
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  // ── Wallet balance ────────────────────────────────────────
+  const isNative = NATIVE_SYMBOLS.has(validFromAsset ?? "");
+  const erc20Address = useMemo(() =>
+    connectedChainId ? TOKEN_ADDRESSES[validFromAsset]?.[connectedChainId] : undefined,
+  [validFromAsset, connectedChainId]);
+
+  // Native balance (ETH, MATIC, etc.)
+  const { data: nativeBalance } = useBalance({
+    address: isConnected && isNative ? address : undefined,
+  });
+
+  // ERC20 balance via balanceOf
+  const { data: erc20BalanceRaw } = useReadContract({
+    address: erc20Address,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: isConnected && !isNative && !!erc20Address },
+  });
+  const { data: erc20Decimals } = useReadContract({
+    address: erc20Address,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "decimals",
+    query: { enabled: isConnected && !isNative && !!erc20Address },
+  });
+
+  const walletBalanceNum = useMemo(() => {
+    if (!isConnected) return 0;
+    if (isNative && nativeBalance) return parseFloat(nativeBalance.formatted);
+    if (!isNative && erc20BalanceRaw != null && erc20Decimals != null) {
+      return Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals);
+    }
+    return 0;
+  }, [isConnected, isNative, nativeBalance, erc20BalanceRaw, erc20Decimals]);
+
+  const walletBalanceLabel = useMemo(() => {
+    if (!isConnected) return null;
+    if (isNative && nativeBalance) return `${parseFloat(nativeBalance.formatted).toFixed(4)} ${validFromAsset}`;
+    if (!isNative && erc20Address && erc20BalanceRaw != null && erc20Decimals != null) {
+      return `${(Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals)).toFixed(4)} ${validFromAsset}`;
+    }
+    if (!isNative && !erc20Address) return `— ${validFromAsset}`;
+    return null; // loading
+  }, [isConnected, isNative, nativeBalance, validFromAsset, erc20Address, erc20BalanceRaw, erc20Decimals]);
 
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
   const accent = mode === "borrow" ? AMBER : GREEN;
@@ -444,12 +544,14 @@ export default function ExecutionPanel() {
         .map(m => {
           const { chain } = parseChainFromLabel(m.protocolName);
           return {
-            id: m.id, protocol: m.protocolName, chain,
+            id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
             outputLabel: `${m.asset} variable debt`,
             returnValue: m.borrowAPR!,
             returnLabel: formatPercent(m.borrowAPR) + " APR",
             tvlLabel: formatUSD(m.availableLiquidityUSD) + " available",
             tvlRaw: m.availableLiquidityUSD,
+            availableLiquidityUSD: m.availableLiquidityUSD,
+            utilizationRate: m.utilizationRate,
             gasEst: "<$0.01", timeEst: "~20s",
           };
         });
@@ -463,12 +565,14 @@ export default function ExecutionPanel() {
           const { chain } = parseChainFromLabel(m.protocolName);
           const prefix = m.protocol.startsWith("AAVE") ? "a" : m.protocol.startsWith("COMPOUND") ? "c" : "";
           return {
-            id: m.id, protocol: m.protocolName, chain,
+            id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
             outputLabel: `${prefix}${m.asset} — receipt token`,
             returnValue: m.supplyAPY,
             returnLabel: formatPercent(m.supplyAPY) + " APY",
             tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
             tvlRaw: m.totalSupplyUSD,
+            availableLiquidityUSD: m.availableLiquidityUSD,
+            utilizationRate: m.utilizationRate,
             gasEst: "<$0.01", timeEst: "~15s",
           };
         });
@@ -480,12 +584,14 @@ export default function ExecutionPanel() {
       .map(v => {
         const { name: vaultDisplay, chain } = parseChainFromLabel(v.name);
         return {
-          id: v.id, protocol: v.protocol, chain,
+          id: v.id, marketUid: v.marketUid ?? v.id, protocol: v.protocol, chain,
           outputLabel: vaultDisplay,
           returnValue: v.apy,
           returnLabel: formatPercent(v.apy) + " APY",
           tvlLabel: formatUSD(v.tvl) + " TVL",
           tvlRaw: v.tvl,
+          availableLiquidityUSD: v.tvl,
+          utilizationRate: null,
           gasEst: "<$0.01", timeEst: "~15s",
         };
       });
@@ -550,7 +656,7 @@ export default function ExecutionPanel() {
     try {
       const protoName = parseChainFromLabel(selectedRoute.protocol).name;
       const action = mode === "borrow" ? "borrow" : subCfg.btnLabel.toLowerCase();
-      const query = `${action} ${amountNum} ${validFromAsset} on ${protoName}. Market ID: ${selectedRoute.id}.`;
+      const query = `${action} ${amountNum} ${mode === "borrow" ? toAsset : validFromAsset} on ${protoName}. Slippage: ${slippage}%. Market UID: ${selectedRoute.marketUid}.`;
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
         method: "POST",
@@ -558,7 +664,23 @@ export default function ExecutionPanel() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${SUPABASE_KEY}`,
         },
-        body: JSON.stringify({ query, userAddress: address }),
+        body: JSON.stringify({
+          query,
+          userAddress: address,
+          chainId: connectedChainId,
+          context: {
+            action,
+            asset: mode === "borrow" ? toAsset : validFromAsset,
+            collateralAsset: mode === "borrow" ? validFromAsset : undefined,
+            amount: amountNum,
+            protocol: protoName,
+            marketId: selectedRoute.id,
+            marketUid: selectedRoute.marketUid,
+            chain: selectedRoute.chain,
+            slippageTolerance: slippage,
+            mevProtection,
+          },
+        }),
       });
 
       if (!res.ok) throw new Error(`Server error (${res.status})`);
@@ -696,15 +818,18 @@ export default function ExecutionPanel() {
                   </div>
                   <div style={{ fontSize: 11, color: "#a7abb2", marginBottom: 6, fontFamily: "Inter, sans-serif" }}>MEV Protection</div>
                   <div style={{ display: "flex", gap: 4 }}>
-                    {["Off", "On"].map(v => (
-                      <button key={v} style={{
-                        flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 700,
-                        border: v === "Off" ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
-                        background: v === "Off" ? "rgba(255,255,255,0.07)" : "transparent",
-                        color: v === "Off" ? "#eaeef5" : "#a7abb2",
-                        cursor: "pointer", fontFamily: "Inter, sans-serif",
-                      }}>{v}</button>
-                    ))}
+                    {(["Off", "On"] as const).map(v => {
+                      const active = v === "On" ? mevProtection : !mevProtection;
+                      return (
+                        <button key={v} onClick={() => setMevProtection(v === "On")} style={{
+                          flex: 1, padding: "5px 0", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                          border: active ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
+                          background: active ? "rgba(255,255,255,0.07)" : "transparent",
+                          color: active ? "#eaeef5" : "#a7abb2",
+                          cursor: "pointer", fontFamily: "Inter, sans-serif",
+                        }}>{v}</button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -749,12 +874,14 @@ export default function ExecutionPanel() {
                 }}
               />
               <button
-                onClick={() => setAmount("1000")}
+                onClick={() => walletBalanceNum > 0 ? setAmount(walletBalanceNum.toFixed(6)) : undefined}
+                disabled={walletBalanceNum <= 0}
                 style={{
                   position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)",
                   fontSize: 10, fontWeight: 800, color: "#eaeef5",
                   background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 5,
-                  padding: "3px 7px", cursor: "pointer", fontFamily: "Inter, sans-serif",
+                  padding: "3px 7px", cursor: walletBalanceNum > 0 ? "pointer" : "default",
+                  fontFamily: "Inter, sans-serif", opacity: walletBalanceNum > 0 ? 1 : 0.4,
                 }}
               >
                 MAX
@@ -766,27 +893,42 @@ export default function ExecutionPanel() {
                 ≈ ${amountNum ? amountNum.toLocaleString("en", { maximumFractionDigits: 2 }) : "0.00"}
               </span>
               <span style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
-                Balance: {isConnected ? "—" : <span style={{ color: "rgba(167,171,178,0.4)" }}>Connect wallet</span>}
+                Balance:{" "}
+                {!isConnected
+                  ? <span style={{ color: "rgba(167,171,178,0.4)" }}>Connect wallet</span>
+                  : walletBalanceLabel != null
+                    ? <span style={{ color: "#eaeef5" }}>{walletBalanceLabel}</span>
+                    : <span style={{ color: "rgba(167,171,178,0.5)" }}>Loading…</span>}
               </span>
             </div>
 
             {/* Amount presets */}
             <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
-              {["25%", "50%", "75%", "MAX"].map(p => (
-                <button
-                  key={p}
-                  style={{
-                    flex: 1, padding: "3px 0", fontSize: 10, fontWeight: 700,
-                    background: "rgba(255,255,255,0.03)", border: "1px solid rgba(67,72,78,0.25)",
-                    borderRadius: 6, color: "#a7abb2", cursor: "pointer",
-                    fontFamily: "Inter, sans-serif", transition: "all 150ms",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.color = "#eaeef5"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(67,72,78,0.25)"; e.currentTarget.style.color = "#a7abb2"; }}
-                >
-                  {p}
-                </button>
-              ))}
+              {["25%", "50%", "75%", "MAX"].map(p => {
+                const pct = p === "MAX" ? 1 : parseInt(p) / 100;
+                const disabled = walletBalanceNum <= 0;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      if (disabled) return;
+                      const val = walletBalanceNum * pct;
+                      setAmount(val.toFixed(6));
+                    }}
+                    style={{
+                      flex: 1, padding: "3px 0", fontSize: 10, fontWeight: 700,
+                      background: "rgba(255,255,255,0.03)", border: "1px solid rgba(67,72,78,0.25)",
+                      borderRadius: 6, color: disabled ? "rgba(167,171,178,0.3)" : "#a7abb2",
+                      cursor: disabled ? "default" : "pointer",
+                      fontFamily: "Inter, sans-serif", transition: "all 150ms",
+                    }}
+                    onMouseEnter={e => { if (!disabled) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; e.currentTarget.style.color = "#eaeef5"; } }}
+                    onMouseLeave={e => { if (!disabled) { e.currentTarget.style.borderColor = "rgba(67,72,78,0.25)"; e.currentTarget.style.color = "#a7abb2"; } }}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -863,16 +1005,25 @@ export default function ExecutionPanel() {
             </div>
           )}
 
-          {/* LEND: summary fields */}
+          {/* LEND: complementary stats (APY/protocol already shown above in TO section) */}
           {mode === "lend" && selectedRoute && (
             <div style={{ marginBottom: 12 }}>
               <FieldRow
-                label={lendSubMode === "fixed" ? "Fixed APY" : "Est. APY"}
-                value={selectedRoute.returnLabel}
-                accent={GREEN}
+                label={lendSubMode === "vault" ? "Vault TVL" : "Pool TVL"}
+                value={selectedRoute.tvlLabel}
               />
-              <FieldRow label="Protocol" value={parseChainFromLabel(selectedRoute.protocol).name} />
-              <FieldRow label={lendSubMode === "vault" ? "Vault TVL" : "Pool TVL"} value={selectedRoute.tvlLabel} />
+              <FieldRow
+                label="Available"
+                value={formatUSD(selectedRoute.availableLiquidityUSD)}
+                tooltip="Liquidity available to deposit or borrow"
+              />
+              {selectedRoute.utilizationRate != null && (
+                <FieldRow
+                  label="Utilization"
+                  value={formatPercent(selectedRoute.utilizationRate)}
+                  tooltip="Current protocol utilization rate"
+                />
+              )}
             </div>
           )}
 
@@ -911,7 +1062,7 @@ export default function ExecutionPanel() {
           )}
 
           <div style={{ marginTop: 7, textAlign: "center", fontSize: 10, color: "rgba(167,171,178,0.4)", fontFamily: "Inter, sans-serif" }}>
-            Slippage {slippage}% · Rates update every 60s
+            Slippage {slippage}%{mevProtection ? " · MEV Protection ON" : ""} · Rates update every 60s
           </div>
         </div>
 
