@@ -13,14 +13,24 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
   const location = useLocation();
   const isDark = mode === "dark";
 
-  const activeSection = location.pathname.startsWith("/borrow") ? "borrow" : "lending";
-
   const bg = isDark ? "rgba(8, 10, 14, 0.85)" : "rgba(255,255,255,0.8)";
   const border = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
   const textPrimary = isDark ? "#e0e4eb" : "#0a0a0a";
   const textSecondary = isDark ? "#6b7280" : "#737373";
   const green = "#00FF9D";
   const surfaceHigh = isDark ? "#161b22" : "#f1f5f9";
+
+  const navItems = [
+    { label: "Trade",     path: "/trade"     },
+    { label: "Markets",   path: "/markets"   },
+    { label: "Borrow",    path: "/borrow"    },
+    { label: "Portfolio", path: "/portfolio" },
+  ];
+
+  function isActive(path: string) {
+    if (path === "/trade") return location.pathname === "/trade" || location.pathname === "/";
+    return location.pathname.startsWith(path);
+  }
 
   return (
     <header
@@ -55,71 +65,43 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
       </div>
 
       {/* Center: Navigation */}
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {/* Lending / Borrow toggle */}
-        <div
-          style={{
-            display: "flex",
-            background: surfaceHigh,
-            borderRadius: 10,
-            padding: 3,
-            border: `1px solid ${border}`,
-            gap: 2,
-          }}
-        >
-          {(["lending", "borrow"] as const).map((section) => {
-            const active = activeSection === section;
-            return (
-              <button
-                key={section}
-                onClick={() => navigate(`/${section}`)}
-                style={{
-                  padding: "5px 24px",
-                  borderRadius: 7,
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  background: active ? green : "transparent",
-                  color: active ? "#004527" : textSecondary,
-                  transition: "all 200ms ease",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {section.charAt(0).toUpperCase() + section.slice(1)}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Account link */}
-        <div style={{ display: "flex", alignItems: "center", gap: 0, marginLeft: 8 }}>
-          <button
-            onClick={() => navigate("/account")}
-            style={{
-              padding: "5px 14px",
-              borderRadius: 7,
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "Inter, sans-serif",
-              fontSize: 12,
-              fontWeight: 600,
-              background: location.pathname.startsWith("/account") ? surfaceHigh : "transparent",
-              color: location.pathname.startsWith("/account") ? textPrimary : textSecondary,
-              transition: "all 200ms ease",
-              letterSpacing: "-0.01em",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = textPrimary; e.currentTarget.style.background = surfaceHigh; }}
-            onMouseLeave={(e) => {
-              const active = location.pathname.startsWith("/account");
-              e.currentTarget.style.color = active ? textPrimary : textSecondary;
-              e.currentTarget.style.background = active ? surfaceHigh : "transparent";
-            }}
-          >
-            Account
-          </button>
-        </div>
+      <div
+        style={{
+          display: "flex",
+          background: surfaceHigh,
+          borderRadius: 10,
+          padding: 3,
+          border: `1px solid ${border}`,
+          gap: 2,
+        }}
+      >
+        {navItems.map(({ label, path }) => {
+          const active = isActive(path);
+          return (
+            <button
+              key={path}
+              onClick={() => navigate(path)}
+              style={{
+                padding: "5px 16px",
+                borderRadius: 7,
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+                background: active ? green : "transparent",
+                color: active ? "#004527" : textSecondary,
+                transition: "all 200ms ease",
+                letterSpacing: "-0.01em",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = textPrimary; }}
+              onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = textSecondary; }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Right: Actions */}
