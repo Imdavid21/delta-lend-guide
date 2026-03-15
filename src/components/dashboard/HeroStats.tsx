@@ -8,7 +8,7 @@ function SkeletonRect({ width, height }: { width: number; height: number }) {
         width,
         height,
         borderRadius: 4,
-        background: "rgba(255,255,255,0.06)",
+        background: "rgba(255,255,255,0.04)",
         animation: "pulse 1.5s ease-in-out infinite",
       }}
     />
@@ -28,17 +28,17 @@ function Stat({ label, value, sub, accent }: StatProps) {
       style={{
         padding: "18px 20px",
         borderRadius: 12,
-        border: "1px solid rgba(67,72,78,0.3)",
-        background: "#0e1419",
+        border: "1px solid rgba(255,255,255,0.06)",
+        background: "#0a0d10",
         minWidth: 0,
         flex: 1,
         transition: "border-color 200ms ease",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,255,157,0.2)";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,255,157,0.15)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(67,72,78,0.3)";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.06)";
       }}
     >
       <div style={{
@@ -46,7 +46,7 @@ function Stat({ label, value, sub, accent }: StatProps) {
         fontWeight: 700,
         textTransform: "uppercase" as const,
         letterSpacing: "0.12em",
-        color: "#a7abb2",
+        color: "#6b7280",
         marginBottom: 8,
         fontFamily: "Inter, sans-serif",
       }}>
@@ -60,7 +60,7 @@ function Stat({ label, value, sub, accent }: StatProps) {
           fontWeight: 800,
           fontVariantNumeric: "tabular-nums" as const,
           letterSpacing: "-0.03em",
-          color: accent ? "#00FF9D" : "#eaeef5",
+          color: accent ? "#00FF9D" : "#e0e4eb",
           fontSize: 22,
           lineHeight: 1.1,
           fontFamily: "Inter, sans-serif",
@@ -71,7 +71,7 @@ function Stat({ label, value, sub, accent }: StatProps) {
 
       {sub && (
         <div style={{
-          color: "rgba(167,171,178,0.6)",
+          color: "rgba(107,114,128,0.7)",
           fontSize: 10,
           marginTop: 5,
           overflow: "hidden",
@@ -93,7 +93,6 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
 
   const isLending = viewMode === "lending";
 
-  // ── Lending-specific ──────────────────────────────────────
   const bestSupply = lending?.length
     ? lending.reduce((a, b) => (a.supplyAPY > b.supplyAPY ? a : b))
     : null;
@@ -106,8 +105,6 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
     ? pendle.reduce((a, b) => (a.impliedAPY > b.impliedAPY ? a : b))
     : null;
 
-  // Cap individual values to guard against API returning raw token units instead of USD.
-  // No single lending pool or vault can realistically hold more than $30B.
   const MAX_ITEM_TVL = 30_000_000_000;
   const totalTVL =
     lending && vaults
@@ -120,7 +117,6 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
       ? lending.length + vaults.length + pendle.length
       : null;
 
-  // ── Borrow-specific ───────────────────────────────────────
   const borrowMarkets = lending?.filter((m) => m.borrowAPR != null && m.borrowAPR > 0) ?? [];
 
   const lowestBorrow = borrowMarkets.length
@@ -132,7 +128,6 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
       ? borrowMarkets.reduce((s, m) => s + (m.borrowAPR ?? 0), 0) / borrowMarkets.length
       : null;
 
-  // Most liquid = highest available liquidity for borrowing
   const mostLiquid = borrowMarkets.length
     ? borrowMarkets.reduce((a, b) =>
         (a.availableLiquidityUSD ?? 0) > (b.availableLiquidityUSD ?? 0) ? a : b

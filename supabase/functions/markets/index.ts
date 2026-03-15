@@ -15,7 +15,7 @@ const LENDER_NAMES: Record<string, string> = {
   COMPOUND_V3: "Compound V3", LENDLE: "Lendle", MORPHO: "Morpho",
   MORPHO_BLUE: "Morpho Blue", SPARK: "Spark", RADIANT: "Radiant",
   RADIANT_V2: "Radiant V2", VENUS: "Venus", SEAMLESS: "Seamless",
-  ZEROLEND: "ZeroLend", LAYERBANK: "LayerBank", AURELIUS: "Aurelius",
+  LAYERBANK: "LayerBank", AURELIUS: "Aurelius",
   INIT: "Init Capital", MERIDIAN: "Meridian", IRONCLAD: "Ironclad",
   GRANARY: "Granary", YLDR: "Yldr", MOONWELL: "Moonwell",
   MENDI: "Mendi Finance", SILO: "Silo Finance", EULER: "Euler",

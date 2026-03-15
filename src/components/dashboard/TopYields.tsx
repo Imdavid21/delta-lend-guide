@@ -12,8 +12,8 @@ interface Props {
 interface YieldItem {
   id: string;
   label: string;
-  protocolName?: string; // shown with ProtocolIcon (lending rows)
-  chain?: string | null; // shown with ChainIcon
+  protocolName?: string;
+  chain?: string | null;
   sub: string;
   apy: string;
   icon: React.ReactNode;
@@ -22,13 +22,13 @@ interface YieldItem {
 function SkeletonRow() {
   return (
     <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ width: 14, height: 14, borderRadius: 3, background: "rgba(255,255,255,0.06)" }} />
-      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.06)", flexShrink: 0 }} />
+      <div style={{ width: 14, height: 14, borderRadius: 3, background: "rgba(255,255,255,0.04)" }} />
+      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.04)", flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
-        <div style={{ height: 12, width: "60%", borderRadius: 4, background: "rgba(255,255,255,0.06)", marginBottom: 5 }} />
-        <div style={{ height: 10, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ height: 12, width: "60%", borderRadius: 4, background: "rgba(255,255,255,0.04)", marginBottom: 5 }} />
+        <div style={{ height: 10, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.04)" }} />
       </div>
-      <div style={{ width: 44, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+      <div style={{ width: 44, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.04)" }} />
     </div>
   );
 }
@@ -49,19 +49,18 @@ function YieldCard({
   return (
     <div
       style={{
-        border: "1px solid rgba(67,72,78,0.3)",
+        border: "1px solid rgba(255,255,255,0.06)",
         borderRadius: 12,
         overflow: "hidden",
-        background: "#0e1419",
+        background: "#0a0d10",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* Header */}
       <div
         style={{
           padding: "12px 16px",
-          borderBottom: "1px solid rgba(67,72,78,0.25)",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -72,7 +71,7 @@ function YieldCard({
           textTransform: "uppercase" as const,
           letterSpacing: "0.1em",
           fontSize: 10,
-          color: "#a7abb2",
+          color: "#6b7280",
           fontFamily: "Inter, sans-serif",
         }}>
           {title}
@@ -86,20 +85,19 @@ function YieldCard({
               background: "transparent",
               border: "none",
               cursor: "pointer",
-              color: "#a7abb2",
+              color: "#6b7280",
               fontFamily: "Inter, sans-serif",
               padding: "2px 4px",
               transition: "color 150ms ease",
             }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = accentColor)}
-            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#a7abb2")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#6b7280")}
           >
             See All →
           </button>
         )}
       </div>
 
-      {/* Items */}
       <div style={{ flex: 1 }}>
         {loading
           ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
@@ -112,17 +110,16 @@ function YieldCard({
                   alignItems: "center",
                   gap: 12,
                   cursor: "pointer",
-                  borderBottom: i < (items.length - 1) ? "1px solid rgba(67,72,78,0.18)" : "none",
+                  borderBottom: i < (items.length - 1) ? "1px solid rgba(255,255,255,0.04)" : "none",
                   transition: "background 150ms ease",
                 }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.03)")}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)")}
                 onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = "transparent")}
               >
-                {/* Rank */}
                 <span style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: "rgba(167,171,178,0.4)",
+                  color: "rgba(107,114,128,0.4)",
                   width: 14,
                   flexShrink: 0,
                   fontVariantNumeric: "tabular-nums" as const,
@@ -131,22 +128,20 @@ function YieldCard({
                   {i + 1}
                 </span>
 
-                {/* Icon circle */}
                 <div style={{
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
-                  background: "#141a20",
+                  background: "#0e1114",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                  border: "1px solid rgba(67,72,78,0.25)",
+                  border: "1px solid rgba(255,255,255,0.06)",
                 }}>
                   {item.icon}
                 </div>
 
-                {/* Label */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     display: "flex",
@@ -157,7 +152,7 @@ function YieldCard({
                     <span style={{
                       fontSize: 12,
                       fontWeight: 700,
-                      color: "#eaeef5",
+                      color: "#e0e4eb",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap" as const,
@@ -169,7 +164,7 @@ function YieldCard({
                     </span>
                     {item.protocolName && (
                       <>
-                        <span style={{ color: "rgba(167,171,178,0.3)", fontSize: 10, flexShrink: 0 }}>·</span>
+                        <span style={{ color: "rgba(107,114,128,0.3)", fontSize: 10, flexShrink: 0 }}>·</span>
                         <ProtocolIcon name={item.protocolName} size={13} />
                       </>
                     )}
@@ -179,7 +174,7 @@ function YieldCard({
                   </div>
                   <div style={{
                     fontSize: 10,
-                    color: "rgba(167,171,178,0.6)",
+                    color: "rgba(107,114,128,0.6)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap" as const,
@@ -189,7 +184,6 @@ function YieldCard({
                   </div>
                 </div>
 
-                {/* APY */}
                 <span style={{
                   fontSize: 13,
                   fontWeight: 800,
@@ -285,7 +279,7 @@ export default function TopYields({ viewMode = "lending", onAction }: Props) {
         title={isLending ? "Top Lending Yields" : "Lowest Borrow Rates"}
         items={topLending}
         loading={ll}
-        onSeeAll={() => navigate(isLending ? "/lending/markets" : "/borrow/markets")}
+        onSeeAll={() => navigate(isLending ? "/lending/markets" : "/borrow")}
         accentColor="#00FF9D"
       />
       {isLending && (
