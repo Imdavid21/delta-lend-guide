@@ -113,14 +113,22 @@ async function fetchJSON(url: string, headers: Record<string, string> = {}, time
 
 async function fetch1DeltaPools(hdrs: Record<string, string>) {
   const chainIds = ["1", "8453"];
-  const all: any[] = [];
 
-  for (const chainId of chainIds) {
-    const url = new URL(BASE + "/data/lending/pools");
-    url.searchParams.set("chainId", chainId);
-    url.searchParams.set("count", "200");
-    const raw = await fetchJSON(url.toString(), hdrs);
+  // Fetch all chains in parallel with higher count to ensure full protocol coverage
+  const responses = await Promise.all(
+    chainIds.map((chainId) => {
+      const url = new URL(BASE + "/data/lending/pools");
+      url.searchParams.set("chainId", chainId);
+      url.searchParams.set("count", "500");
+      return fetchJSON(url.toString(), hdrs, 15000);
+    }),
+  );
+
+  const all: any[] = [];
+  for (let i = 0; i < chainIds.length; i++) {
+    const raw = responses[i];
     if (!raw) continue;
+    const chainId = chainIds[i];
     const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
     all.push(
       ...items.map((item: any) => ({

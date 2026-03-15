@@ -1,7 +1,7 @@
 import useSWR from "swr";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+// 1delta has access-control-allow-origin: * — call directly, no proxy needed
+const ONEDELTA_BASE = "https://portal.1delta.io/v1";
 
 export interface ProtocolPosition {
   protocol: string;       // e.g. "Aave V3 Core"
@@ -34,112 +34,144 @@ const LENDER_DISPLAY: Record<string, string> = {
   SILO: "Silo Finance",
   EULER: "Euler",
   GRANARY: "Granary",
+  FLUX: "Flux Finance",
 };
 
 function lenderDisplayName(key: string): string {
+  // Strip trailing vault hash: "MORPHO_BLUE_AB0D..." → "MORPHO_BLUE"
+  const base = key.replace(/_[A-F0-9]{8,}$/i, "");
   for (const [prefix, name] of Object.entries(LENDER_DISPLAY)) {
-    if (key.startsWith(prefix)) return name;
+    if (base.startsWith(prefix)) return name;
   }
-  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return base.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Parse the 1delta /data/lending/user-positions response into flat ProtocolPosition[] */
+/** Normalize a rate that may be a decimal (0.035) or already a percent (3.5) */
+function normalizeRate(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : parseFloat(String(v));
+  if (!Number.isFinite(n)) return null;
+  // Values <= 1 are decimal form (0.035 → 3.5%). Values > 1 are already percent.
+  return Math.abs(n) <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2);
+}
+
+/**
+ * Parse the 1delta /data/lending/user-positions response.
+ *
+ * Confirmed shape:
+ *   { success: true, data: { items: [
+ *     { lender, chainId, aprData: { depositApr, borrowApr }, data: [
+ *       { health, positions: [
+ *         { depositsUSD, debtUSD, debtStableUSD, underlyingInfo: { asset: { symbol } } }
+ *       ]}
+ *     ]}
+ *   ]}}
+ */
 function parsePositions(raw: any): ProtocolPosition[] {
   if (!raw) return [];
 
-  // 1delta can return different shapes — handle both array and object
-  const items: any[] = Array.isArray(raw)
-    ? raw
+  const items: any[] = Array.isArray(raw?.data?.items)
+    ? raw.data.items
     : Array.isArray(raw?.data)
     ? raw.data
-    : Array.isArray(raw?.data?.items)
-    ? raw.data.items
-    : Array.isArray(raw?.positions)
-    ? raw.positions
-    : Object.values(raw?.data ?? raw ?? {}).flat();
+    : Array.isArray(raw)
+    ? raw
+    : [];
 
   const out: ProtocolPosition[] = [];
 
   for (const item of items) {
     if (!item || typeof item !== "object") continue;
 
-    // Flatten nested reserve/position arrays if present
-    const reserves: any[] = Array.isArray(item.reserves)
-      ? item.reserves
-      : Array.isArray(item.positions)
-      ? item.positions
-      : [item];
+    const chainId = Number(item.chainId ?? 1);
+    const rawLender = String(item.lender ?? "UNKNOWN");
+    // Strip Morpho vault hash suffix to get stable protocol key
+    const protocolKey = rawLender.replace(/_[A-F0-9]{8,}$/i, "");
 
-    const chainId = Number(item.chainId ?? item.chain ?? 1);
-    const protocolKey = String(item.lenderKey ?? item.lender ?? item.protocol ?? "UNKNOWN");
+    // APR lives at the item level (not position level)
+    const itemApr = item.aprData ?? {};
+    const itemSupplyAPY = normalizeRate(itemApr.depositApr ?? itemApr.apr);
+    const itemBorrowAPR = normalizeRate(itemApr.borrowApr);
 
-    for (const r of reserves) {
-      const supplyRaw =
-        parseFloat(r.supplyBalanceUsd ?? r.supplyUsd ?? r.collateralUsd ?? r.depositUsd ?? "0") || 0;
-      const borrowRaw =
-        parseFloat(r.borrowBalanceUsd ?? r.borrowUsd ?? r.debtUsd ?? "0") || 0;
+    const accountDataList: any[] = Array.isArray(item.data) ? item.data : [];
 
-      if (supplyRaw < 0.01 && borrowRaw < 0.01) continue; // skip dust
+    for (const accountData of accountDataList) {
+      const rawHealth = accountData?.health;
+      const healthFactor =
+        rawHealth != null && rawHealth !== "Infinity"
+          ? parseFloat(rawHealth)
+          : undefined;
 
-      const supplyAPY = (() => {
-        const v = r.supplyAPY ?? r.depositAPY ?? r.depositRate ?? r.supplyRate ?? null;
-        if (v === null || v === undefined) return null;
-        const n = parseFloat(v);
-        if (isNaN(n)) return null;
-        // rates can come as 0.035 (3.5%) or 3.5 — normalize
-        return Math.abs(n) <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2);
-      })();
+      const positions: any[] = Array.isArray(accountData?.positions)
+        ? accountData.positions
+        : [];
 
-      const borrowAPR = (() => {
-        const v = r.borrowAPR ?? r.variableBorrowRate ?? r.borrowRate ?? null;
-        if (v === null || v === undefined) return null;
-        const n = parseFloat(v);
-        if (isNaN(n)) return null;
-        return Math.abs(n) <= 1 ? +(n * 100).toFixed(2) : +n.toFixed(2);
-      })();
+      for (const pos of positions) {
+        const supplyUSD =
+          parseFloat(pos.depositsUSD ?? pos.depositsUSDOracle ?? 0) || 0;
+        const borrowUSD =
+          (parseFloat(pos.debtUSD ?? 0) || 0) +
+          (parseFloat(pos.debtStableUSD ?? 0) || 0);
 
-      const asset = String(
-        r.asset ?? r.symbol ?? r.assetGroup ?? r.tokenSymbol ?? item.asset ?? "?"
-      );
+        if (supplyUSD < 0.01 && borrowUSD < 0.01) continue;
 
-      out.push({
-        protocol: lenderDisplayName(protocolKey),
-        protocolKey,
-        chain: CHAIN_NAMES[chainId] ?? `Chain ${chainId}`,
-        chainId,
-        asset,
-        supplyUSD: supplyRaw,
-        borrowUSD: borrowRaw,
-        supplyAPY,
-        borrowAPR,
-        healthFactor: r.healthFactor != null ? parseFloat(r.healthFactor) : undefined,
-      });
+        const asset = String(
+          pos.underlyingInfo?.asset?.symbol ??
+            pos.underlyingInfo?.asset?.assetGroup ??
+            pos.underlying ??
+            "?"
+        );
+
+        // Prefer position-level APR if it has data, else use item-level
+        const posApr = pos.aprData ?? {};
+        const supplyAPY =
+          posApr.depositApr != null
+            ? normalizeRate(posApr.depositApr)
+            : itemSupplyAPY;
+        const borrowAPR =
+          posApr.borrowApr != null
+            ? normalizeRate(posApr.borrowApr)
+            : itemBorrowAPR;
+
+        out.push({
+          protocol: lenderDisplayName(rawLender),
+          protocolKey,
+          chain: CHAIN_NAMES[chainId] ?? `Chain ${chainId}`,
+          chainId,
+          asset,
+          supplyUSD,
+          borrowUSD,
+          supplyAPY,
+          borrowAPR,
+          healthFactor:
+            healthFactor != null && !isNaN(healthFactor)
+              ? healthFactor
+              : undefined,
+        });
+      }
     }
   }
 
-  return out.sort((a, b) => (b.supplyUSD + b.borrowUSD) - (a.supplyUSD + a.borrowUSD));
+  return out.sort(
+    (a, b) => b.supplyUSD + b.borrowUSD - (a.supplyUSD + a.borrowUSD)
+  );
 }
 
-const fetcher = async (url: string): Promise<ProtocolPosition[]> => {
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-    },
-  });
+const fetcher = async (address: string): Promise<ProtocolPosition[]> => {
+  const url = `${ONEDELTA_BASE}/data/lending/user-positions?account=${address}&chains=1,8453`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`positions API error ${res.status}`);
   return parsePositions(await res.json());
 };
 
 export function useUserPositions(address?: string) {
-  const key =
-    address && SUPABASE_URL
-      ? `${SUPABASE_URL}/functions/v1/user-positions?account=${address}&chains=1,8453`
-      : null;
-
-  return useSWR<ProtocolPosition[]>(key, fetcher, {
-    refreshInterval: 30_000,
-    revalidateOnFocus: false,
-    dedupingInterval: 15_000,
-  });
+  return useSWR<ProtocolPosition[]>(
+    address ? `1delta-positions:${address}` : null,
+    () => fetcher(address!),
+    {
+      refreshInterval: 30_000,
+      revalidateOnFocus: false,
+      dedupingInterval: 15_000,
+    }
+  );
 }

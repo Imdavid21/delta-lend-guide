@@ -694,30 +694,39 @@ export default function ExecutionPanel() {
       const action = mode === "borrow" ? "borrow" : subCfg.btnLabel.toLowerCase();
       const query = `${action} ${amountNum} ${mode === "borrow" ? toAsset : validFromAsset} on ${protoName}. Slippage: ${slippage}%. Market UID: ${selectedRoute.marketUid}.`;
 
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-        },
-        body: JSON.stringify({
-          query,
-          userAddress: address,
-          chainId: connectedChainId,
-          context: {
-            action,
-            asset: mode === "borrow" ? toAsset : validFromAsset,
-            collateralAsset: mode === "borrow" ? validFromAsset : undefined,
-            amount: amountNum,
-            protocol: protoName,
-            marketId: selectedRoute.id,
-            marketUid: selectedRoute.marketUid,
-            chain: selectedRoute.chain,
-            slippageTolerance: slippage,
-            mevProtection,
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55_000);
+
+      let res: Response;
+      try {
+        res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_KEY}`,
           },
-        }),
-      });
+          body: JSON.stringify({
+            query,
+            userAddress: address,
+            chainId: connectedChainId,
+            context: {
+              action,
+              asset: mode === "borrow" ? toAsset : validFromAsset,
+              collateralAsset: mode === "borrow" ? validFromAsset : undefined,
+              amount: amountNum,
+              protocol: protoName,
+              marketId: selectedRoute.id,
+              marketUid: selectedRoute.marketUid,
+              chain: selectedRoute.chain,
+              slippageTolerance: slippage,
+              mevProtection,
+            },
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!res.ok) throw new Error(`Server error (${res.status})`);
       const data = await res.json();
@@ -729,7 +738,10 @@ export default function ExecutionPanel() {
         setTxError("No transaction steps returned. The AI may need more context.");
       }
     } catch (err: any) {
-      setTxError(err.message ?? "Failed to prepare transaction");
+      const isTimeout = err.name === "AbortError" || err.name === "TimeoutError";
+      setTxError(isTimeout
+        ? "Request timed out. The 1delta API may be slow — please try again."
+        : (err.message ?? "Failed to prepare transaction"));
     } finally {
       setTxLoading(false);
     }

@@ -26,7 +26,7 @@ async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
   }
   const headers: Record<string, string> = {};
   if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
-  const res = await fetch(url.toString(), { headers });
+  const res = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(12_000) });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`1delta ${res.status}: ${body}`);
@@ -37,7 +37,7 @@ async function deltaGet(endpoint: string, params: Record<string, any> = {}) {
 async function deltaPost(endpoint: string, body: Record<string, any>) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (ONEDELTA_API_KEY) headers["x-api-key"] = ONEDELTA_API_KEY;
-  const res = await fetch(BASE + endpoint, { method: "POST", headers, body: JSON.stringify(body) });
+  const res = await fetch(BASE + endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(12_000) });
   if (!res.ok) throw new Error(`1delta POST ${res.status}`);
   return res.json();
 }
@@ -51,6 +51,7 @@ async function fetchMarketsEndpoint(type: "lending" | "vaults"): Promise<any[]> 
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       "Content-Type": "application/json",
     },
+    signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) return [];
   return res.json();
@@ -106,7 +107,7 @@ async function dispatchTool(name: string, input: any): Promise<string> {
         : allItems;
       // Sort: lending by supplyAPY desc, vaults by apy desc, pendle by impliedAPY desc
       filtered.sort((a, b) => (b.supplyAPY ?? b.apy ?? b.impliedAPY ?? 0) - (a.supplyAPY ?? a.apy ?? a.impliedAPY ?? 0));
-      const top = filtered.slice(0, input.limit ?? 30);
+      const top = filtered.slice(0, input.limit ?? 50);
       return JSON.stringify({ count: filtered.length, markets: top });
     }
     case "find_market":
@@ -124,7 +125,7 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       );
     case "get_lending_markets": {
       const { minTvlUsd, ...rest } = input;
-      if (!rest.count) rest.count = 100;
+      if (!rest.count) rest.count = 500;
       return JSON.stringify(slimPools(await deltaGet("/data/lending/pools", rest), minTvlUsd ?? 10000));
     }
     case "get_lending_latest":
@@ -356,7 +357,7 @@ const TOOLS: any[] = [
             items: { type: "string", enum: ["lending", "vaults"] },
             description: "Which market types to search. Default: both.",
           },
-          limit: { type: "number", description: "Max results to return, default 20" },
+          limit: { type: "number", description: "Max results to return, default 50. Use 100 for broad cross-protocol comparisons." },
         },
       },
     },

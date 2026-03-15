@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.markets]
 verify_jwt = false
+
+[functions.user-positions]
+verify_jwt = false
