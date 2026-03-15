@@ -15,7 +15,7 @@ export default function MarketPage({ children, title }: Props) {
         <IconButton size="small" onClick={() => navigate(-1)} sx={{ color: "text.secondary", ml: -0.5 }}>
           <ArrowBackIcon fontSize="small" />
         </IconButton>
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#e0e4eb", fontFamily: "Inter, sans-serif" }}>
           {title}
         </div>
       </Box>
