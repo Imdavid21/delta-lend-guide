@@ -57,6 +57,24 @@ async function fetchMarketsEndpoint(type: "lending" | "vaults"): Promise<any[]> 
   return res.json();
 }
 
+// Module-level cache — persists across warm invocations within the same Deno isolate.
+// Avoids re-fetching on every chat request; TTL keeps data fresh enough for live rates.
+let _marketsCache: { lending: any[]; vaults: any[]; ts: number } | null = null;
+const MARKETS_CACHE_TTL = 90_000; // 90 seconds
+
+async function getCachedMarkets(): Promise<{ lending: any[]; vaults: any[] }> {
+  const now = Date.now();
+  if (_marketsCache && now - _marketsCache.ts < MARKETS_CACHE_TTL) {
+    return _marketsCache;
+  }
+  const [lending, vaults] = await Promise.all([
+    fetchMarketsEndpoint("lending"),
+    fetchMarketsEndpoint("vaults"),
+  ]);
+  _marketsCache = { lending, vaults, ts: now };
+  return _marketsCache;
+}
+
 function slimPools(raw: any, minTvlUsd = 10000) {
   const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
   const all = items.map((m: any) => {
@@ -88,13 +106,11 @@ async function dispatchTool(name: string, input: any): Promise<string> {
   switch (name) {
     case "search_markets": {
       const types: ("lending" | "vaults")[] = (input.types ?? ["lending", "vaults"]).filter((t: string) => t !== "pendle") as ("lending" | "vaults")[];
-      const results = await Promise.all(types.map(fetchMarketsEndpoint));
+      // Use cached markets — no extra fetch on warm invocations
+      const { lending, vaults } = await getCachedMarkets();
       const allItems: any[] = [];
-      types.forEach((t, i) => {
-        for (const item of results[i]) {
-          allItems.push({ ...item, _type: t });
-        }
-      });
+      if (types.includes("lending")) for (const item of lending) allItems.push({ ...item, _type: "lending" });
+      if (types.includes("vaults")) for (const item of vaults) allItems.push({ ...item, _type: "vaults" });
       // Filter by query terms
       const q = (input.query ?? "").toLowerCase();
       const filtered = q
@@ -904,6 +920,7 @@ ID-BASED MARKET MAPPING (CRITICAL):
 - **When linking to a market, ALWAYS use the custom syntax**: \`{{market:MORPHO_BLUE_XXX:1:0xabc;;Morpho Blue;;USDC;;5.96;;8265748|Gauntlet USDC/wstETH}}\`
 - **When a user clicks a market link or asks about a specific market by id**, use that id directly with find_market or action tools.
 - If user message contains "(market id: ...)" or "(id: ...)", extract that id and use it for the action.
+- **CRITICAL — NEVER question a provided market ID**: If "(market id: ...)" or "(marketUid: ...)" is present in the message, treat it as 100% correct and use it directly for action tools. Do NOT say "this market ID doesn't reference X" — the token address in the ID IS the correct asset. Proceed immediately to the action.
 
 search_markets FIELD REFERENCE:
 - Lending results: id, marketUid, protocolName, asset, supplyAPY (percentage), borrowAPR (percentage or null), totalSupplyUSD, availableLiquidityUSD, utilizationRate
@@ -1142,11 +1159,12 @@ When user asks about ETH: depositing ETH, borrowing against ETH, ETH yield:
 - When user says "deposit ETH" they almost always mean the native asset or WETH — use ETH asset group.
 - Looping strategy: deposit wstETH, borrow USDC at low rate, deposit USDC → good base-rate amplification.
 
-MARKET COVERAGE — ETHEREUM & BASE (both chains always searched):
-The search_markets tool queries BOTH Ethereum (chain 1) AND Base (chain 8453) simultaneously.
-- Ethereum: Aave V3 Core, Aave V3 Prime, Compound Blue, Spark, Morpho Blue vaults, Euler vaults, Granary
-- Base: Aave V3 Core, Compound Blue (Base), Moonwell, Seamless, Morpho Blue vaults
-- When user asks about a specific chain, filter in your response — but always fetch all chains.
+MARKET COVERAGE — STABLECOINS ONLY on Ethereum & Base:
+The search_markets tool returns ONLY stablecoin markets (USDC, USDT, USDe, DAI, USDS, PYUSD) across:
+- Lending: Aave V3 (Core/Prime/Horizon), Compound V3/Blue, Spark — on Ethereum and Base
+- Vaults: Morpho Blue vaults, Euler vaults — on Ethereum and Base
+This is intentional — the platform is optimized for stablecoin yield and borrowing.
+If a user asks about a non-stablecoin (ETH, wstETH, WBTC, etc.), let them know this platform focuses on stablecoins.
 - Morpho Blue vaults (id starts "morpho-vault:") appear in "vaults" type — always include vaults type for Morpho queries.`;
 
 /* ───── agent loop ───── */
@@ -1171,33 +1189,23 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   const isPositionQuery = POSITION_KEYWORDS.test(query);
 
   // ── Pre-resolve market when user clicks a market card ──────────────────
-  // "(market id: LENDER:chainId:0xABC)" is injected by the UI when a card is clicked.
-  // Pre-fetch it here so the AI never needs to call search_markets / find_market,
-  // saving an entire tool round (≈38s LLM + 20s fetch) and preventing edge-function timeouts.
+  // "(market id: ...)" is injected by the UI when a card is clicked.
+  // Look up the market from the cache — zero extra fetches on warm invocations.
   const MARKET_ID_PATTERN = /\(market\s+id:\s*([^)]+)\)/i;
   const marketIdMatch = query.match(MARKET_ID_PATTERN);
   if (marketIdMatch) {
     const rawId = marketIdMatch[1].trim();
-    // Parse lender:chainId:token from the market ID (format may include extra prefix like COMPOUND_V3_USDC:...)
-    const parts = rawId.split(":");
-    if (parts.length >= 3) {
-      // Extract chainId (second-to-last numeric part) and token (last part)
-      const chainId = parts[parts.length - 2];
-      const token = parts[parts.length - 1];
-      // Derive lender: last segment before chainId that looks like a lender ID
-      const lenderRaw = parts.slice(0, parts.length - 2).join("_");
-      // Strip asset suffix from lender key (e.g. COMPOUND_V3_USDC → COMPOUND_V3)
-      const lender = lenderRaw.replace(/_[A-Z]+$/, "");
-      try {
-        const marketData = await dispatchTool("find_market", {
-          chainId,
-          lender,
-          underlyings: token,
-          count: 5,
-        });
-        preFetchedMarket = `MARKET PRE-FETCHED (id: ${rawId}):\n${marketData}\n\nDo NOT call search_markets, find_market, or get_lending_markets — use this data directly.`;
-      } catch { /* non-fatal */ }
-    }
+    try {
+      const { lending, vaults } = await getCachedMarkets();
+      const all = [...lending, ...vaults];
+      const match = all.find((m: any) => (m.id ?? m.marketUid) === rawId);
+      if (match) {
+        preFetchedMarket = `MARKET PRE-FETCHED (id: ${rawId}):\n${JSON.stringify(match)}\n\nDo NOT call search_markets, find_market, or get_lending_markets — use this data directly. The marketUid for action tools is: ${match.marketUid ?? match.id}`;
+      } else {
+        // Market not in stablecoin list but ID is valid — tell AI to use it as-is
+        preFetchedMarket = `MARKET ID: ${rawId}\nThis is a valid marketUid. Use it directly for action tools without calling any lookup tools. Do NOT question or validate this market ID — treat it as correct.`;
+      }
+    } catch { /* non-fatal — AI will handle without pre-fetch */ }
   }
 
   // Resolve ENS or raw address for third-party position lookups
@@ -1236,10 +1244,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   // Only pre-fetch opportunities when there's a connected wallet (otherwise no positions to supplement)
   if (userAddress && (isPositionQuery || /\bportfolio\b/i.test(query))) {
     try {
-      const [lendingRaw, vaultsRaw] = await Promise.all([
-        fetchMarketsEndpoint("lending"),
-        fetchMarketsEndpoint("vaults"),
-      ]);
+      const { lending: lendingRaw, vaults: vaultsRaw } = await getCachedMarkets();
       const all = [...lendingRaw, ...vaultsRaw];
 
       const byAPY = (a: any, b: any) =>

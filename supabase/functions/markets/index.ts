@@ -111,15 +111,25 @@ async function fetchJSON(url: string, headers: Record<string, string> = {}, time
   }
 }
 
+// Only these stablecoin assets and lending protocols are shown in the UI
+const STABLE_ASSETS = ["USDC", "USDT", "USDE", "DAI", "USDS", "PYUSD"];
+const STABLE_ASSET_SET = new Set(STABLE_ASSETS);
+const ALLOWED_LENDING_PREFIXES = ["AAVE_V3", "COMPOUND_V3", "SPARK", "EULER"];
+
+function isAllowedLender(key: string) {
+  return ALLOWED_LENDING_PREFIXES.some((p) => key.startsWith(p));
+}
+
 async function fetch1DeltaPools(hdrs: Record<string, string>) {
   const chainIds = ["1", "8453"];
 
-  // Fetch all chains in parallel with higher count to ensure full protocol coverage
+  // Fetch only stablecoin assets from allowed protocols — drastically smaller payload
   const responses = await Promise.all(
     chainIds.map((chainId) => {
       const url = new URL(BASE + "/data/lending/pools");
       url.searchParams.set("chainId", chainId);
-      url.searchParams.set("count", "200");
+      url.searchParams.set("assetGroups", STABLE_ASSETS.join(","));
+      url.searchParams.set("count", "50");
       return fetchJSON(url.toString(), hdrs, 15000);
     }),
   );
@@ -146,11 +156,14 @@ async function fetchLending(hdrs: Record<string, string>) {
   return items
     .map((pool: any) => {
       const lenderKey = pool.lenderKey ?? pool.lender ?? "";
-      if (lenderKey.startsWith("MORPHO_BLUE")) return null;
-      if (lenderKey === "ZEROLEND") return null; // Removed from UI per product decision
+      // Only Aave V3, Compound V3/Blue, Spark — skip everything else
+      if (!isAllowedLender(lenderKey)) return null;
 
       const chainId = resolveChainId(pool) ?? 1;
       const asset = extractAsset(pool);
+      // Only the allowed stablecoins
+      if (!STABLE_ASSET_SET.has(asset.toUpperCase())) return null;
+
       const tvl = parseFloat(pool.totalDepositsUsd) || 0;
       if (tvl < 10_000_000 || tvl > 100_000_000_000) return null; // filter <$10M and >$100B (data artifacts)
       const utilPct = normalizePercent(pool.utilization);
@@ -235,6 +248,8 @@ async function fetchMorphoVaults(): Promise<any[]> {
       .filter((v: any) => {
         const tvl = v._tvl;
         if (tvl < 10_000_000) return false;   // $10M minimum
+        // Only stablecoin vaults
+        if (!STABLE_ASSET_SET.has((v.asset?.symbol ?? "").toUpperCase())) return false;
         // Filter out unrealistic APYs (>100%) — likely reward-gaming or data artifacts
         const apy = (v.state?.apy ?? 0) * 100;
         if (apy > 100) return false;
@@ -279,11 +294,12 @@ async function fetchVaults(hdrs: Record<string, string>) {
   for (const pool of items1delta) {
     const lk = pool.lenderKey ?? "";
     if (!lk.startsWith("EULER")) continue;
+    const asset = extractAsset(pool);
+    if (!STABLE_ASSET_SET.has(asset.toUpperCase())) continue;
     const tvl = parseFloat(pool.totalDepositsUsd) || 0;
     if (tvl < 10_000_000 || tvl > 50_000_000_000) continue; // $10M–$50B range for Euler vaults
     const chainId = resolveChainId(pool) ?? 1;
     const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
-    const asset = extractAsset(pool);
     eulerVaults.push({
       id: pool.marketUid ?? `euler:${chainId}:${asset}`,
       marketUid: pool.marketUid ?? `euler:${chainId}:${asset}`,
