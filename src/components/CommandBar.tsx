@@ -242,14 +242,14 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
 
   const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
 
-  const bg = isDark ? "#0a0f14" : "#ffffff";
-  const cardBg = isDark ? "#0e1419" : "#f8fafc";
-  const border = isDark ? "rgba(67,72,78,0.4)" : "rgba(0,0,0,0.1)";
+  const bg = isDark ? "#060809" : "#ffffff";
+  const cardBg = isDark ? "#0a0d10" : "#f8fafc";
+  const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)";
   const borderFocused = "#00FF9D";
-  const textPrimary = isDark ? "#eaeef5" : "#0a0a0a";
-  const textSecondary = isDark ? "#a7abb2" : "#737373";
-  const textDisabled = isDark ? "rgba(167,171,178,0.45)" : "rgba(0,0,0,0.3)";
-  const itemHover = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
+  const textPrimary = isDark ? "#e0e4eb" : "#0a0a0a";
+  const textSecondary = isDark ? "#6b7280" : "#737373";
+  const textDisabled = isDark ? "rgba(107,114,128,0.45)" : "rgba(0,0,0,0.3)";
+  const itemHover = isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)";
   const green = "#00FF9D";
 
   /** Icon-only type indicator (no text labels) */
