@@ -445,51 +445,6 @@ export default function ExecutionPanel() {
 
   const settingsRef = useRef<HTMLDivElement>(null);
 
-  // ── Wallet balance ────────────────────────────────────────
-  const isNative = NATIVE_SYMBOLS.has(validFromAsset ?? "");
-  const erc20Address = useMemo(() =>
-    connectedChainId ? TOKEN_ADDRESSES[validFromAsset]?.[connectedChainId] : undefined,
-  [validFromAsset, connectedChainId]);
-
-  // Native balance (ETH, MATIC, etc.)
-  const { data: nativeBalance } = useBalance({
-    address: isConnected && isNative ? address : undefined,
-  });
-
-  // ERC20 balance via balanceOf
-  const { data: erc20BalanceRaw } = useReadContract({
-    address: erc20Address,
-    abi: ERC20_BALANCE_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: { enabled: isConnected && !isNative && !!erc20Address },
-  });
-  const { data: erc20Decimals } = useReadContract({
-    address: erc20Address,
-    abi: ERC20_BALANCE_ABI,
-    functionName: "decimals",
-    query: { enabled: isConnected && !isNative && !!erc20Address },
-  });
-
-  const walletBalanceNum = useMemo(() => {
-    if (!isConnected) return 0;
-    if (isNative && nativeBalance) return parseFloat(nativeBalance.formatted);
-    if (!isNative && erc20BalanceRaw != null && erc20Decimals != null) {
-      return Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals);
-    }
-    return 0;
-  }, [isConnected, isNative, nativeBalance, erc20BalanceRaw, erc20Decimals]);
-
-  const walletBalanceLabel = useMemo(() => {
-    if (!isConnected) return null;
-    if (isNative && nativeBalance) return `${parseFloat(nativeBalance.formatted).toFixed(4)} ${validFromAsset}`;
-    if (!isNative && erc20Address && erc20BalanceRaw != null && erc20Decimals != null) {
-      return `${(Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals)).toFixed(4)} ${validFromAsset}`;
-    }
-    if (!isNative && !erc20Address) return `— ${validFromAsset}`;
-    return null; // loading
-  }, [isConnected, isNative, nativeBalance, validFromAsset, erc20Address, erc20BalanceRaw, erc20Decimals]);
-
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
   const accent = mode === "borrow" ? AMBER : GREEN;
   const fromLabel = mode === "borrow" ? "Collateral" : subCfg.fromLabel;
@@ -532,6 +487,47 @@ export default function ExecutionPanel() {
   }, [mode, lendSubMode, lendingAssets, vaultAssets]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
+
+  // ── Wallet balance (must come after validFromAsset) ───────
+  const isNative = NATIVE_SYMBOLS.has(validFromAsset);
+  const erc20Address = useMemo(() =>
+    connectedChainId ? TOKEN_ADDRESSES[validFromAsset]?.[connectedChainId] : undefined,
+  [validFromAsset, connectedChainId]);
+
+  const { data: nativeBalance } = useBalance({
+    address: isConnected && isNative ? address : undefined,
+  });
+  const { data: erc20BalanceRaw } = useReadContract({
+    address: erc20Address,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: isConnected && !isNative && !!erc20Address },
+  });
+  const { data: erc20Decimals } = useReadContract({
+    address: erc20Address,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "decimals",
+    query: { enabled: isConnected && !isNative && !!erc20Address },
+  });
+
+  const walletBalanceNum = useMemo(() => {
+    if (!isConnected) return 0;
+    if (isNative && nativeBalance) return parseFloat(nativeBalance.formatted);
+    if (!isNative && erc20BalanceRaw != null && erc20Decimals != null)
+      return Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals);
+    return 0;
+  }, [isConnected, isNative, nativeBalance, erc20BalanceRaw, erc20Decimals]);
+
+  const walletBalanceLabel = useMemo(() => {
+    if (!isConnected) return null;
+    if (isNative && nativeBalance)
+      return `${parseFloat(nativeBalance.formatted).toFixed(4)} ${validFromAsset}`;
+    if (!isNative && erc20Address && erc20BalanceRaw != null && erc20Decimals != null)
+      return `${(Number(erc20BalanceRaw) / 10 ** Number(erc20Decimals)).toFixed(4)} ${validFromAsset}`;
+    if (!isNative && !erc20Address) return `— ${validFromAsset}`;
+    return null; // loading
+  }, [isConnected, isNative, nativeBalance, validFromAsset, erc20Address, erc20BalanceRaw, erc20Decimals]);
 
   // ── All routes (no slice) ────────────────────────────────
   const routes = useMemo((): ExecRoute[] => {
