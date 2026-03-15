@@ -1034,9 +1034,11 @@ When the user gives vague or partial action commands, infer context intelligentl
    → Reply: "The best market for [ASSET] right now is [Protocol] at X% APY on [Chain]. How much [ASSET] would you like to deposit?"
    → Do NOT call any action tool until the user gives an amount.
 
-2. "borrow [ASSET]" with no amount or collateral:
+2. "borrow [ASSET]" / "borrow in [ASSET]" with no amount:
+   → NEVER infer an amount from position data. ALWAYS ask explicitly.
    → Call search_markets, pick the lowest borrow APR.
-   → Reply: "The cheapest [ASSET] borrow is [Protocol] at X% APR. What collateral asset will you use, and how much [ASSET] do you need?"
+   → Reply: "The cheapest [ASSET] borrow is [Protocol] at X% APR on [Chain]. How much [ASSET] would you like to borrow?"
+   → Do NOT call any action tool until the user provides a specific number.
 
 3. "deposit [AMOUNT] [ASSET]" — amount given, no protocol specified:
    → Auto-select the highest APY market across all chains, execute immediately.
