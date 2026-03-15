@@ -93,30 +93,32 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
           })}
         </div>
 
-        {/* MCP & API links */}
+        {/* Account link */}
         <div style={{ display: "flex", alignItems: "center", gap: 0, marginLeft: 8 }}>
-          {(["MCP", "API"] as const).map((label) => (
-            <button
-              key={label}
-              style={{
-                padding: "5px 14px",
-                borderRadius: 7,
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "Inter, sans-serif",
-                fontSize: 12,
-                fontWeight: 600,
-                background: "transparent",
-                color: textSecondary,
-                transition: "all 200ms ease",
-                letterSpacing: "-0.01em",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = textPrimary; e.currentTarget.style.background = surfaceHigh; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = textSecondary; e.currentTarget.style.background = "transparent"; }}
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            onClick={() => navigate("/account")}
+            style={{
+              padding: "5px 14px",
+              borderRadius: 7,
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 12,
+              fontWeight: 600,
+              background: location.pathname.startsWith("/account") ? surfaceHigh : "transparent",
+              color: location.pathname.startsWith("/account") ? textPrimary : textSecondary,
+              transition: "all 200ms ease",
+              letterSpacing: "-0.01em",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = textPrimary; e.currentTarget.style.background = surfaceHigh; }}
+            onMouseLeave={(e) => {
+              const active = location.pathname.startsWith("/account");
+              e.currentTarget.style.color = active ? textPrimary : textSecondary;
+              e.currentTarget.style.background = active ? surfaceHigh : "transparent";
+            }}
+          >
+            Account
+          </button>
         </div>
       </div>
 
