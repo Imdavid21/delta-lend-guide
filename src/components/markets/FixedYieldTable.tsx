@@ -13,13 +13,13 @@ const selectSx = {
   fontSize: 12,
   fontWeight: 600,
   minWidth: 130,
-  bgcolor: "#0a0f14",
-  border: "1px solid rgba(67,72,78,0.4)",
+  bgcolor: "#060809",
+  border: "1px solid rgba(255,255,255,0.08)",
   borderRadius: 2,
-  color: "#a7abb2",
+  color: "#6b7280",
   "& .MuiOutlinedInput-notchedOutline": { border: "none" },
   "& .MuiSelect-select": { py: "5px", px: "10px" },
-  "& .MuiSelect-icon": { color: "#a7abb2" },
+  "& .MuiSelect-icon": { color: "#6b7280" },
 };
 
 export default function FixedYieldTable({ showTitle = true }: { showTitle?: boolean }) {
@@ -73,11 +73,11 @@ export default function FixedYieldTable({ showTitle = true }: { showTitle?: bool
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1.5 }}>
         {showTitle && (
-          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#e0e4eb", fontFamily: "Inter, sans-serif" }}>
             Fixed Rate Markets
           </div>
         )}
-        <Box sx={{ display: "flex", gap: 1 }}>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Select
             value={chainFilter}
             onChange={(e) => setChainFilter(e.target.value)}
@@ -103,22 +103,22 @@ export default function FixedYieldTable({ showTitle = true }: { showTitle?: bool
 
       {error && <Typography color="error" variant="body2">Failed to load Pendle markets</Typography>}
 
-      <TableContainer sx={{ border: "1px solid rgba(67,72,78,0.3)", borderRadius: 3, overflow: "hidden", background: "#0e1419" }}>
+      <TableContainer sx={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", background: "#0a0d10" }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ "&:hover": { bgcolor: "transparent !important" } }}>
               {cols.map((c) => (
-                <TableCell key={c.key} align={c.align} sx={{ borderBottom: "1px solid rgba(67,72,78,0.25)", bgcolor: "#0a0f14" }}>
+                <TableCell key={c.key} align={c.align} sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", bgcolor: "#060809" }}>
                   <TableSortLabel
                     active={sortKey === c.key}
                     direction={sortKey === c.key ? sortDir : "asc"}
                     onClick={() => handleSort(c.key)}
                     sx={{
                       fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
-                      color: "#a7abb2 !important",
+                      color: "#6b7280 !important",
                       "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#00FF9D !important" },
-                      "&.Mui-active": { color: "#eaeef5 !important" },
-                      "&:hover": { color: "#eaeef5 !important" },
+                      "&.Mui-active": { color: "#e0e4eb !important" },
+                      "&:hover": { color: "#e0e4eb !important" },
                     }}
                   >
                     {c.label}
@@ -139,8 +139,8 @@ export default function FixedYieldTable({ showTitle = true }: { showTitle?: bool
                     key={m.id}
                     sx={{
                       cursor: "pointer",
-                      "&:hover": { bgcolor: "rgba(255,255,255,0.025) !important" },
-                      "& td": { borderBottom: "1px solid rgba(67,72,78,0.15)" },
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.02) !important" },
+                      "& td": { borderBottom: "1px solid rgba(255,255,255,0.04)" },
                     }}
                   >
                     <TableCell>
@@ -160,14 +160,14 @@ export default function FixedYieldTable({ showTitle = true }: { showTitle?: bool
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <AssetIcon symbol={m.asset} size={18} />
-                        <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>{m.asset}</Typography>
+                        <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "#e0e4eb" }}>{m.asset}</Typography>
                       </Box>
                     </TableCell>
                     <TableCell align="right">
                       <Typography
                         fontSize={13}
                         fontWeight={700}
-                        sx={{ fontVariantNumeric: "tabular-nums", color: m.impliedAPY > 5 ? "#00FF9D" : "#eaeef5" }}
+                        sx={{ fontVariantNumeric: "tabular-nums", color: m.impliedAPY > 5 ? "#00FF9D" : "#e0e4eb" }}
                       >
                         {formatPercent(m.impliedAPY)}
                       </Typography>
@@ -180,8 +180,8 @@ export default function FixedYieldTable({ showTitle = true }: { showTitle?: bool
                           variant="outlined"
                           sx={{
                             fontSize: 11, height: 22, fontWeight: 600,
-                            borderColor: m.daysToMaturity < 30 ? "#f59e0b" : "rgba(67,72,78,0.4)",
-                            color: m.daysToMaturity < 30 ? "#f59e0b" : "#a7abb2",
+                            borderColor: m.daysToMaturity < 30 ? "#f59e0b" : "rgba(255,255,255,0.08)",
+                            color: m.daysToMaturity < 30 ? "#f59e0b" : "#6b7280",
                           }}
                         />
                       ) : (
@@ -189,7 +189,7 @@ export default function FixedYieldTable({ showTitle = true }: { showTitle?: bool
                       )}
                     </TableCell>
                     <TableCell align="right">
-                      <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>{formatUSD(m.tvl)}</Typography>
+                      <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "#e0e4eb" }}>{formatUSD(m.tvl)}</Typography>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -199,7 +199,7 @@ export default function FixedYieldTable({ showTitle = true }: { showTitle?: bool
 
       {!isLoading && rows.length === 0 && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <span style={{ fontSize: 14, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>No fixed yield markets found</span>
+          <span style={{ fontSize: 14, color: "#6b7280", fontFamily: "Inter, sans-serif" }}>No fixed yield markets found</span>
         </div>
       )}
     </Box>

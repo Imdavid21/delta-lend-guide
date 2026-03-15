@@ -15,12 +15,12 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
 
   const activeSection = location.pathname.startsWith("/borrow") ? "borrow" : "lending";
 
-  const bg = isDark ? "rgba(20, 26, 32, 0.75)" : "rgba(255,255,255,0.8)";
-  const border = isDark ? "rgba(67,72,78,0.15)" : "rgba(0,0,0,0.08)";
-  const textPrimary = isDark ? "#eaeef5" : "#0a0a0a";
-  const textSecondary = isDark ? "#a7abb2" : "#737373";
+  const bg = isDark ? "rgba(8, 10, 14, 0.85)" : "rgba(255,255,255,0.8)";
+  const border = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
+  const textPrimary = isDark ? "#e0e4eb" : "#0a0a0a";
+  const textSecondary = isDark ? "#6b7280" : "#737373";
   const green = "#00FF9D";
-  const surfaceHigh = isDark ? "#1f262e" : "#f1f5f9";
+  const surfaceHigh = isDark ? "#161b22" : "#f1f5f9";
 
   return (
     <header
@@ -54,41 +54,70 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
         </span>
       </div>
 
-      {/* Center: Lending / Borrow toggle */}
-      <div
-        style={{
-          display: "flex",
-          background: surfaceHigh,
-          borderRadius: 10,
-          padding: 3,
-          border: `1px solid ${border}`,
-          gap: 2,
-        }}
-      >
-        {(["lending", "borrow"] as const).map((section) => {
-          const active = activeSection === section;
-          return (
+      {/* Center: Navigation */}
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {/* Lending / Borrow toggle */}
+        <div
+          style={{
+            display: "flex",
+            background: surfaceHigh,
+            borderRadius: 10,
+            padding: 3,
+            border: `1px solid ${border}`,
+            gap: 2,
+          }}
+        >
+          {(["lending", "borrow"] as const).map((section) => {
+            const active = activeSection === section;
+            return (
+              <button
+                key={section}
+                onClick={() => navigate(`/${section}`)}
+                style={{
+                  padding: "5px 24px",
+                  borderRadius: 7,
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  background: active ? green : "transparent",
+                  color: active ? "#004527" : textSecondary,
+                  transition: "all 200ms ease",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {section.charAt(0).toUpperCase() + section.slice(1)}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* MCP & API links */}
+        <div style={{ display: "flex", alignItems: "center", gap: 0, marginLeft: 8 }}>
+          {(["MCP", "API"] as const).map((label) => (
             <button
-              key={section}
-              onClick={() => navigate(`/${section}`)}
+              key={label}
               style={{
-                padding: "5px 24px",
+                padding: "5px 14px",
                 borderRadius: 7,
                 border: "none",
                 cursor: "pointer",
                 fontFamily: "Inter, sans-serif",
-                fontSize: 13,
-                fontWeight: 700,
-                background: active ? green : "transparent",
-                color: active ? "#004527" : textSecondary,
+                fontSize: 12,
+                fontWeight: 600,
+                background: "transparent",
+                color: textSecondary,
                 transition: "all 200ms ease",
                 letterSpacing: "-0.01em",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = textPrimary; e.currentTarget.style.background = surfaceHigh; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = textSecondary; e.currentTarget.style.background = "transparent"; }}
             >
-              {section.charAt(0).toUpperCase() + section.slice(1)}
+              {label}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
       {/* Right: Actions */}

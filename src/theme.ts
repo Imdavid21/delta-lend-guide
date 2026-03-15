@@ -3,24 +3,24 @@ import { createTheme, alpha } from "@mui/material/styles";
 // Nebula color palette (dark mode)
 const nebula = {
   // Backgrounds / surfaces
-  bg:        "#0a0f14",
-  surface:   "#0e1419", // surface-container-low — cards
-  surfaceMid: "#141a20", // surface-container
-  surfaceHi: "#1a2027", // surface-container-high — table headers
-  surfaceTop:"#1f262e", // surface-container-highest — hover states
-  surfaceBright:"#252d35",
+  bg:        "#060809",
+  surface:   "#0a0d10",
+  surfaceMid: "#0e1114",
+  surfaceHi: "#131619",
+  surfaceTop:"#181c20",
+  surfaceBright:"#1e2227",
 
   // Accents
-  primary:   "#00FF9D",  // bright green
+  primary:   "#00FF9D",
   primaryDim:"#00ec91",
-  secondary: "#64f9c3",  // teal
-  tertiary:  "#78dfff",  // cyan
+  secondary: "#64f9c3",
+  tertiary:  "#78dfff",
 
   // Text
-  onSurface: "#eaeef5",
-  onVariant: "#a7abb2",
-  outline:   "#71767c",  // disabled text / divider text
-  outlineVar:"rgba(67, 72, 78, 0.3)", // borders
+  onSurface: "#e0e4eb",
+  onVariant: "#6b7280",
+  outline:   "#4b5563",
+  outlineVar:"rgba(255, 255, 255, 0.06)",
 
   // Semantic
   error:     "#ff716c",

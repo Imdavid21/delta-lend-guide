@@ -156,14 +156,14 @@ export default function AppShell({ mode, onToggle }: Props) {
           display: "flex",
           flexDirection: "column",
           height: "100vh",
-          bgcolor: isDark ? "#0a0f14" : "#ffffff",
-          color: isDark ? "#eaeef5" : "#0a0a0a",
+          bgcolor: isDark ? "#060809" : "#ffffff",
+          color: isDark ? "#e0e4eb" : "#0a0a0a",
           position: "relative",
         }}
       >
         {/* Background glows */}
-        <Box aria-hidden sx={{ position: "fixed", top: 0, right: 0, width: 500, height: 500, borderRadius: "50%", bgcolor: isDark ? "rgba(0,255,157,0.04)" : "transparent", filter: "blur(120px)", pointerEvents: "none", zIndex: 0 }} />
-        <Box aria-hidden sx={{ position: "fixed", bottom: 0, left: 0, width: 600, height: 600, borderRadius: "50%", bgcolor: isDark ? "rgba(120,223,255,0.03)" : "transparent", filter: "blur(150px)", pointerEvents: "none", zIndex: 0 }} />
+        <Box aria-hidden sx={{ position: "fixed", top: 0, right: 0, width: 500, height: 500, borderRadius: "50%", bgcolor: isDark ? "rgba(0,255,157,0.025)" : "transparent", filter: "blur(120px)", pointerEvents: "none", zIndex: 0 }} />
+        <Box aria-hidden sx={{ position: "fixed", bottom: 0, left: 0, width: 600, height: 600, borderRadius: "50%", bgcolor: isDark ? "rgba(120,223,255,0.02)" : "transparent", filter: "blur(150px)", pointerEvents: "none", zIndex: 0 }} />
 
         <AppHeader
           mode={mode}
@@ -172,7 +172,7 @@ export default function AppShell({ mode, onToggle }: Props) {
           onToggleChat={() => setChatOpen((p) => !p)}
         />
 
-        {/* Scrollable main content - pb accounts for fixed bottom bar */}
+        {/* Scrollable main content */}
         <Box
           component="main"
           sx={{
@@ -193,13 +193,10 @@ export default function AppShell({ mode, onToggle }: Props) {
               <DashboardContainer viewMode="lending" submitAction={submitAction} isDark={isDark} />
             } />
             <Route path="/borrow" element={
-              <DashboardContainer viewMode="borrow" submitAction={submitAction} isDark={isDark} />
+              <BorrowPage isDark={isDark} />
             } />
             <Route path="/lending/markets" element={
               <MarketPage title="Lending Markets"><LendingTable viewMode="lending" showTitle={false} /></MarketPage>
-            } />
-            <Route path="/borrow/markets" element={
-              <MarketPage title="Borrow Markets"><LendingTable viewMode="borrow" showTitle={false} /></MarketPage>
             } />
             <Route path="/lending/vaults" element={
               <MarketPage title="Yield Vaults"><VaultsTable showTitle={false} /></MarketPage>
@@ -237,14 +234,14 @@ export default function AppShell({ mode, onToggle }: Props) {
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              bgcolor: isDark ? "#0e1419" : "background.default",
+              bgcolor: isDark ? "#0a0d10" : "background.default",
               border: "1px solid",
-              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "divider",
             },
           }}
           sx={{
             "& .MuiBackdrop-root": {
-              backgroundColor: "rgba(0,0,0,0.4)",
+              backgroundColor: "rgba(0,0,0,0.5)",
               backdropFilter: "blur(6px)",
             },
           }}
@@ -257,7 +254,7 @@ export default function AppShell({ mode, onToggle }: Props) {
               px: 2,
               py: 1,
               borderBottom: "1px solid",
-              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "divider",
               minHeight: 44,
               flexShrink: 0,
             }}
@@ -300,7 +297,7 @@ export default function AppShell({ mode, onToggle }: Props) {
               px: 2,
               py: 1.5,
               borderTop: "1px solid",
-              borderColor: isDark ? "rgba(67,72,78,0.3)" : "divider",
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "divider",
               flexShrink: 0,
             }}
           >
@@ -310,7 +307,7 @@ export default function AppShell({ mode, onToggle }: Props) {
               placeholder="Ask anything..."
               fullWidth
               autoFocus
-              sx={{ fontSize: 14, px: 1.5, py: 0.75, borderRadius: 2, bgcolor: isDark ? "rgba(31,38,46,0.5)" : "action.hover" }}
+              sx={{ fontSize: 14, px: 1.5, py: 0.75, borderRadius: 2, bgcolor: isDark ? "rgba(255,255,255,0.04)" : "action.hover" }}
             />
             <IconButton
               type="submit"
@@ -338,6 +335,17 @@ function DashboardContainer({ viewMode, submitAction, isDark }: {
         <HeroStats viewMode={viewMode} />
       </Box>
       <TopYields viewMode={viewMode} onAction={submitAction} />
+    </>
+  );
+}
+
+function BorrowPage({ isDark }: { isDark: boolean }) {
+  return (
+    <>
+      <Box sx={{ mb: 3 }}>
+        <HeroStats viewMode="borrow" />
+      </Box>
+      <LendingTable viewMode="borrow" showTitle={true} />
     </>
   );
 }
