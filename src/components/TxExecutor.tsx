@@ -8,7 +8,6 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import CircularProgress from "@mui/material/CircularProgress";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useAccount, useSwitchChain, useSendTransaction } from "wagmi";
-import SimulationPanel from "./SimulationPanel";
 import type { TxStep } from "../hooks/useChats";
 
 type StepStatus = "idle" | "pending" | "success" | "error";
@@ -71,7 +70,6 @@ export default function TxExecutor({ transactions, quote }: Props) {
         </Typography>
       </Box>
       <Box sx={{ px: 1, pt: 0.5 }}>
-        {quote && <SimulationPanel quote={quote} />}
         <List dense disablePadding>
           {transactions.map((step, i) => (
             <Box key={i}>
