@@ -7,6 +7,7 @@ import {
 import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { usePrices } from "@/hooks/usePrices";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
+import { CHAIN_CONFIGS, CHAIN_BY_NAME } from "@/lib/chains";
 import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 import TxExecutor from "@/components/TxExecutor";
 import type { TxStep } from "@/hooks/useChats";
@@ -15,27 +16,11 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
 const INITIAL_LIMIT = 6;
 
-// Chain-aware gas cost and confirmation time estimates shown in route cards.
-// These are representative ranges — actual cost depends on live gas prices.
-const CHAIN_GAS_EST: Record<string, string> = {
-  Ethereum: "~$2–15",
-  Base:      "<$0.01",
-  Arbitrum:  "<$0.10",
-  Optimism:  "<$0.05",
-};
-
-const CHAIN_TIME_EST: Record<string, string> = {
-  Ethereum: "~12s",
-  Base:     "~2s",
-  Arbitrum: "~2s",
-  Optimism: "~2s",
-};
-
 function chainGasEst(chain: string | null) {
-  return CHAIN_GAS_EST[chain ?? "Ethereum"] ?? "~$1–15";
+  return CHAIN_BY_NAME[chain ?? ""]?.gasEst ?? "~$1–15";
 }
 function chainTimeEst(chain: string | null) {
-  return CHAIN_TIME_EST[chain ?? "Ethereum"] ?? "~15s";
+  return CHAIN_BY_NAME[chain ?? ""]?.timeEst ?? "~15s";
 }
 
 const NATIVE_SYMBOLS = new Set(["ETH", "MATIC", "BNB", "AVAX"]);
@@ -101,25 +86,40 @@ const ERC20_BALANCE_ABI = [
 
 /* ─── Types ─────────────────────────────────────────────── */
 
-type ExecMode = "lend" | "borrow";
-type LendSubMode = "lending" | "vault";
+type ExecMode = "lend" | "borrow" | "margin";
+type LendSubMode = "lending" | "withdraw" | "vault";
+type BorrowSubMode = "borrow" | "repay";
+type MarginSubMode = "leverage" | "close" | "collateral-swap" | "debt-swap";
 
 const LEND_SUBMODES: { id: LendSubMode; label: string; btnLabel: string; fromLabel: string; toLabel: string }[] = [
-  { id: "lending", label: "Lending", btnLabel: "Deposit", fromLabel: "Deposit Asset", toLabel: "You Receive"    },
-  { id: "vault",   label: "Vault",   btnLabel: "Deposit", fromLabel: "Deposit Asset", toLabel: "Vault Strategy" },
+  { id: "lending",  label: "Deposit",  btnLabel: "Deposit",  fromLabel: "Deposit Asset",  toLabel: "You Receive"    },
+  { id: "withdraw", label: "Withdraw", btnLabel: "Withdraw", fromLabel: "Withdraw Asset", toLabel: "You Receive"    },
+  { id: "vault",    label: "Vault",    btnLabel: "Deposit",  fromLabel: "Deposit Asset",  toLabel: "Vault Strategy" },
+];
+
+const BORROW_SUBMODES: { id: BorrowSubMode; label: string; btnLabel: string }[] = [
+  { id: "borrow", label: "Borrow", btnLabel: "Borrow" },
+  { id: "repay",  label: "Repay",  btnLabel: "Repay"  },
+];
+
+const MARGIN_SUBMODES: { id: MarginSubMode; label: string; btnLabel: string; desc: string }[] = [
+  { id: "leverage",        label: "Leverage",        btnLabel: "Open Position",   desc: "Amplify exposure with borrowed funds" },
+  { id: "close",           label: "Close",           btnLabel: "Close Position",  desc: "Close leveraged position atomically"  },
+  { id: "collateral-swap", label: "Collateral Swap", btnLabel: "Swap Collateral", desc: "Switch to a different collateral asset" },
+  { id: "debt-swap",       label: "Debt Swap",       btnLabel: "Swap Debt",       desc: "Switch to a different borrow asset"    },
 ];
 
 const GREEN = "#86efac";
 const AMBER = "#fbbf24";
+const PURPLE = "#a78bfa";
 
 interface ChainOption { id: string | null; label: string; chainId?: number }
 const CHAINS: ChainOption[] = [
-  { id: null,       label: "Any Chain"           },
-  { id: "Ethereum", label: "Ethereum", chainId: 1     },
-  { id: "Base",     label: "Base",     chainId: 8453  },
+  { id: null, label: "Any Chain" },
+  ...CHAIN_CONFIGS.map(c => ({ id: c.name, label: c.label, chainId: c.id })),
 ];
-const CHAIN_NAME_TO_ID: Record<string, number> = { Ethereum: 1, Base: 8453 };
-const CHAIN_ID_TO_NAME: Record<number, string> = { 1: "Ethereum", 8453: "Base" };
+const CHAIN_NAME_TO_ID: Record<string, number> = Object.fromEntries(CHAIN_CONFIGS.map(c => [c.name, c.id]));
+const CHAIN_ID_TO_NAME: Record<number, string> = Object.fromEntries(CHAIN_CONFIGS.map(c => [c.id, c.name]));
 
 const TVL_OPTIONS = [
   { value: 0,            label: "Any TVL" },
@@ -459,6 +459,11 @@ export default function ExecutionPanel() {
 
   const [mode, setMode] = useState<ExecMode>("lend");
   const [lendSubMode, setLendSubMode] = useState<LendSubMode>("lending");
+  const [borrowSubMode, setBorrowSubMode] = useState<BorrowSubMode>("borrow");
+  const [marginSubMode, setMarginSubMode] = useState<MarginSubMode>("leverage");
+  const [leverage, setLeverage] = useState("2");
+  const [isAll, setIsAll] = useState(false);
+  const [secondRouteId, setSecondRouteId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [fromAsset, setFromAsset] = useState("USDC");
   const [toAsset, setToAsset] = useState("USDC");
@@ -506,19 +511,35 @@ export default function ExecutionPanel() {
   };
 
   const subCfg = LEND_SUBMODES.find(s => s.id === lendSubMode)!;
-  const accent = mode === "borrow" ? AMBER : GREEN;
-  const fromLabel = mode === "borrow" ? "Collateral" : subCfg.fromLabel;
-  const toLabel   = mode === "borrow" ? "Borrow Asset" : subCfg.toLabel;
-  const execBtnLabel = mode === "borrow" ? "Borrow" : subCfg.btnLabel;
+  const borrowCfg = BORROW_SUBMODES.find(s => s.id === borrowSubMode)!;
+  const marginCfg = MARGIN_SUBMODES.find(s => s.id === marginSubMode)!;
+  const accent = mode === "borrow" ? AMBER : mode === "margin" ? PURPLE : GREEN;
+  const fromLabel = mode === "borrow"
+    ? (borrowSubMode === "repay" ? "Repay Asset" : "Collateral")
+    : mode === "margin"
+    ? (marginSubMode === "collateral-swap" ? "Current Collateral" : marginSubMode === "debt-swap" ? "Current Debt" : "Debt Market")
+    : subCfg.fromLabel;
+  const toLabel = mode === "borrow"
+    ? (borrowSubMode === "repay" ? "Market to Repay" : "Borrow Asset")
+    : mode === "margin"
+    ? (marginSubMode === "collateral-swap" ? "New Collateral" : marginSubMode === "debt-swap" ? "New Debt" : "Collateral Market")
+    : subCfg.toLabel;
+  const execBtnLabel = mode === "borrow"
+    ? borrowCfg.btnLabel
+    : mode === "margin"
+    ? marginCfg.btnLabel
+    : subCfg.btnLabel;
 
   // Reset when context changes
   useEffect(() => {
     setSelectedRouteId(null);
+    setSecondRouteId(null);
     setShowAll(false);
     setTxSteps(null);
     setTxQuote(null);
     setTxError(null);
-  }, [mode, lendSubMode, fromAsset, toAsset, chainId, filterProtocol, filterMinTvl]);
+    setIsAll(false);
+  }, [mode, lendSubMode, borrowSubMode, marginSubMode, fromAsset, toAsset, chainId, filterProtocol, filterMinTvl]);
 
   // Close settings popover on outside click
   useEffect(() => {
@@ -545,6 +566,11 @@ export default function ExecutionPanel() {
     }
     return lendingAssets.length ? lendingAssets : fallback;
   }, [mode, lendSubMode, lendingAssets, vaultAssets]);
+
+  // ── Second market (for margin ops) ──────────────────────
+  const secondRoute = useMemo(() =>
+    allLendingRoutes.find(r => r.id === secondRouteId) ?? allLendingRoutes[0] ?? null,
+  [allLendingRoutes, secondRouteId]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
@@ -599,9 +625,11 @@ export default function ExecutionPanel() {
   const routes = useMemo((): ExecRoute[] => {
     const asset = validFromAsset;
 
-    if (mode === "borrow") {
+    if (mode === "borrow" || mode === "margin") {
+      // For repay/borrow/margin we show markets with borrow capability
+      const filterAsset = mode === "borrow" ? toAsset : asset;
       return (markets ?? [])
-        .filter(m => m.asset === toAsset && m.borrowAPR != null && m.borrowAPR > 0)
+        .filter(m => m.asset === filterAsset && m.borrowAPR != null && m.borrowAPR > 0)
         .sort((a, b) => (a.borrowAPR ?? 999) - (b.borrowAPR ?? 999))
         .map(m => {
           const { chain } = parseChainFromLabel(m.protocolName);
@@ -619,7 +647,7 @@ export default function ExecutionPanel() {
         });
     }
 
-    if (lendSubMode === "lending") {
+    if (lendSubMode === "lending" || lendSubMode === "withdraw") {
       return (markets ?? [])
         .filter(m => m.asset === asset && m.supplyAPY > 0)
         .sort((a, b) => b.supplyAPY - a.supplyAPY)
@@ -658,6 +686,27 @@ export default function ExecutionPanel() {
         };
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults]);
+
+  // ── All lending routes (used as second market pool for margin) ──
+  const allLendingRoutes = useMemo((): ExecRoute[] =>
+    (markets ?? [])
+      .filter(m => m.supplyAPY > 0)
+      .sort((a, b) => b.supplyAPY - a.supplyAPY)
+      .map(m => {
+        const { chain } = parseChainFromLabel(m.protocolName);
+        return {
+          id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
+          outputLabel: `${m.asset}`,
+          returnValue: m.supplyAPY,
+          returnLabel: formatPercent(m.supplyAPY) + " APY",
+          tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
+          tvlRaw: m.totalSupplyUSD,
+          availableLiquidityUSD: m.availableLiquidityUSD,
+          utilizationRate: m.utilizationRate,
+          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
+        };
+      }),
+  [markets]);
 
   // ── Available protocols for filter ───────────────────────
   const availableProtocols = useMemo(
@@ -707,28 +756,69 @@ export default function ExecutionPanel() {
     if (btnState === "connect") { openWallet(); return; }
     if (btnState !== "exec" || !selectedRoute) return;
 
+    // Address guard — wallet can be connected but address momentarily undefined
+    if (!address) {
+      setTxError("Wallet address unavailable. Please reconnect your wallet.");
+      return;
+    }
+
     setTxLoading(true);
     setTxSteps(null);
     setTxQuote(null);
     setTxError(null);
 
     try {
-      const action = mode === "borrow" ? "borrow" : "deposit";
-      const asset  = mode === "borrow" ? toAsset : validFromAsset;
+      let action: string;
+      let asset: string;
+      let body: Record<string, unknown>;
 
-      // Detect vault markets by their id prefix
-      const isVaultMarket =
-        selectedRoute.id.startsWith("morpho-vault:") ||
-        selectedRoute.id.startsWith("euler:");
+      if (mode === "margin") {
+        action = marginSubMode;
+        asset  = validFromAsset;
+        body = {
+          action,
+          marketUid:    selectedRoute.marketUid,
+          marketUidIn:  selectedRoute.marketUid,
+          marketUidOut: secondRoute?.marketUid,
+          amount:       String(amountNum),
+          asset,
+          operator:     address,
+          chainId:      connectedChainId,
+          slippage,
+          ...(action === "leverage" && { leverage }),
+          ...(isAll && { isAll: true }),
+        };
+      } else {
+        if (mode === "borrow") {
+          action = borrowSubMode; // "borrow" or "repay"
+          asset  = toAsset;
+        } else {
+          action = lendSubMode === "withdraw" ? "withdraw" : "deposit";
+          asset  = validFromAsset;
+        }
 
-      // For vault deposits the underlying ERC20 address is needed to build the approve tx
-      const tokenAddress =
-        isVaultMarket && connectedChainId
-          ? TOKEN_ADDRESSES[asset]?.[connectedChainId]
-          : undefined;
+        // Only MetaMorpho vaults use ERC4626 direct calldata
+        const isVaultMarket = selectedRoute.id.startsWith("morpho-vault:");
+        const tokenAddress  =
+          isVaultMarket && connectedChainId
+            ? TOKEN_ADDRESSES[asset]?.[connectedChainId]
+            : undefined;
+
+        body = {
+          action,
+          marketId:     selectedRoute.id,
+          marketUid:    selectedRoute.marketUid,
+          amount:       String(amountNum),
+          asset,
+          operator:     address,
+          chainId:      connectedChainId,
+          slippage,
+          tokenAddress,
+        };
+      }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30_000);
+      const timeoutId  = setTimeout(() => controller.abort(), 30_000);
 
       let res: Response;
       try {
@@ -738,17 +828,7 @@ export default function ExecutionPanel() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${SUPABASE_KEY}`,
           },
-          body: JSON.stringify({
-            action,
-            marketId:   selectedRoute.id,
-            marketUid:  selectedRoute.marketUid,
-            amount:     String(amountNum),
-            asset,
-            operator:   address,
-            chainId:    connectedChainId,
-            slippage,
-            tokenAddress,
-          }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
       } finally {
@@ -765,12 +845,12 @@ export default function ExecutionPanel() {
         setTxSteps(data.transactions);
         setTxQuote(data.quote ?? null);
       } else {
-        setTxError("No transaction steps returned — the market may be paused or unavailable.");
+        setTxError("No transaction steps were returned. The market may be paused or unavailable.");
       }
     } catch (err: any) {
       const isTimeout = err.name === "AbortError" || err.name === "TimeoutError";
       setTxError(isTimeout
-        ? "Request timed out. The 1delta API may be slow — please try again."
+        ? "Request timed out — please try again."
         : (err.message ?? "Failed to prepare transaction"));
     } finally {
       setTxLoading(false);
@@ -793,23 +873,24 @@ export default function ExecutionPanel() {
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* ── Mode tabs ── */}
       <div style={{ display: "flex", gap: 4 }}>
-        {(["lend", "borrow"] as ExecMode[]).map(m => {
+        {(["lend", "borrow", "margin"] as ExecMode[]).map(m => {
           const active = mode === m;
+          const modeAccent = m === "borrow" ? AMBER : m === "margin" ? PURPLE : GREEN;
           return (
             <button
               key={m}
               onClick={() => setMode(m)}
               style={{
                 padding: "6px 20px", borderRadius: 8,
-                border: active ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(67,72,78,0.3)",
-                background: active ? "rgba(255,255,255,0.07)" : "transparent",
-                color: active ? "#eaeef5" : "#a7abb2",
+                border: active ? `1px solid ${modeAccent}44` : "1px solid rgba(67,72,78,0.3)",
+                background: active ? `${modeAccent}12` : "transparent",
+                color: active ? modeAccent : "#a7abb2",
                 fontSize: 12, fontWeight: 700, cursor: "pointer",
                 fontFamily: "Inter, sans-serif", letterSpacing: "-0.01em",
                 transition: "all 150ms ease",
               }}
             >
-              {m === "lend" ? "Lend" : "Borrow"}
+              {m === "lend" ? "Lend" : m === "borrow" ? "Borrow" : "Margin"}
             </button>
           );
         })}
@@ -846,10 +927,49 @@ export default function ExecutionPanel() {
                   );
                 })}
               </div>
+            ) : mode === "borrow" ? (
+              <div style={{ display: "flex", gap: 2, background: "#141a20", borderRadius: 8, padding: 2, border: "1px solid rgba(67,72,78,0.3)" }}>
+                {BORROW_SUBMODES.map(s => {
+                  const active = borrowSubMode === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setBorrowSubMode(s.id)}
+                      style={{
+                        padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700,
+                        background: active ? "#1f262e" : "transparent",
+                        color: active ? AMBER : "#a7abb2",
+                        transition: "all 150ms",
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
             ) : (
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
-                Borrow
-              </span>
+              <div style={{ display: "flex", gap: 2, background: "#141a20", borderRadius: 8, padding: 2, border: "1px solid rgba(67,72,78,0.3)" }}>
+                {MARGIN_SUBMODES.map(s => {
+                  const active = marginSubMode === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setMarginSubMode(s.id)}
+                      title={s.desc}
+                      style={{
+                        padding: "4px 9px", borderRadius: 6, border: "none", cursor: "pointer",
+                        fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 700,
+                        background: active ? "#1f262e" : "transparent",
+                        color: active ? PURPLE : "#a7abb2",
+                        transition: "all 150ms",
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
             )}
 
             {/* Settings gear */}
@@ -922,7 +1042,7 @@ export default function ExecutionPanel() {
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
               <span>{fromLabel}</span>
-              {mode === "borrow" && (
+              {mode === "borrow" && borrowSubMode === "borrow" && (
                 <span style={{ display: "flex", alignItems: "center", gap: 3, color: AMBER, fontSize: 9 }}>
                   <Lock size={9} /> Locked as collateral
                 </span>
@@ -1016,9 +1136,9 @@ export default function ExecutionPanel() {
               width: 28, height: 28, borderRadius: "50%",
               background: "#0a0f14", border: "1px solid rgba(67,72,78,0.3)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: mode === "borrow" ? AMBER : "#a7abb2",
+              color: mode === "borrow" && borrowSubMode === "borrow" ? AMBER : mode === "margin" ? PURPLE : "#a7abb2",
             }}>
-              {mode === "borrow" ? <Lock size={11} /> : <ArrowDown size={12} />}
+              {mode === "borrow" && borrowSubMode === "borrow" ? <Lock size={11} /> : <ArrowDown size={12} />}
             </div>
           </div>
 
@@ -1029,11 +1149,84 @@ export default function ExecutionPanel() {
             </div>
 
             {mode === "borrow" ? (
-              <AssetDropdown
-                asset={toAsset}
-                onChange={a => setToAsset(a)}
-                assets={borrowableAssets.length ? borrowableAssets : ["USDC", "USDT", "DAI", "ETH"]}
-              />
+              borrowSubMode === "borrow" ? (
+                <AssetDropdown
+                  asset={toAsset}
+                  onChange={a => setToAsset(a)}
+                  assets={borrowableAssets.length ? borrowableAssets : ["USDC", "USDT", "DAI", "ETH"]}
+                />
+              ) : selectedRoute ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: "50%", background: "#0a0f14",
+                    border: "1px solid rgba(67,72,78,0.3)",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <ProtocolIcon name={selectedRoute.protocol} size={15} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#eaeef5", fontFamily: "Inter, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {parseChainFromLabel(selectedRoute.protocol).name}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
+                      {selectedRoute.chain ? selectedRoute.chain : ""}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: AMBER, letterSpacing: "-0.02em", fontFamily: "Inter, sans-serif", flexShrink: 0 }}>
+                    {selectedRoute.returnLabel}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ color: "#a7abb2", fontSize: 12, fontFamily: "Inter, sans-serif" }}>Select a market above</div>
+              )
+            ) : mode === "margin" ? (
+              /* Second market picker for margin ops */
+              secondRoute ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 30, height: 30, borderRadius: "50%", background: "#0a0f14",
+                      border: "1px solid rgba(167,139,250,0.2)",
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                      <ProtocolIcon name={secondRoute.protocol} size={15} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#eaeef5", fontFamily: "Inter, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {secondRoute.outputLabel} — {parseChainFromLabel(secondRoute.protocol).name}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
+                        {secondRoute.chain ?? ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {allLendingRoutes.slice(0, 6).map(r => {
+                      const sel = r.id === (secondRoute?.id);
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => setSecondRouteId(r.id)}
+                          title={`${parseChainFromLabel(r.protocol).name} · ${r.chain ?? ""}`}
+                          style={{
+                            padding: "3px 8px", borderRadius: 6, fontSize: 10, fontWeight: 600,
+                            border: sel ? "1px solid rgba(167,139,250,0.4)" : "1px solid rgba(67,72,78,0.3)",
+                            background: sel ? "rgba(167,139,250,0.1)" : "transparent",
+                            color: sel ? PURPLE : "#a7abb2",
+                            cursor: "pointer", fontFamily: "Inter, sans-serif",
+                          }}
+                        >
+                          {r.outputLabel} · {r.chain ?? ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ color: "#a7abb2", fontSize: 12, fontFamily: "Inter, sans-serif" }}>
+                  {markets ? "No markets available" : "Loading…"}
+                </div>
+              )
             ) : selectedRoute ? (
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{
@@ -1063,8 +1256,53 @@ export default function ExecutionPanel() {
             )}
           </div>
 
+          {/* MARGIN: leverage input + isAll toggle */}
+          {mode === "margin" && (
+            <div style={{ marginBottom: 12, background: inputBg, borderRadius: 12, padding: 12, border: sectionBorder }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#a7abb2", marginBottom: 8, fontFamily: "Inter, sans-serif", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                {marginCfg.desc}
+              </div>
+              {marginSubMode === "leverage" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>Target Leverage</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {["2", "3", "5", "10"].map(lv => (
+                      <button
+                        key={lv}
+                        onClick={() => setLeverage(lv)}
+                        style={{
+                          padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                          border: leverage === lv ? `1px solid ${PURPLE}44` : "1px solid rgba(67,72,78,0.3)",
+                          background: leverage === lv ? `${PURPLE}12` : "transparent",
+                          color: leverage === lv ? PURPLE : "#a7abb2",
+                          cursor: "pointer", fontFamily: "Inter, sans-serif",
+                        }}
+                      >{lv}×</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(marginSubMode === "close" || marginSubMode === "repay" as any) && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    onClick={() => setIsAll(p => !p)}
+                    style={{
+                      padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                      border: isAll ? `1px solid ${PURPLE}44` : "1px solid rgba(67,72,78,0.3)",
+                      background: isAll ? `${PURPLE}12` : "transparent",
+                      color: isAll ? PURPLE : "#a7abb2",
+                      cursor: "pointer", fontFamily: "Inter, sans-serif",
+                    }}
+                  >
+                    {isAll ? "✓ Close Full Position" : "Close Full Position"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* BORROW: health factor + risk info */}
-          {mode === "borrow" && amountNum > 0 && (
+          {mode === "borrow" && borrowSubMode === "borrow" && amountNum > 0 && (
             <div style={{ marginBottom: 12, background: inputBg, borderRadius: 12, padding: 12, border: sectionBorder }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
                 <HealthGauge value={Math.min(9.99, healthFactor)} />
@@ -1084,10 +1322,10 @@ export default function ExecutionPanel() {
           )}
 
           {/* LEND: complementary stats (APY/protocol already shown above in TO section) */}
-          {mode === "lend" && selectedRoute && (
+          {(mode === "lend" || (mode === "borrow" && borrowSubMode === "repay")) && selectedRoute && (
             <div style={{ marginBottom: 12 }}>
               <FieldRow
-                label={lendSubMode === "vault" ? "Vault TVL" : "Pool TVL"}
+                label={mode === "lend" && lendSubMode === "vault" ? "Vault TVL" : "Pool TVL"}
                 value={selectedRoute.tvlLabel}
               />
               <FieldRow
@@ -1149,7 +1387,7 @@ export default function ExecutionPanel() {
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.02em" }}>
-              Best Routes
+              {mode === "margin" ? "Primary Market" : "Best Routes"}
             </span>
             {filteredRoutes.length > 0 && (
               <span style={{ fontSize: 10, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
@@ -1277,7 +1515,7 @@ export default function ExecutionPanel() {
               border: "1px solid rgba(67,72,78,0.2)",
             }}>
               <div style={{ fontSize: 10, color: "rgba(167,171,178,0.6)", fontFamily: "Inter, sans-serif", lineHeight: 1.6 }}>
-                Routes ranked by {mode === "borrow" ? "lowest APR" : "highest APY"}. All data sourced live from on-chain protocols.
+                Routes ranked by {mode === "borrow" ? "lowest APR" : mode === "margin" ? "lowest APR (debt market)" : "highest APY"}. All data sourced live from on-chain protocols.
                 Gas estimates are approximations and may vary.
               </div>
             </div>

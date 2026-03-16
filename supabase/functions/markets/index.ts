@@ -23,9 +23,39 @@ const LENDER_NAMES: Record<string, string> = {
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum",
-  8453: "Base",
-  42161: "Arbitrum",
   10: "Optimism",
+  25: "Cronos",
+  40: "Telos",
+  50: "XDC",
+  56: "BSC",
+  100: "Gnosis",
+  130: "Unichain",
+  137: "Polygon",
+  143: "Monad",
+  146: "Sonic",
+  169: "Manta",
+  250: "Fantom",
+  999: "HyperEVM",
+  1088: "Metis",
+  1116: "Core",
+  1284: "Moonbeam",
+  1329: "Sei",
+  1868: "Soneium",
+  2818: "Morph",
+  5000: "Mantle",
+  8217: "Kaia",
+  8453: "Base",
+  9745: "Plasma",
+  34443: "Mode",
+  42161: "Arbitrum",
+  43111: "Hemi",
+  43114: "Avalanche",
+  59144: "Linea",
+  80094: "Berachain",
+  81457: "Blast",
+  167000: "Taiko",
+  534352: "Scroll",
+  747474: "Katana",
 };
 
 function parseChainIdFromMarketUid(marketUid?: string): number | undefined {
@@ -112,15 +142,49 @@ async function fetchJSON(url: string, headers: Record<string, string> = {}, time
 }
 
 async function fetch1DeltaPools(hdrs: Record<string, string>) {
-  const chainIds = ["1", "8453"];
+  // All chains where 1delta has Composer contracts deployed.
+  // The $10M TVL filter in callers will naturally exclude chains with no active protocols.
+  const chainIds = [
+    "1",      // Ethereum
+    "10",     // Optimism
+    "25",     // Cronos
+    "56",     // BSC
+    "100",    // Gnosis
+    "130",    // Unichain
+    "137",    // Polygon
+    "146",    // Sonic
+    "169",    // Manta Pacific
+    "250",    // Fantom
+    "999",    // HyperEVM
+    "1088",   // Metis
+    "1116",   // Core
+    "1284",   // Moonbeam
+    "1329",   // Sei
+    "1868",   // Soneium
+    "2818",   // Morph
+    "5000",   // Mantle
+    "8217",   // Kaia
+    "8453",   // Base
+    "9745",   // Plasma
+    "34443",  // Mode
+    "42161",  // Arbitrum
+    "43111",  // Hemi
+    "43114",  // Avalanche
+    "59144",  // Linea
+    "80094",  // Berachain
+    "81457",  // Blast
+    "167000", // Taiko
+    "534352", // Scroll
+  ];
 
-  // Fetch all chains in parallel with higher count to ensure full protocol coverage
+  // Fetch all chains in parallel; use a shorter timeout per chain so slow
+  // or unsupported chains don't block the overall response.
   const responses = await Promise.all(
     chainIds.map((chainId) => {
       const url = new URL(BASE + "/data/lending/pools");
       url.searchParams.set("chainId", chainId);
       url.searchParams.set("count", "200");
-      return fetchJSON(url.toString(), hdrs, 15000);
+      return fetchJSON(url.toString(), hdrs, 12000);
     }),
   );
 
@@ -178,7 +242,7 @@ async function fetchLending(hdrs: Record<string, string>) {
 async function fetchMorphoVaults(): Promise<any[]> {
   try {
     const query = `{
-      vaults(first: 500, where: { chainId_in: [1, 8453] }) {
+      vaults(first: 500, where: { chainId_in: [1, 8453, 10, 137, 42161, 43114, 130, 146, 1868] }) {
         items {
           address
           name
