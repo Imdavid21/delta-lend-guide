@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Typography, Skeleton, TableSortLabel, Chip, Select, MenuItem,
+  Typography, Skeleton, TableSortLabel, Select, MenuItem, useTheme,
 } from "@mui/material";
 import { useMarkets } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD, formatProtocolLabel } from "@/lib/marketTypes";
@@ -11,14 +11,22 @@ import MarketActionButton from "./MarketActionButton";
 type SortKey = "asset" | "protocolName" | "supplyAPY" | "borrowAPR" | "totalSupplyUSD" | "utilizationRate";
 
 function UtilBar({ value }: { value: number }) {
+  const theme = useTheme();
   const pct = Math.min(100, Math.max(0, value));
   const color = pct > 90 ? "#ff716c" : pct > 75 ? "#f59e0b" : "#86efac";
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: "tabular-nums" as const, color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+      <span style={{
+        fontSize: 12, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+        color: theme.palette.text.primary, fontFamily: "Inter, sans-serif",
+      }}>
         {formatPercent(value)}
       </span>
-      <div style={{ width: 80, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+      <div style={{
+        width: 80, height: 4, borderRadius: 2,
+        background: theme.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)",
+        overflow: "hidden",
+      }}>
         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 2, transition: "width 400ms ease", opacity: 0.85 }} />
       </div>
     </div>
@@ -34,20 +42,9 @@ function extractProtocolBase(protocolName: string): string {
   return protocolName.replace(/\s*\([^)]+\)$/, "");
 }
 
-const selectSx = {
-  fontSize: 12,
-  fontWeight: 600,
-  minWidth: 130,
-  bgcolor: "#060b10",
-  border: "1px solid rgba(67,72,78,0.4)",
-  borderRadius: 2,
-  color: "#a7abb2",
-  "& .MuiOutlinedInput-notchedOutline": { border: "none" },
-  "& .MuiSelect-select": { py: "5px", px: "10px" },
-  "& .MuiSelect-icon": { color: "#a7abb2" },
-};
-
 export default function LendingTable({ viewMode = "lending", showTitle = true }: { viewMode?: "lending" | "borrow"; showTitle?: boolean }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const { data, isLoading, error } = useMarkets();
   const [assetFilter, setAssetFilter] = useState<string>("");
   const [chainFilter, setChainFilter] = useState<string>("");
@@ -93,6 +90,35 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
     else { setSortKey(key); setSortDir("desc"); }
   };
 
+  const selectSx = {
+    fontSize: 12,
+    fontWeight: 600,
+    minWidth: 130,
+    bgcolor: "background.default",
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: 2,
+    color: "text.secondary",
+    "& .MuiOutlinedInput-notchedOutline": { border: "none" },
+    "& .MuiSelect-select": { py: "5px", px: "10px" },
+    "& .MuiSelect-icon": { color: "text.secondary" },
+  };
+
+  const sortLabelSx = {
+    fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+    color: "text.secondary !important" as any,
+    "& .MuiTableSortLabel-icon": {
+      opacity: 0.4,
+      color: "primary.main !important" as any,
+    },
+    "&.Mui-active": {
+      color: "text.primary !important" as any,
+      "& .MuiTableSortLabel-icon": { opacity: 1 },
+    },
+    "&:hover": { color: "text.primary !important" as any },
+  };
+
   const cols: { key: SortKey; label: string; align?: "right" }[] = [
     { key: "asset", label: "Asset" },
     { key: "supplyAPY", label: "Supply APY", align: "right" },
@@ -103,10 +129,12 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
 
   return (
     <Box>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
         {showTitle && (
-          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+          <div style={{
+            fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em",
+            color: theme.palette.text.primary, fontFamily: "Inter, sans-serif",
+          }}>
             {isLending ? "Lending Markets" : "Borrow Markets"}
           </div>
         )}
@@ -132,40 +160,23 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
         </Typography>
       )}
 
-      <TableContainer
-        sx={{
-          border: "1px solid rgba(67,72,78,0.3)",
-          borderRadius: 3,
-          overflow: "hidden",
-          background: "#0a1017",
-        }}
-      >
+      <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, overflow: "hidden", bgcolor: "background.paper" }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ "&:hover": { bgcolor: "transparent !important" } }}>
               {cols.map((c) => (
-                <TableCell
-                  key={c.key}
-                  align={c.align}
-                  sx={{ borderBottom: "1px solid rgba(67,72,78,0.25)", bgcolor: "#060b10" }}
-                >
+                <TableCell key={c.key} align={c.align} sx={{ borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.default" }}>
                   <TableSortLabel
                     active={sortKey === c.key}
                     direction={sortKey === c.key ? sortDir : "asc"}
                     onClick={() => handleSort(c.key)}
-                    sx={{
-                      fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-                      letterSpacing: "0.05em", color: "#a7abb2 !important",
-                      "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#86efac !important" },
-                      "&.Mui-active": { color: "#eaeef5 !important" },
-                      "&:hover": { color: "#eaeef5 !important" },
-                    }}
+                    sx={sortLabelSx}
                   >
                     {c.label}
                   </TableSortLabel>
                 </TableCell>
               ))}
-              <TableCell sx={{ borderBottom: "1px solid rgba(67,72,78,0.25)", bgcolor: "#060b10" }} />
+              <TableCell sx={{ borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.default" }} />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -173,12 +184,12 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
               ? Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i} sx={{ "&:hover": { bgcolor: "transparent" } }}>
                     {cols.map((c) => (
-                      <TableCell key={c.key} align={c.align} sx={{ borderBottom: "1px solid rgba(67,72,78,0.15)" }}>
-                        <Skeleton width={c.align === "right" ? 56 : 80} height={18} sx={{ bgcolor: "rgba(255,255,255,0.05)" }} />
+                      <TableCell key={c.key} align={c.align} sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
+                        <Skeleton width={c.align === "right" ? 56 : 80} height={18} sx={{ bgcolor: "action.hover" }} />
                       </TableCell>
                     ))}
-                    <TableCell sx={{ borderBottom: "1px solid rgba(67,72,78,0.15)" }}>
-                      <Skeleton width={60} height={28} sx={{ borderRadius: 1, bgcolor: "rgba(255,255,255,0.05)" }} />
+                    <TableCell sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
+                      <Skeleton width={60} height={28} sx={{ borderRadius: 1, bgcolor: "action.hover" }} />
                     </TableCell>
                   </TableRow>
                 ))
@@ -190,26 +201,27 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
                       key={m.id}
                       sx={{
                         cursor: "pointer",
-                        "&:hover": { bgcolor: "rgba(255,255,255,0.025) !important" },
-                        "& td": { borderBottom: "1px solid rgba(67,72,78,0.15)" },
+                        "&:hover": { bgcolor: "action.hover" },
+                        "& td": { borderBottom: "1px solid", borderColor: "divider" },
                       }}
                     >
                       <TableCell>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                           <Box sx={{
-                            width: 32, height: 32, borderRadius: "50%", bgcolor: "#101820",
+                            width: 32, height: 32, borderRadius: "50%",
+                            bgcolor: isDark ? "#101820" : "action.selected",
                             display: "flex", alignItems: "center", justifyContent: "center",
-                            border: "1px solid rgba(67,72,78,0.3)", flexShrink: 0,
+                            border: "1px solid", borderColor: "divider", flexShrink: 0,
                           }}>
                             <AssetIcon symbol={m.asset} size={18} />
                           </Box>
                           <Box>
-                            <Typography sx={{ fontWeight: 700, fontSize: 13, fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: 13, fontVariantNumeric: "tabular-nums", color: "text.primary" }}>
                               {m.asset}
                             </Typography>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
                               <ProtocolIcon name={m.protocolName} size={11} />
-                              <Typography sx={{ fontSize: 10, color: "#a7abb2" }}>{protoName}</Typography>
+                              <Typography sx={{ fontSize: 10, color: "text.secondary" }}>{protoName}</Typography>
                               {chain && <ChainIcon chainName={chain} size={11} />}
                             </Box>
                           </Box>
@@ -219,20 +231,20 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
                       <TableCell align="right">
                         <Typography sx={{
                           fontSize: 13, fontWeight: 800, fontVariantNumeric: "tabular-nums",
-                          color: supplyHighlight ? "#00FF9D" : "#eaeef5", letterSpacing: "-0.02em",
+                          color: supplyHighlight ? "#00FF9D" : "text.primary", letterSpacing: "-0.02em",
                         }}>
                           {formatPercent(m.supplyAPY)}
                         </Typography>
                       </TableCell>
 
                       <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "#a7abb2" }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "text.secondary" }}>
                           {formatPercent(m.borrowAPR)}
                         </Typography>
                       </TableCell>
 
                       <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "text.primary" }}>
                           {formatUSD(m.totalSupplyUSD)}
                         </Typography>
                       </TableCell>
@@ -255,9 +267,9 @@ export default function LendingTable({ viewMode = "lending", showTitle = true }:
       </TableContainer>
 
       {!isLoading && rows.length === 0 && (
-        <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <span style={{ fontSize: 14, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>No markets found</span>
-        </div>
+        <Box sx={{ textAlign: "center", py: 6 }}>
+          <Typography variant="body2" color="text.secondary">No markets found</Typography>
+        </Box>
       )}
     </Box>
   );

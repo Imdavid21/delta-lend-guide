@@ -15,6 +15,29 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
 const INITIAL_LIMIT = 6;
 
+// Chain-aware gas cost and confirmation time estimates shown in route cards.
+// These are representative ranges — actual cost depends on live gas prices.
+const CHAIN_GAS_EST: Record<string, string> = {
+  Ethereum: "~$2–15",
+  Base:      "<$0.01",
+  Arbitrum:  "<$0.10",
+  Optimism:  "<$0.05",
+};
+
+const CHAIN_TIME_EST: Record<string, string> = {
+  Ethereum: "~12s",
+  Base:     "~2s",
+  Arbitrum: "~2s",
+  Optimism: "~2s",
+};
+
+function chainGasEst(chain: string | null) {
+  return CHAIN_GAS_EST[chain ?? "Ethereum"] ?? "~$1–15";
+}
+function chainTimeEst(chain: string | null) {
+  return CHAIN_TIME_EST[chain ?? "Ethereum"] ?? "~15s";
+}
+
 const NATIVE_SYMBOLS = new Set(["ETH", "MATIC", "BNB", "AVAX"]);
 
 const TOKEN_ADDRESSES: Record<string, Record<number, `0x${string}`>> = {
@@ -591,7 +614,7 @@ export default function ExecutionPanel() {
             tvlRaw: m.availableLiquidityUSD,
             availableLiquidityUSD: m.availableLiquidityUSD,
             utilizationRate: m.utilizationRate,
-            gasEst: "<$0.01", timeEst: "~20s",
+            gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
           };
         });
     }
@@ -612,7 +635,7 @@ export default function ExecutionPanel() {
             tvlRaw: m.totalSupplyUSD,
             availableLiquidityUSD: m.availableLiquidityUSD,
             utilizationRate: m.utilizationRate,
-            gasEst: "<$0.01", timeEst: "~15s",
+            gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
           };
         });
     }
@@ -631,7 +654,7 @@ export default function ExecutionPanel() {
           tvlRaw: v.tvl,
           availableLiquidityUSD: v.tvl,
           utilizationRate: null,
-          gasEst: "<$0.01", timeEst: "~15s",
+          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
         };
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults]);
@@ -690,37 +713,41 @@ export default function ExecutionPanel() {
     setTxError(null);
 
     try {
-      const protoName = parseChainFromLabel(selectedRoute.protocol).name;
-      const action = mode === "borrow" ? "borrow" : subCfg.btnLabel.toLowerCase();
-      const query = `${action} ${amountNum} ${mode === "borrow" ? toAsset : validFromAsset} on ${protoName}. Slippage: ${slippage}%. Market UID: ${selectedRoute.marketUid}.`;
+      const action = mode === "borrow" ? "borrow" : "deposit";
+      const asset  = mode === "borrow" ? toAsset : validFromAsset;
+
+      // Detect vault markets by their id prefix
+      const isVaultMarket =
+        selectedRoute.id.startsWith("morpho-vault:") ||
+        selectedRoute.id.startsWith("euler:");
+
+      // For vault deposits the underlying ERC20 address is needed to build the approve tx
+      const tokenAddress =
+        isVaultMarket && connectedChainId
+          ? TOKEN_ADDRESSES[asset]?.[connectedChainId]
+          : undefined;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 55_000);
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
       let res: Response;
       try {
-        res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+        res = await fetch(`${SUPABASE_URL}/functions/v1/prepare-tx`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${SUPABASE_KEY}`,
           },
           body: JSON.stringify({
-            query,
-            userAddress: address,
-            chainId: connectedChainId,
-            context: {
-              action,
-              asset: mode === "borrow" ? toAsset : validFromAsset,
-              collateralAsset: mode === "borrow" ? validFromAsset : undefined,
-              amount: amountNum,
-              protocol: protoName,
-              marketId: selectedRoute.id,
-              marketUid: selectedRoute.marketUid,
-              chain: selectedRoute.chain,
-              slippageTolerance: slippage,
-              mevProtection,
-            },
+            action,
+            marketId:   selectedRoute.id,
+            marketUid:  selectedRoute.marketUid,
+            amount:     String(amountNum),
+            asset,
+            operator:   address,
+            chainId:    connectedChainId,
+            slippage,
+            tokenAddress,
           }),
           signal: controller.signal,
         });
@@ -728,14 +755,17 @@ export default function ExecutionPanel() {
         clearTimeout(timeoutId);
       }
 
-      if (!res.ok) throw new Error(`Server error (${res.status})`);
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error ?? `Server error (${res.status})`);
+      }
 
       if (data.transactions?.length) {
         setTxSteps(data.transactions);
         setTxQuote(data.quote ?? null);
       } else {
-        setTxError("No transaction steps returned. The AI may need more context.");
+        setTxError("No transaction steps returned — the market may be paused or unavailable.");
       }
     } catch (err: any) {
       const isTimeout = err.name === "AbortError" || err.name === "TimeoutError";

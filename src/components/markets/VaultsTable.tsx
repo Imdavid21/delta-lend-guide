@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Typography, Skeleton, TableSortLabel, Select, MenuItem,
+  Typography, Skeleton, TableSortLabel, Select, MenuItem, useTheme,
 } from "@mui/material";
 import { useVaults } from "@/hooks/useMarkets";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
@@ -10,20 +10,9 @@ import MarketActionButton from "./MarketActionButton";
 
 type SortKey = "asset" | "protocol" | "apy" | "tvl" | "name";
 
-const selectSx = {
-  fontSize: 12,
-  fontWeight: 600,
-  minWidth: 130,
-  bgcolor: "#060b10",
-  border: "1px solid rgba(67,72,78,0.4)",
-  borderRadius: 2,
-  color: "#a7abb2",
-  "& .MuiOutlinedInput-notchedOutline": { border: "none" },
-  "& .MuiSelect-select": { py: "5px", px: "10px" },
-  "& .MuiSelect-icon": { color: "#a7abb2" },
-};
-
 export default function VaultsTable({ showTitle = true }: { showTitle?: boolean }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const { data, isLoading, error } = useVaults();
   const [assetFilter, setAssetFilter] = useState<string>("");
   const [chainFilter, setChainFilter] = useState<string>("");
@@ -69,6 +58,35 @@ export default function VaultsTable({ showTitle = true }: { showTitle?: boolean 
     else { setSortKey(key); setSortDir("desc"); }
   };
 
+  const selectSx = {
+    fontSize: 12,
+    fontWeight: 600,
+    minWidth: 130,
+    bgcolor: "background.default",
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: 2,
+    color: "text.secondary",
+    "& .MuiOutlinedInput-notchedOutline": { border: "none" },
+    "& .MuiSelect-select": { py: "5px", px: "10px" },
+    "& .MuiSelect-icon": { color: "text.secondary" },
+  };
+
+  const sortLabelSx = {
+    fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+    color: "text.secondary !important" as any,
+    "& .MuiTableSortLabel-icon": {
+      opacity: 0.4,
+      color: "primary.main !important" as any,
+    },
+    "&.Mui-active": {
+      color: "text.primary !important" as any,
+      "& .MuiTableSortLabel-icon": { opacity: 1 },
+    },
+    "&:hover": { color: "text.primary !important" as any },
+  };
+
   const cols: { key: SortKey; label: string; align?: "right" }[] = [
     { key: "name", label: "Vault" },
     { key: "asset", label: "Asset" },
@@ -80,7 +98,10 @@ export default function VaultsTable({ showTitle = true }: { showTitle?: boolean 
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1.5 }}>
         {showTitle && (
-          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em", color: "#eaeef5", fontFamily: "Inter, sans-serif" }}>
+          <div style={{
+            fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em",
+            color: theme.palette.text.primary, fontFamily: "Inter, sans-serif",
+          }}>
             Yield Vaults
           </div>
         )}
@@ -104,37 +125,37 @@ export default function VaultsTable({ showTitle = true }: { showTitle?: boolean 
 
       {error && <Typography color="error" variant="body2">Failed to load vaults</Typography>}
 
-      <TableContainer sx={{ border: "1px solid rgba(67,72,78,0.3)", borderRadius: 3, overflow: "hidden", background: "#0a1017" }}>
+      <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, overflow: "hidden", bgcolor: "background.paper" }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ "&:hover": { bgcolor: "transparent !important" } }}>
               {cols.map((c) => (
-                <TableCell key={c.key} align={c.align} sx={{ borderBottom: "1px solid rgba(67,72,78,0.25)", bgcolor: "#060b10" }}>
+                <TableCell key={c.key} align={c.align} sx={{ borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.default" }}>
                   <TableSortLabel
                     active={sortKey === c.key}
                     direction={sortKey === c.key ? sortDir : "asc"}
                     onClick={() => handleSort(c.key)}
-                    sx={{
-                      fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
-                      color: "#a7abb2 !important",
-                      "& .MuiTableSortLabel-icon": { opacity: sortKey === c.key ? 1 : 0.3, color: "#86efac !important" },
-                      "&.Mui-active": { color: "#eaeef5 !important" },
-                      "&:hover": { color: "#eaeef5 !important" },
-                    }}
+                    sx={sortLabelSx}
                   >
                     {c.label}
                   </TableSortLabel>
                 </TableCell>
               ))}
-              <TableCell sx={{ borderBottom: "1px solid rgba(67,72,78,0.25)", bgcolor: "#060b10" }} />
+              <TableCell sx={{ borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.default" }} />
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading
               ? Array.from({ length: 6 }).map((_, i) => (
                   <TableRow key={i}>
-                    {cols.map((c) => <TableCell key={c.key}><Skeleton width={60} sx={{ bgcolor: "rgba(255,255,255,0.05)" }} /></TableCell>)}
-                    <TableCell><Skeleton width={50} sx={{ bgcolor: "rgba(255,255,255,0.05)" }} /></TableCell>
+                    {cols.map((c) => (
+                      <TableCell key={c.key}>
+                        <Skeleton width={60} sx={{ bgcolor: "action.hover" }} />
+                      </TableCell>
+                    ))}
+                    <TableCell>
+                      <Skeleton width={50} sx={{ bgcolor: "action.hover" }} />
+                    </TableCell>
                   </TableRow>
                 ))
               : rows.map((v) => {
@@ -144,19 +165,19 @@ export default function VaultsTable({ showTitle = true }: { showTitle?: boolean 
                       key={v.id}
                       sx={{
                         cursor: "pointer",
-                        "&:hover": { bgcolor: "rgba(255,255,255,0.025) !important" },
-                        "& td": { borderBottom: "1px solid rgba(67,72,78,0.15)" },
+                        "&:hover": { bgcolor: "action.hover" },
+                        "& td": { borderBottom: "1px solid", borderColor: "divider" },
                       }}
                     >
                       <TableCell>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                           <ProtocolIcon name={v.protocol} size={16} />
                           <Box sx={{ minWidth: 0 }}>
-                            <Typography fontSize={13} fontWeight={600} sx={{ maxWidth: 260 }} noWrap>
+                            <Typography fontSize={13} fontWeight={600} sx={{ maxWidth: 260, color: "text.primary" }} noWrap>
                               {vaultName}
                             </Typography>
                             {v.curator && (
-                              <Typography fontSize={10} sx={{ color: "#a7abb2" }} noWrap>
+                              <Typography fontSize={10} sx={{ color: "text.secondary" }} noWrap>
                                 {v.curator}
                               </Typography>
                             )}
@@ -167,25 +188,29 @@ export default function VaultsTable({ showTitle = true }: { showTitle?: boolean 
                       <TableCell>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                           <AssetIcon symbol={v.asset} size={18} />
-                          <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>{v.asset}</Typography>
+                          <Typography fontWeight={700} fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "text.primary" }}>
+                            {v.asset}
+                          </Typography>
                         </Box>
                       </TableCell>
                       <TableCell align="right">
                         <Typography
                           fontSize={13}
                           fontWeight={700}
-                          sx={{ fontVariantNumeric: "tabular-nums", color: v.apy > 5 ? "#00FF9D" : "#eaeef5" }}
+                          sx={{ fontVariantNumeric: "tabular-nums", color: v.apy > 5 ? "#00FF9D" : "text.primary" }}
                         >
                           {formatPercent(v.apy)}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
-                        <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "#eaeef5" }}>{formatUSD(v.tvl)}</Typography>
+                        <Typography fontSize={13} sx={{ fontVariantNumeric: "tabular-nums", color: "text.primary" }}>
+                          {formatUSD(v.tvl)}
+                        </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <MarketActionButton
                           label="Deposit"
-                          prompt={`Deposit into ${v.protocol} vault "${v.name}" for ${v.asset} (id: ${v.id}${v.marketUid ? `, marketUid: ${v.marketUid}` : ''})`}
+                          prompt={`Deposit into ${v.protocol} vault "${v.name}" for ${v.asset} (id: ${v.id}${v.marketUid ? `, marketUid: ${v.marketUid}` : ""})`}
                         />
                       </TableCell>
                     </TableRow>
@@ -196,9 +221,9 @@ export default function VaultsTable({ showTitle = true }: { showTitle?: boolean 
       </TableContainer>
 
       {!isLoading && rows.length === 0 && (
-        <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <span style={{ fontSize: 14, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>No vaults found</span>
-        </div>
+        <Box sx={{ textAlign: "center", py: 6 }}>
+          <Typography variant="body2" color="text.secondary">No vaults found</Typography>
+        </Box>
       )}
     </Box>
   );

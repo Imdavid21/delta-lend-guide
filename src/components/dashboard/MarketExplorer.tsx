@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
+import UnifiedMarketsTable from "../markets/UnifiedMarketsTable";
 import LendingTable from "../markets/LendingTable";
-import VaultsTable from "../markets/VaultsTable";
 
 type MarketTab = "all_yields" | "borrow";
 
 export default function MarketExplorer({ viewMode = "lending" }: { viewMode?: "lending" | "borrow" }) {
-  const [tab, setTab] = useState<MarketTab>("all_yields");
+  const [tab, setTab] = useState<MarketTab>(viewMode === "borrow" ? "borrow" : "all_yields");
 
   return (
     <Box>
@@ -32,15 +32,9 @@ export default function MarketExplorer({ viewMode = "lending" }: { viewMode?: "l
         <Tab label="Lending & Vaults" value="all_yields" />
         <Tab label="Borrow" value="borrow" />
       </Tabs>
-      <Box>
-        {tab === "all_yields" && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <LendingTable viewMode="lending" showTitle={false} />
-            <VaultsTable showTitle={false} />
-          </Box>
-        )}
-        {tab === "borrow" && <LendingTable viewMode="borrow" showTitle={false} />}
-      </Box>
+
+      {tab === "all_yields" && <UnifiedMarketsTable />}
+      {tab === "borrow" && <LendingTable viewMode="borrow" showTitle={false} />}
     </Box>
   );
 }
