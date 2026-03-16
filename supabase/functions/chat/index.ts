@@ -243,23 +243,22 @@ async function dispatchTool(name: string, input: any): Promise<string> {
       if (!res.ok) return JSON.stringify({ error: "DeFiLlama API unavailable" });
       const allProtos: any[] = await res.json();
 
-      let filtered = allProtos;
-      if (category) filtered = filtered.filter((p: any) =>
-        (p.category ?? "").toLowerCase().includes(category.toLowerCase())
-      );
-      if (chain) filtered = filtered.filter((p: any) =>
-        (p.chains ?? []).some((c: string) => c.toLowerCase().includes(chain.toLowerCase()))
-      );
-      if (minTvl) filtered = filtered.filter((p: any) => (p.tvl ?? 0) >= minTvl);
-      if (maxTvl) filtered = filtered.filter((p: any) => (p.tvl ?? 0) <= maxTvl);
-      if (query) {
-        const q = query.toLowerCase();
-        filtered = filtered.filter((p: any) =>
-          (p.name ?? "").toLowerCase().includes(q) ||
-          (p.category ?? "").toLowerCase().includes(q) ||
-          (p.description ?? "").toLowerCase().includes(q)
-        );
-      }
+      // Apply all filters in a single pass to avoid materialising intermediate arrays
+      const q = query ? query.toLowerCase() : null;
+      const cat = category ? category.toLowerCase() : null;
+      const ch = chain ? chain.toLowerCase() : null;
+
+      const filtered = allProtos.filter((p: any) => {
+        if (cat && !(p.category ?? "").toLowerCase().includes(cat)) return false;
+        if (ch && !(p.chains ?? []).some((c: string) => c.toLowerCase().includes(ch))) return false;
+        if (minTvl && (p.tvl ?? 0) < minTvl) return false;
+        if (maxTvl && (p.tvl ?? 0) > maxTvl) return false;
+        if (q) {
+          const searchable = `${p.name ?? ""} ${p.category ?? ""} ${(p.description ?? "").slice(0, 100)}`.toLowerCase();
+          if (!searchable.includes(q)) return false;
+        }
+        return true;
+      });
 
       const slim = filtered
         .sort((a: any, b: any) => (b.tvl ?? 0) - (a.tvl ?? 0))
@@ -1325,17 +1324,29 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
 
   let response = await createCompletion(messages);
   let toolRounds = 0;
-  const MAX_TOOL_ROUNDS = 4; // Reduced from 5 — the built-in decimal table eliminates get_token_info round trips
+  const MAX_TOOL_ROUNDS = 4; // Built-in decimal table eliminates most get_token_info round trips
 
   while (response.choices[0].finish_reason === "tool_calls" && toolRounds < MAX_TOOL_ROUNDS) {
     toolRounds++;
-    const toolCalls = response.choices[0].message.tool_calls ?? [];
+    const toolCalls = (response.choices[0].message.tool_calls ?? []).filter(
+      (tc: any) => tc.type === "function",
+    );
     messages.push(response.choices[0].message);
-    for (const tc of toolCalls) {
-      if (tc.type !== "function") continue;
-      const input = JSON.parse(tc.function.arguments);
-      let result = await dispatchTool(tc.function.name, input);
-      if (result.length > 6000) result = result.slice(0, 6000) + "[truncated]";
+
+    // Execute all tool calls in this round concurrently — no need to wait for one before starting the next.
+    // For action tools (deposit, borrow, etc.) the results are independent of each other.
+    const settled = await Promise.allSettled(
+      toolCalls.map(async (tc: any) => {
+        const input = JSON.parse(tc.function.arguments);
+        let result = await dispatchTool(tc.function.name, input);
+        if (result.length > 6000) result = result.slice(0, 6000) + "[truncated]";
+        return { tc, input, result };
+      }),
+    );
+
+    for (const outcome of settled) {
+      if (outcome.status === "rejected") continue; // dispatchTool has its own try/catch; this is defensive
+      const { tc, input, result } = outcome.value;
       if (ACTION_TOOLS.has(tc.function.name)) {
         const { steps, quote } = extractAction(tc.function.name, result, input);
         collectedSteps.push(...steps);
@@ -1343,6 +1354,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
       }
       messages.push({ role: "tool", tool_call_id: tc.id, content: result });
     }
+
     response = await createCompletion(messages);
   }
 
