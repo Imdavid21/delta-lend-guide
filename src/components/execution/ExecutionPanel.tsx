@@ -567,6 +567,27 @@ export default function ExecutionPanel() {
     return lendingAssets.length ? lendingAssets : fallback;
   }, [mode, lendSubMode, lendingAssets, vaultAssets]);
 
+  // ── All lending routes (used as second market pool for margin) ──
+  const allLendingRoutes = useMemo((): ExecRoute[] =>
+    (markets ?? [])
+      .filter(m => m.supplyAPY > 0)
+      .sort((a, b) => b.supplyAPY - a.supplyAPY)
+      .map(m => {
+        const { chain } = parseChainFromLabel(m.protocolName);
+        return {
+          id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
+          outputLabel: `${m.asset}`,
+          returnValue: m.supplyAPY,
+          returnLabel: formatPercent(m.supplyAPY) + " APY",
+          tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
+          tvlRaw: m.totalSupplyUSD,
+          availableLiquidityUSD: m.availableLiquidityUSD,
+          utilizationRate: m.utilizationRate,
+          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
+        };
+      }),
+  [markets]);
+
   // ── Second market (for margin ops) ──────────────────────
   const secondRoute = useMemo(() =>
     allLendingRoutes.find(r => r.id === secondRouteId) ?? allLendingRoutes[0] ?? null,
@@ -601,7 +622,7 @@ export default function ExecutionPanel() {
   const walletBalanceNum = useMemo(() => {
     if (!isConnected) return 0;
     if (isNative && nativeBalance) {
-      const n = parseFloat(nativeBalance.formatted);
+      const n = Number(nativeBalance.value) / 10 ** (nativeBalance.decimals ?? 18);
       return isNaN(n) ? 0 : n;
     }
     if (!isNative && erc20BalanceRaw != null && erc20Decimals != null)
@@ -612,7 +633,7 @@ export default function ExecutionPanel() {
   const walletBalanceLabel = useMemo(() => {
     if (!isConnected) return null;
     if (isNative && nativeBalance) {
-      const n = parseFloat(nativeBalance.formatted);
+      const n = Number(nativeBalance.value) / 10 ** (nativeBalance.decimals ?? 18);
       if (!isNaN(n)) return `${n.toFixed(4)} ${validFromAsset}`;
     }
     if (!isNative && erc20Address && erc20BalanceRaw != null && erc20Decimals != null)
@@ -687,26 +708,6 @@ export default function ExecutionPanel() {
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults]);
 
-  // ── All lending routes (used as second market pool for margin) ──
-  const allLendingRoutes = useMemo((): ExecRoute[] =>
-    (markets ?? [])
-      .filter(m => m.supplyAPY > 0)
-      .sort((a, b) => b.supplyAPY - a.supplyAPY)
-      .map(m => {
-        const { chain } = parseChainFromLabel(m.protocolName);
-        return {
-          id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
-          outputLabel: `${m.asset}`,
-          returnValue: m.supplyAPY,
-          returnLabel: formatPercent(m.supplyAPY) + " APY",
-          tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
-          tvlRaw: m.totalSupplyUSD,
-          availableLiquidityUSD: m.availableLiquidityUSD,
-          utilizationRate: m.utilizationRate,
-          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
-        };
-      }),
-  [markets]);
 
   // ── Available protocols for filter ───────────────────────
   const availableProtocols = useMemo(
