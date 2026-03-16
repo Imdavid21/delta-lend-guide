@@ -1,0 +1,38 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy all edge functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy chat         --project-ref fmylsupylsxedirjpeko --no-verify-jwt
+          supabase functions deploy markets      --project-ref fmylsupylsxedirjpeko --no-verify-jwt
+          supabase functions deploy prepare-tx   --project-ref fmylsupylsxedirjpeko --no-verify-jwt
+          supabase functions deploy user-positions --project-ref fmylsupylsxedirjpeko --no-verify-jwt
+
+      - name: Set function secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          # Set ONEDELTA_API_KEY if provided as a repo secret
+          if [ -n "${{ secrets.ONEDELTA_API_KEY }}" ]; then
+            supabase secrets set ONEDELTA_API_KEY="${{ secrets.ONEDELTA_API_KEY }}" \
+              --project-ref fmylsupylsxedirjpeko
+          fi

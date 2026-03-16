@@ -8,12 +8,11 @@ import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { usePrices } from "@/hooks/usePrices";
 import { formatPercent, formatUSD } from "@/lib/marketTypes";
 import { CHAIN_CONFIGS, CHAIN_BY_NAME } from "@/lib/chains";
+import { prepareTx } from "@/lib/prepareTx";
+import type { TxStep } from "@/lib/prepareTx";
 import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
 import TxExecutor from "@/components/TxExecutor";
-import type { TxStep } from "@/hooks/useChats";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
 const INITIAL_LIMIT = 6;
 
 function chainGasEst(chain: string | null) {
@@ -567,32 +566,6 @@ export default function ExecutionPanel() {
     return lendingAssets.length ? lendingAssets : fallback;
   }, [mode, lendSubMode, lendingAssets, vaultAssets]);
 
-  // ── All lending routes (used as second market pool for margin) ──
-  const allLendingRoutes = useMemo((): ExecRoute[] =>
-    (markets ?? [])
-      .filter(m => m.supplyAPY > 0)
-      .sort((a, b) => b.supplyAPY - a.supplyAPY)
-      .map(m => {
-        const { chain } = parseChainFromLabel(m.protocolName);
-        return {
-          id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
-          outputLabel: `${m.asset}`,
-          returnValue: m.supplyAPY,
-          returnLabel: formatPercent(m.supplyAPY) + " APY",
-          tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
-          tvlRaw: m.totalSupplyUSD,
-          availableLiquidityUSD: m.availableLiquidityUSD,
-          utilizationRate: m.utilizationRate,
-          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
-        };
-      }),
-  [markets]);
-
-  // ── Second market (for margin ops) ──────────────────────
-  const secondRoute = useMemo(() =>
-    allLendingRoutes.find(r => r.id === secondRouteId) ?? allLendingRoutes[0] ?? null,
-  [allLendingRoutes, secondRouteId]);
-
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
   // ── Wallet balance (must come after validFromAsset) ───────
@@ -708,6 +681,31 @@ export default function ExecutionPanel() {
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults]);
 
+  // ── All lending routes (second market pool for margin ops) ─────────────────
+  const allLendingRoutes = useMemo((): ExecRoute[] =>
+    (markets ?? [])
+      .filter(m => m.supplyAPY > 0)
+      .sort((a, b) => b.supplyAPY - a.supplyAPY)
+      .map(m => {
+        const { chain } = parseChainFromLabel(m.protocolName);
+        return {
+          id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
+          outputLabel: `${m.asset}`,
+          returnValue: m.supplyAPY,
+          returnLabel: formatPercent(m.supplyAPY) + " APY",
+          tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
+          tvlRaw: m.totalSupplyUSD,
+          availableLiquidityUSD: m.availableLiquidityUSD,
+          utilizationRate: m.utilizationRate,
+          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
+        };
+      }),
+  [markets]);
+
+  // ── Second market (must be declared after allLendingRoutes) ──────────────
+  const secondRoute = useMemo(() =>
+    allLendingRoutes.find(r => r.id === secondRouteId) ?? allLendingRoutes[0] ?? null,
+  [allLendingRoutes, secondRouteId]);
 
   // ── Available protocols for filter ───────────────────────
   const availableProtocols = useMemo(
@@ -771,88 +769,53 @@ export default function ExecutionPanel() {
     try {
       let action: string;
       let asset: string;
-      let body: Record<string, unknown>;
 
       if (mode === "margin") {
         action = marginSubMode;
         asset  = validFromAsset;
-        body = {
-          action,
-          marketUid:    selectedRoute.marketUid,
-          marketUidIn:  selectedRoute.marketUid,
-          marketUidOut: secondRoute?.marketUid,
-          amount:       String(amountNum),
-          asset,
-          operator:     address,
-          chainId:      connectedChainId,
-          slippage,
-          ...(action === "leverage" && { leverage }),
-          ...(isAll && { isAll: true }),
-        };
+      } else if (mode === "borrow") {
+        action = borrowSubMode;
+        asset  = toAsset;
       } else {
-        if (mode === "borrow") {
-          action = borrowSubMode; // "borrow" or "repay"
-          asset  = toAsset;
-        } else {
-          action = lendSubMode === "withdraw" ? "withdraw" : "deposit";
-          asset  = validFromAsset;
-        }
-
-        // Only MetaMorpho vaults use ERC4626 direct calldata
-        const isVaultMarket = selectedRoute.id.startsWith("morpho-vault:");
-        const tokenAddress  =
-          isVaultMarket && connectedChainId
-            ? TOKEN_ADDRESSES[asset]?.[connectedChainId]
-            : undefined;
-
-        body = {
-          action,
-          marketId:     selectedRoute.id,
-          marketUid:    selectedRoute.marketUid,
-          amount:       String(amountNum),
-          asset,
-          operator:     address,
-          chainId:      connectedChainId,
-          slippage,
-          tokenAddress,
-        };
+        action = lendSubMode === "withdraw" ? "withdraw" : "deposit";
+        asset  = validFromAsset;
       }
 
-      const controller = new AbortController();
-      const timeoutId  = setTimeout(() => controller.abort(), 30_000);
+      // Only MetaMorpho vaults use ERC4626 direct calldata
+      const isVaultMarket = selectedRoute.id.startsWith("morpho-vault:");
+      const tokenAddress  =
+        isVaultMarket && connectedChainId
+          ? TOKEN_ADDRESSES[asset]?.[connectedChainId]
+          : undefined;
 
-      let res: Response;
-      try {
-        res = await fetch(`${SUPABASE_URL}/functions/v1/prepare-tx`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_KEY}`,
-          },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      const result = await prepareTx({
+        action,
+        marketId:     selectedRoute.id,
+        marketUid:    selectedRoute.marketUid,
+        marketUidIn:  mode === "margin" ? selectedRoute.marketUid : undefined,
+        marketUidOut: mode === "margin" ? secondRoute?.marketUid : undefined,
+        amount:       String(amountNum),
+        asset,
+        operator:     address,
+        chainId:      connectedChainId,
+        slippage,
+        tokenAddress,
+        leverage:     mode === "margin" && marginSubMode === "leverage" ? leverage : undefined,
+        isAll:        isAll || undefined,
+      });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error ?? `Server error (${res.status})`);
-      }
-
-      if (data.transactions?.length) {
-        setTxSteps(data.transactions);
-        setTxQuote(data.quote ?? null);
+      if (result.transactions.length) {
+        setTxSteps(result.transactions);
+        setTxQuote(result.quote ?? null);
       } else {
         setTxError("No transaction steps were returned. The market may be paused or unavailable.");
       }
-    } catch (err: any) {
-      const isTimeout = err.name === "AbortError" || err.name === "TimeoutError";
+    } catch (err: unknown) {
+      const e = err as { name?: string; message?: string };
+      const isTimeout = e.name === "AbortError" || e.name === "TimeoutError";
       setTxError(isTimeout
         ? "Request timed out — please try again."
-        : (err.message ?? "Failed to prepare transaction"));
+        : (e.message ?? "Failed to prepare transaction"));
     } finally {
       setTxLoading(false);
     }
