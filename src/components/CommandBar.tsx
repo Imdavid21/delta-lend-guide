@@ -234,28 +234,28 @@ export default function CommandBar({ loading, onSend, onNavigate, onNewChat, cha
   function TypeIcon({ type }: { type: SearchResult["type"] | string }) {
     const style: React.CSSProperties = { width: 14, height: 14, flexShrink: 0 };
     if (type === "market") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Lending">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Lending">
         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
       </svg>
     );
     if (type === "vault") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#64f9c3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Vault">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#64f9c3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Vault">
         <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
     );
     if (type === "history") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Recent">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Recent">
         <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.41"/>
       </svg>
     );
     if (type === "ens") return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="ENS">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#5298FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="ENS">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
     );
     // nav
     return (
-      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Navigate">
+      <svg style={style} viewBox="0 0 24 24" fill="none" stroke="#a7abb2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Navigate">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
     );

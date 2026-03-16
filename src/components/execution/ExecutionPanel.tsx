@@ -568,9 +568,10 @@ export default function ExecutionPanel() {
   }, [mode, lendSubMode, lendingAssets, vaultAssets]);
 
   // ── Second market (for margin ops) ──────────────────────
-  const secondRoute = useMemo(() =>
-    allLendingRoutes.find(r => r.id === secondRouteId) ?? allLendingRoutes[0] ?? null,
-  [allLendingRoutes, secondRouteId]);
+   const secondRoute = useMemo(() => {
+    const routes = allLendingRoutesRef;
+    return routes.find(r => r.id === secondRouteId) ?? routes[0] ?? null;
+  }, [allLendingRoutesRef, secondRouteId]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
