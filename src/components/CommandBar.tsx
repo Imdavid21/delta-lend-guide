@@ -24,10 +24,10 @@ interface Props {
 }
 
 const QUICK_ACTIONS: { label: string; prompt: string; icon?: string }[] = [
-  { label: "Best lending rates", prompt: "What are the best lending rates on Ethereum?", icon: "⬆" },
-  { label: "Compare ETH yields", prompt: "Compare ETH supply APY across all protocols", icon: "⚖" },
-  { label: "Lowest borrow APR", prompt: "What are the lowest borrow APR rates on Ethereum?", icon: "⬇" },
-  { label: "Show my positions", prompt: "Show my positions", icon: "◈" },
+  { label: "Best lending rates", prompt: "What are the best lending rates across all chains?", icon: "⬆" },
+  { label: "Compare ETH yields", prompt: "Compare ETH supply APY across all protocols and chains", icon: "⚖" },
+  { label: "Lowest borrow APR", prompt: "What are the lowest borrow APR rates right now?", icon: "⬇" },
+  { label: "Show my positions", prompt: "Show my positions across all chains", icon: "◈" },
   { label: "Top vault yields", prompt: "Show top Morpho vault yields", icon: "◉" },
 ];
 

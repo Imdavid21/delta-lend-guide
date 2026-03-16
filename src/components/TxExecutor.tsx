@@ -19,7 +19,9 @@ export default function TxExecutor({ transactions, quote }: Props) {
   const [errors, setErrors] = useState<(string | null)[]>(transactions.map(() => null));
 
   const allDone = statuses.every((s) => s === "success");
+  const isPending = statuses.some((s) => s === "pending");
   const hasError = statuses.some((s) => s === "error");
+  const completedCount = statuses.filter((s) => s === "success").length;
 
   const execute = async () => {
     for (let i = 0; i < transactions.length; i++) {
@@ -65,8 +67,9 @@ export default function TxExecutor({ transactions, quote }: Props) {
         <Button
           fullWidth
           variant="contained"
-          disabled={allDone || statuses.some((s) => s === "pending")}
+          disabled={allDone || isPending}
           onClick={execute}
+          startIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
           sx={{
             borderRadius: 3,
             fontWeight: 700,
@@ -74,7 +77,13 @@ export default function TxExecutor({ transactions, quote }: Props) {
             ...(allDone && { bgcolor: "#22c55e", "&:hover": { bgcolor: "#16a34a" } }),
           }}
         >
-          {allDone ? "All Transactions Completed" : hasError ? "Retry" : "Execute Transactions"}
+          {allDone
+            ? "All Transactions Completed"
+            : isPending
+            ? `Executing ${completedCount + 1} of ${transactions.length}…`
+            : hasError
+            ? "Retry"
+            : "Execute Transactions"}
         </Button>
       </Box>
     </Box>

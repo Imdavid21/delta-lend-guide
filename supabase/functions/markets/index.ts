@@ -148,10 +148,13 @@ async function fetch1DeltaPools(hdrs: Record<string, string>) {
     "1",      // Ethereum
     "10",     // Optimism
     "25",     // Cronos
+    "40",     // Telos
+    "50",     // XDC
     "56",     // BSC
     "100",    // Gnosis
     "130",    // Unichain
     "137",    // Polygon
+    "143",    // Monad
     "146",    // Sonic
     "169",    // Manta Pacific
     "250",    // Fantom
@@ -175,6 +178,7 @@ async function fetch1DeltaPools(hdrs: Record<string, string>) {
     "81457",  // Blast
     "167000", // Taiko
     "534352", // Scroll
+    "747474", // Katana
   ];
 
   // Fetch all chains in parallel; use a shorter timeout per chain so slow
@@ -242,7 +246,7 @@ async function fetchLending(hdrs: Record<string, string>) {
 async function fetchMorphoVaults(): Promise<any[]> {
   try {
     const query = `{
-      vaults(first: 500, where: { chainId_in: [1, 8453, 10, 137, 42161, 43114, 130, 146, 1868] }) {
+      vaults(first: 500, where: { chainId_in: [1, 10, 25, 56, 100, 130, 137, 146, 169, 250, 1088, 1116, 1284, 1329, 1868, 2818, 5000, 8217, 8453, 34443, 42161, 43114, 59144, 80094, 81457, 167000, 534352] }) {
         items {
           address
           name
@@ -412,15 +416,12 @@ async function fetchPendleForChain(chainId: number): Promise<any[]> {
 }
 
 async function fetchPendle() {
-  const [eth, base, arb, opt] = await Promise.all([
-    fetchPendleForChain(1),
-    fetchPendleForChain(8453),
-    fetchPendleForChain(42161), // Arbitrum — largest Pendle market outside Ethereum
-    fetchPendleForChain(10),    // Optimism
-  ]);
-  const results = [...eth, ...base, ...arb, ...opt];
-  console.log(`Pendle: ${results.length} total active markets`);
-  return results;
+  // All chains where Pendle has deployed markets
+  const pendleChains = [1, 10, 56, 137, 5000, 8453, 42161, 146];
+  const results = await Promise.all(pendleChains.map(c => fetchPendleForChain(c)));
+  const all = results.flat();
+  console.log(`Pendle: ${all.length} total active markets across ${pendleChains.length} chains`);
+  return all;
 }
 
 /* ── In-memory cache (60s TTL) to avoid hammering upstream APIs ── */
