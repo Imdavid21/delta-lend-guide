@@ -1141,12 +1141,21 @@ When user asks about ETH: depositing ETH, borrowing against ETH, ETH yield:
 - When user says "deposit ETH" they almost always mean the native asset or WETH — use ETH asset group.
 - Looping strategy: deposit wstETH, borrow USDC at low rate, deposit USDC → good base-rate amplification.
 
-MARKET COVERAGE — ETHEREUM & BASE (both chains always searched):
-The search_markets tool queries BOTH Ethereum (chain 1) AND Base (chain 8453) simultaneously.
-- Ethereum: Aave V3 Core, Aave V3 Prime, Compound Blue, Spark, Morpho Blue vaults, Euler vaults, Granary
-- Base: Aave V3 Core, Compound Blue (Base), Moonwell, Seamless, Morpho Blue vaults
+MARKET COVERAGE — ALL CHAINS (30+ EVM chains supported):
+The search_markets tool queries across ALL supported chains simultaneously.
+Major chains and their key protocols:
+- Ethereum (1): Aave V3 Core/Prime, Compound V3, Spark, Morpho Blue vaults, Euler vaults, Granary
+- Base (8453): Aave V3 Core, Compound V3, Moonwell, Seamless, Morpho Blue vaults
+- Arbitrum (42161): Aave V3, Compound V3, Silo, Radiant
+- Optimism (10): Aave V3, Compound V3, Silo
+- Polygon (137): Aave V3, Compound V3
+- BSC (56): Venus, Compound V3
+- Avalanche (43114): Aave V3, Benqi
+- Linea (59144), Scroll (534352), Blast (81457), Mantle (5000), Mode (34443), Berachain (80094)
+- Sonic (146), Sei (1329), Unichain (130), Soneium (1868), Taiko (167000), and more
 - When user asks about a specific chain, filter in your response — but always fetch all chains.
-- Morpho Blue vaults (id starts "morpho-vault:") appear in "vaults" type — always include vaults type for Morpho queries.`;
+- Morpho Blue vaults (id starts "morpho-vault:") appear in "vaults" type — always include vaults type for Morpho queries.
+- Always mention which chain a market is on so users know where to execute.`;
 
 /* ───── agent loop ───── */
 
@@ -1177,25 +1186,36 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   const marketIdMatch = query.match(MARKET_ID_PATTERN);
   if (marketIdMatch) {
     const rawId = marketIdMatch[1].trim();
-    // Parse lender:chainId:token from the market ID (format may include extra prefix like COMPOUND_V3_USDC:...)
-    const parts = rawId.split(":");
-    if (parts.length >= 3) {
-      // Extract chainId (second-to-last numeric part) and token (last part)
-      const chainId = parts[parts.length - 2];
-      const token = parts[parts.length - 1];
-      // Derive lender: last segment before chainId that looks like a lender ID
-      const lenderRaw = parts.slice(0, parts.length - 2).join("_");
-      // Strip asset suffix from lender key (e.g. COMPOUND_V3_USDC → COMPOUND_V3)
-      const lender = lenderRaw.replace(/_[A-Z]+$/, "");
-      try {
-        const marketData = await dispatchTool("find_market", {
-          chainId,
-          lender,
-          underlyings: token,
-          count: 5,
-        });
-        preFetchedMarket = `MARKET PRE-FETCHED (id: ${rawId}):\n${marketData}\n\nDo NOT call search_markets, find_market, or get_lending_markets — use this data directly.`;
-      } catch { /* non-fatal */ }
+    // ERC4626 vault IDs (morpho-vault:chainId:0xVAULT, euler:chainId:0xVAULT) have a vault
+    // contract address as the last segment, not an underlying token address. Passing that to
+    // find_market would corrupt the AI context and cause a timeout. Skip the pre-fetch and
+    // inject the vault address directly so the AI can call the correct vault tool.
+    const isVaultId = rawId.startsWith("morpho-vault:") || rawId.startsWith("euler:");
+    if (isVaultId) {
+      const vaultParts = rawId.split(":");
+      const vaultAddress = vaultParts[vaultParts.length - 1];
+      preFetchedMarket = `VAULT PRE-RESOLVED (id: ${rawId}): vault contract address is ${vaultAddress}. Use this vault address directly for deposit/withdraw. Do NOT call find_market, search_markets, or get_lending_markets.`;
+    } else {
+      // Parse lender:chainId:token from the market ID (format may include extra prefix like COMPOUND_V3_USDC:...)
+      const parts = rawId.split(":");
+      if (parts.length >= 3) {
+        // Extract chainId (second-to-last numeric part) and token (last part)
+        const chainId = parts[parts.length - 2];
+        const token = parts[parts.length - 1];
+        // Derive lender: last segment before chainId that looks like a lender ID
+        const lenderRaw = parts.slice(0, parts.length - 2).join("_");
+        // Strip asset suffix from lender key (e.g. COMPOUND_V3_USDC → COMPOUND_V3)
+        const lender = lenderRaw.replace(/_[A-Z]+$/, "");
+        try {
+          const marketData = await dispatchTool("find_market", {
+            chainId,
+            lender,
+            underlyings: token,
+            count: 5,
+          });
+          preFetchedMarket = `MARKET PRE-FETCHED (id: ${rawId}):\n${marketData}\n\nDo NOT call search_markets, find_market, or get_lending_markets — use this data directly.`;
+        } catch { /* non-fatal */ }
+      }
     }
   }
 
@@ -1224,7 +1244,7 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
       try {
         preResolvedPositions = await dispatchTool("get_user_positions", {
           account: preResolvedAddress,
-          chains: "1,8453,42161,10",
+          chains: "1,10,25,56,100,130,137,146,169,250,999,1088,1116,1284,1329,1868,2818,5000,8217,8453,9745,34443,42161,43111,43114,59144,80094,81457,167000,534352",
         });
       } catch { /* fall through to AI */ }
     }

@@ -6,12 +6,11 @@ import nebulaLogo from "@/assets/nebula-logo.png";
 import type { Chat } from "../hooks/useChats";
 
 const SUGGESTIONS = [
-  "Best USDC lending rates on Ethereum",
-  "Lowest USDC borrow APR on Ethereum",
+  "Best USDC lending rates across all chains",
+  "Lowest borrow APR on Arbitrum",
   "Compare ETH supply APY across protocols",
   "Show top Morpho vault yields",
-  "Top 5 markets by TVL",
-  "Look up vitalik.eth's DeFi positions",
+  "Top markets by TVL on Base",
   "Show my positions",
 ];
 
@@ -61,7 +60,7 @@ export default function ChatPanel({ chat, loading, onSuggestion }: Props) {
           How can I help?
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Ask about lending and borrowing rates, vault yields, or execute DeFi transactions. Search any ENS name to explore their portfolio.
+          Ask about lending and borrowing rates, vault yields, or execute DeFi transactions across 30+ chains. Search any ENS name to explore their portfolio.
         </Typography>
 
         {/* Quick Actions */}

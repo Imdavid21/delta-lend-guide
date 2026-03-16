@@ -161,7 +161,7 @@ export default function HeroStats({ viewMode = "lending" }: { viewMode?: "lendin
   return (
     <>
       <style>{`@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }`}</style>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isLending ? "repeat(4, 1fr)" : "repeat(5, 1fr)", gap: 12 }}>
         {isLending ? (
           <>
             <Stat

@@ -75,19 +75,25 @@ export default function DocsPage() {
             Nebula Docs
           </h1>
         </div>
-        <P>DeFi lending intelligence — find the best yields, execute on-chain, and manage positions across Ethereum and Base.</P>
+        <P>DeFi lending intelligence — find the best yields, execute on-chain, and manage positions across 30+ EVM chains.</P>
       </div>
 
       {/* What is Nebula */}
       <Card>
         <H2>What is Nebula?</H2>
         <P>
-          Nebula is a DeFi aggregator for lending and borrowing. It queries live data from every major protocol, ranks markets by yield, and lets you execute deposits, borrows, withdrawals, and repayments directly from the interface — either through the Trade panel or the AI chat.
+          Nebula is a DeFi aggregator for lending and borrowing across 30+ EVM chains. It queries live data from every major protocol, ranks markets by yield, and lets you execute deposits, borrows, withdrawals, and repayments directly from the interface — either through the Trade panel or the AI chat.
         </P>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
           <Chip>Aave V3</Chip><Chip>Compound V3</Chip><Chip>Morpho Blue</Chip><Chip>Spark</Chip>
           <Chip>Moonwell</Chip><Chip>Seamless</Chip><Chip>Silo</Chip><Chip>Euler</Chip><Chip>Granary</Chip>
-          <Chip accent="#a78bfa">Ethereum</Chip><Chip accent="#a78bfa">Base</Chip>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+          <Chip accent="#a78bfa">Ethereum</Chip><Chip accent="#a78bfa">Base</Chip><Chip accent="#a78bfa">Arbitrum</Chip>
+          <Chip accent="#a78bfa">Optimism</Chip><Chip accent="#a78bfa">Polygon</Chip><Chip accent="#a78bfa">BSC</Chip>
+          <Chip accent="#a78bfa">Avalanche</Chip><Chip accent="#a78bfa">Linea</Chip><Chip accent="#a78bfa">Scroll</Chip>
+          <Chip accent="#a78bfa">Blast</Chip><Chip accent="#a78bfa">Mantle</Chip><Chip accent="#a78bfa">Berachain</Chip>
+          <Chip accent="#a78bfa">+20 more</Chip>
         </div>
       </Card>
 
@@ -122,8 +128,8 @@ export default function DocsPage() {
         <Card>
           <H2>👛 Portfolio</H2>
           <P>Live view of all your open positions.</P>
-          <Row label="Protocols scanned" value="9 protocols" />
-          <Row label="Chains" value="Ethereum + Base" />
+          <Row label="Protocols scanned" value="9+ protocols" />
+          <Row label="Chains" value="30+ EVM chains" />
           <Row label="Shows" value="Supply APY, borrow APR, health factor" />
           <Row label="Net APY" value="Weighted avg across all positions" />
           <Row label="Refresh" value="Every 30 seconds" />
@@ -188,7 +194,7 @@ export default function DocsPage() {
           {[
             "1. Select market",
             "→ AI builds calldata",
-            "→ Simulation panel",
+            "→ Review & confirm",
             "→ Wallet signs",
             "→ On-chain",
           ].map((step, i) => (
