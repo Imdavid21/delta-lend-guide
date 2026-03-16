@@ -351,28 +351,28 @@ function TradePage({ isDark: _isDark }: { isDark: boolean }) {
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
+        <Box sx={{ fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", mb: 0.5 }}>
           Execution Interface
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
+        </Box>
+        <Box sx={{ fontSize: 22, fontWeight: 800, color: "text.primary", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
           Trade
-        </div>
+        </Box>
       </Box>
       <ExecutionPanel />
     </Box>
   );
 }
 
-function BorrowPage({ submitAction }: { submitAction: (p: string) => void }) {
+function BorrowPage({ submitAction: _submitAction }: { submitAction: (p: string) => void }) {
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
+        <Box sx={{ fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", mb: 0.5 }}>
           Borrow Markets
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
+        </Box>
+        <Box sx={{ fontSize: 22, fontWeight: 800, color: "text.primary", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
           Borrow
-        </div>
+        </Box>
       </Box>
       <Box sx={{ mb: 3 }}>
         <HeroStats viewMode="borrow" />
@@ -382,16 +382,16 @@ function BorrowPage({ submitAction }: { submitAction: (p: string) => void }) {
   );
 }
 
-function MarketsPage({ submitAction }: { submitAction: (p: string) => void }) {
+function MarketsPage({ submitAction: _submitAction }: { submitAction: (p: string) => void }) {
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#a7abb2", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", marginBottom: 4 }}>
+        <Box sx={{ fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "Inter, sans-serif", mb: 0.5 }}>
           Market Intelligence
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#eaeef5", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
+        </Box>
+        <Box sx={{ fontSize: 22, fontWeight: 800, color: "text.primary", fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em" }}>
           Markets
-        </div>
+        </Box>
       </Box>
       <Box sx={{ mb: 3 }}>
         <HeroStats viewMode="lending" />
