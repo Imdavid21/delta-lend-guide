@@ -1177,25 +1177,36 @@ async function runAgent(query: string, userAddress?: string, history: any[] = []
   const marketIdMatch = query.match(MARKET_ID_PATTERN);
   if (marketIdMatch) {
     const rawId = marketIdMatch[1].trim();
-    // Parse lender:chainId:token from the market ID (format may include extra prefix like COMPOUND_V3_USDC:...)
-    const parts = rawId.split(":");
-    if (parts.length >= 3) {
-      // Extract chainId (second-to-last numeric part) and token (last part)
-      const chainId = parts[parts.length - 2];
-      const token = parts[parts.length - 1];
-      // Derive lender: last segment before chainId that looks like a lender ID
-      const lenderRaw = parts.slice(0, parts.length - 2).join("_");
-      // Strip asset suffix from lender key (e.g. COMPOUND_V3_USDC → COMPOUND_V3)
-      const lender = lenderRaw.replace(/_[A-Z]+$/, "");
-      try {
-        const marketData = await dispatchTool("find_market", {
-          chainId,
-          lender,
-          underlyings: token,
-          count: 5,
-        });
-        preFetchedMarket = `MARKET PRE-FETCHED (id: ${rawId}):\n${marketData}\n\nDo NOT call search_markets, find_market, or get_lending_markets — use this data directly.`;
-      } catch { /* non-fatal */ }
+    // ERC4626 vault IDs (morpho-vault:chainId:0xVAULT, euler:chainId:0xVAULT) have a vault
+    // contract address as the last segment, not an underlying token address. Passing that to
+    // find_market would corrupt the AI context and cause a timeout. Skip the pre-fetch and
+    // inject the vault address directly so the AI can call the correct vault tool.
+    const isVaultId = rawId.startsWith("morpho-vault:") || rawId.startsWith("euler:");
+    if (isVaultId) {
+      const vaultParts = rawId.split(":");
+      const vaultAddress = vaultParts[vaultParts.length - 1];
+      preFetchedMarket = `VAULT PRE-RESOLVED (id: ${rawId}): vault contract address is ${vaultAddress}. Use this vault address directly for deposit/withdraw. Do NOT call find_market, search_markets, or get_lending_markets.`;
+    } else {
+      // Parse lender:chainId:token from the market ID (format may include extra prefix like COMPOUND_V3_USDC:...)
+      const parts = rawId.split(":");
+      if (parts.length >= 3) {
+        // Extract chainId (second-to-last numeric part) and token (last part)
+        const chainId = parts[parts.length - 2];
+        const token = parts[parts.length - 1];
+        // Derive lender: last segment before chainId that looks like a lender ID
+        const lenderRaw = parts.slice(0, parts.length - 2).join("_");
+        // Strip asset suffix from lender key (e.g. COMPOUND_V3_USDC → COMPOUND_V3)
+        const lender = lenderRaw.replace(/_[A-Z]+$/, "");
+        try {
+          const marketData = await dispatchTool("find_market", {
+            chainId,
+            lender,
+            underlyings: token,
+            count: 5,
+          });
+          preFetchedMarket = `MARKET PRE-FETCHED (id: ${rawId}):\n${marketData}\n\nDo NOT call search_markets, find_market, or get_lending_markets — use this data directly.`;
+        } catch { /* non-fatal */ }
+      }
     }
   }
 
