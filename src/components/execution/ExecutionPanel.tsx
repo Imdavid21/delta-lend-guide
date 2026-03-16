@@ -708,26 +708,6 @@ export default function ExecutionPanel() {
       });
   }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults]);
 
-  // ── All lending routes (used as second market pool for margin) ──
-  const allLendingRoutes = useMemo((): ExecRoute[] =>
-    (markets ?? [])
-      .filter(m => m.supplyAPY > 0)
-      .sort((a, b) => b.supplyAPY - a.supplyAPY)
-      .map(m => {
-        const { chain } = parseChainFromLabel(m.protocolName);
-        return {
-          id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
-          outputLabel: `${m.asset}`,
-          returnValue: m.supplyAPY,
-          returnLabel: formatPercent(m.supplyAPY) + " APY",
-          tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
-          tvlRaw: m.totalSupplyUSD,
-          availableLiquidityUSD: m.availableLiquidityUSD,
-          utilizationRate: m.utilizationRate,
-          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
-        };
-      }),
-  [markets]);
 
   // ── Available protocols for filter ───────────────────────
   const availableProtocols = useMemo(
