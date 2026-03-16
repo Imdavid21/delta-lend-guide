@@ -595,7 +595,7 @@ export default function ExecutionPanel() {
   const walletBalanceNum = useMemo(() => {
     if (!isConnected) return 0;
     if (isNative && nativeBalance) {
-      const n = parseFloat(nativeBalance.formatted);
+      const n = Number(nativeBalance.value) / 10 ** (nativeBalance.decimals ?? 18);
       return isNaN(n) ? 0 : n;
     }
     if (!isNative && erc20BalanceRaw != null && erc20Decimals != null)
@@ -606,7 +606,7 @@ export default function ExecutionPanel() {
   const walletBalanceLabel = useMemo(() => {
     if (!isConnected) return null;
     if (isNative && nativeBalance) {
-      const n = parseFloat(nativeBalance.formatted);
+      const n = Number(nativeBalance.value) / 10 ** (nativeBalance.decimals ?? 18);
       if (!isNaN(n)) return `${n.toFixed(4)} ${validFromAsset}`;
     }
     if (!isNative && erc20Address && erc20BalanceRaw != null && erc20Decimals != null)
