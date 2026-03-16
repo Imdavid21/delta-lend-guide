@@ -707,6 +707,12 @@ export default function ExecutionPanel() {
     if (btnState === "connect") { openWallet(); return; }
     if (btnState !== "exec" || !selectedRoute) return;
 
+    // Address guard — wallet can be connected but address momentarily undefined
+    if (!address) {
+      setTxError("Wallet address unavailable. Please reconnect your wallet.");
+      return;
+    }
+
     setTxLoading(true);
     setTxSteps(null);
     setTxQuote(null);
@@ -716,12 +722,12 @@ export default function ExecutionPanel() {
       const action = mode === "borrow" ? "borrow" : "deposit";
       const asset  = mode === "borrow" ? toAsset : validFromAsset;
 
-      // Detect vault markets by their id prefix
-      const isVaultMarket =
-        selectedRoute.id.startsWith("morpho-vault:") ||
-        selectedRoute.id.startsWith("euler:");
+      // Only MetaMorpho vaults use ERC4626 direct calldata; Euler uses the
+      // lending action endpoint just like Aave/Compound.
+      const isVaultMarket = selectedRoute.id.startsWith("morpho-vault:");
 
-      // For vault deposits the underlying ERC20 address is needed to build the approve tx
+      // For MetaMorpho vault deposits the underlying ERC20 address is needed
+      // to build the approve transaction.
       const tokenAddress =
         isVaultMarket && connectedChainId
           ? TOKEN_ADDRESSES[asset]?.[connectedChainId]
@@ -765,12 +771,14 @@ export default function ExecutionPanel() {
         setTxSteps(data.transactions);
         setTxQuote(data.quote ?? null);
       } else {
-        setTxError("No transaction steps returned — the market may be paused or unavailable.");
+        // Should not normally reach here — prepare-tx returns 422 when steps are empty.
+        // This handles the edge case where the response is 200 but transactions are absent.
+        setTxError("No transaction steps were returned. The market may be paused or unavailable.");
       }
     } catch (err: any) {
       const isTimeout = err.name === "AbortError" || err.name === "TimeoutError";
       setTxError(isTimeout
-        ? "Request timed out. The 1delta API may be slow — please try again."
+        ? "Request timed out — please try again."
         : (err.message ?? "Failed to prepare transaction"));
     } finally {
       setTxLoading(false);

@@ -80,7 +80,16 @@ interface TxStep {
 }
 
 function extractSteps(body: any, chainId?: number): TxStep[] {
-  const actions = body?.actions ?? body;
+  // 1delta API can return actions under body.actions, body.data, or flat on body.
+  // Try each location in order of likelihood.
+  const actions =
+    (body?.actions && (body.actions.permissions || body.actions.transactions))
+      ? body.actions
+      : (body?.data && (body.data.permissions || body.data.transactions))
+      ? body.data
+      : body;
+
+  const safeChainId = Number.isFinite(chainId) ? chainId : undefined;
   const toStep = (item: any, desc: string): TxStep | null =>
     item?.to && item?.data
       ? {
@@ -88,7 +97,7 @@ function extractSteps(body: any, chainId?: number): TxStep[] {
           to: item.to,
           data: item.data,
           value: item.value ?? "0x0",
-          ...(chainId && { chainId }),
+          ...(safeChainId !== undefined && { chainId: safeChainId }),
         }
       : null;
   return [
@@ -232,16 +241,17 @@ Deno.serve(async (req) => {
 
     // ── Detect vault vs lending pool ─────────────────────────────────────
     const mid = (marketId ?? "").toLowerCase();
-    const isVault = mid.startsWith("morpho-vault:") || mid.startsWith("euler:");
+    // Only MetaMorpho (morpho-vault:) vaults use ERC4626 direct calldata.
+    // Euler Finance is a lending protocol — its markets are accessed via the
+    // 1delta lending action endpoints, not via ERC4626 vault calls.
+    const isVault = mid.startsWith("morpho-vault:");
 
-    // ── Vault path (ERC4626 direct calldata) ──────────────────────────────
+    // ── Vault path (ERC4626 direct calldata — MetaMorpho only) ───────────
     if (isVault) {
-      // For morpho-vault, marketUid IS the vault contract address.
-      // For euler, marketUid is the 1delta market UID — extract the token address component
-      // which for Euler Finance IS the vault contract.
+      // marketUid IS the vault contract address for morpho-vault markets.
       let vaultAddress = marketUid;
 
-      // If marketUid looks like "EULER_xxx:chainId:0xAddress", extract the address
+      // Safety: if marketUid is in "PREFIX:chainId:0xAddress" form, extract the address
       const parts = (marketUid as string).split(":");
       if (parts.length === 3 && parts[2].startsWith("0x")) {
         vaultAddress = parts[2];
@@ -330,10 +340,20 @@ Deno.serve(async (req) => {
     const quote = extractQuote(result);
 
     if (transactions.length === 0) {
+      // Log the raw response to help diagnose format mismatches
+      console.error(
+        "prepare-tx: 0 steps from 1delta — raw response keys:",
+        Object.keys(result ?? {}),
+        "| success:", result?.success,
+        "| has actions:", !!result?.actions,
+        "| has data:", !!result?.data,
+        "| error field:", result?.error ?? result?.message,
+      );
       return new Response(
         JSON.stringify({
           error:
             "The protocol returned no transaction steps — the market may be paused or the amount may be invalid.",
+          _debug: { responseKeys: Object.keys(result ?? {}), success: result?.success },
         }),
         {
           status: 422,
