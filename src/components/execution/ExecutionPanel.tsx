@@ -567,11 +567,31 @@ export default function ExecutionPanel() {
     return lendingAssets.length ? lendingAssets : fallback;
   }, [mode, lendSubMode, lendingAssets, vaultAssets]);
 
+  // ── All lending routes (used as second market pool for margin) ──
+  const allLendingRoutes = useMemo((): ExecRoute[] =>
+    (markets ?? [])
+      .filter(m => m.supplyAPY > 0)
+      .sort((a, b) => b.supplyAPY - a.supplyAPY)
+      .map(m => {
+        const { chain } = parseChainFromLabel(m.protocolName);
+        return {
+          id: m.id, marketUid: m.marketUid, protocol: m.protocolName, chain,
+          outputLabel: `${m.asset}`,
+          returnValue: m.supplyAPY,
+          returnLabel: formatPercent(m.supplyAPY) + " APY",
+          tvlLabel: formatUSD(m.totalSupplyUSD) + " TVL",
+          tvlRaw: m.totalSupplyUSD,
+          availableLiquidityUSD: m.availableLiquidityUSD,
+          utilizationRate: m.utilizationRate,
+          gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
+        };
+      }),
+  [markets]);
+
   // ── Second market (for margin ops) ──────────────────────
-   const secondRoute = useMemo(() => {
-    const routes = allLendingRoutesRef;
-    return routes.find(r => r.id === secondRouteId) ?? routes[0] ?? null;
-  }, [allLendingRoutesRef, secondRouteId]);
+  const secondRoute = useMemo(() =>
+    allLendingRoutes.find(r => r.id === secondRouteId) ?? allLendingRoutes[0] ?? null,
+  [allLendingRoutes, secondRouteId]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
