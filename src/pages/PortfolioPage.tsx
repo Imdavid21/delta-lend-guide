@@ -119,7 +119,7 @@ function RatePill({ value, type }: { value: number | null; type: "apy" | "apr" }
   );
 }
 
-function PositionCard({ pos, onManage }: { pos: ProtocolPosition; onManage: () => void }) {
+function PositionCard({ pos, navigate }: { pos: ProtocolPosition; navigate: ReturnType<typeof useNavigate> }) {
   const c = useColors();
   const hasSupply = pos.supplyUSD >= 0.01;
   const hasBorrow = pos.borrowUSD >= 0.01;
@@ -185,18 +185,53 @@ function PositionCard({ pos, onManage }: { pos: ProtocolPosition; onManage: () =
         </div>
       )}
 
-      <button onClick={onManage} style={{
-        width: "100%", padding: "7px 0", borderRadius: 8,
-        border: `1px solid ${c.btnBorder}`, cursor: "pointer",
-        background: c.btnBg, color: c.textSecondary,
-        fontSize: 11, fontWeight: 700, fontFamily: "Inter, sans-serif",
-        transition: "background 150ms",
-      }}
-        onMouseEnter={e => (e.currentTarget.style.background = c.btnHover)}
-        onMouseLeave={e => (e.currentTarget.style.background = c.btnBg)}
-      >
-        Manage Position
-      </button>
+      {hasBorrow ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={() => navigate("/trade", { state: { presetMode: "repay", presetAsset: pos.asset, presetProtocol: pos.protocol } })}
+            style={{
+              flex: 1, padding: "7px 0", borderRadius: 8,
+              border: "1px solid rgba(251,191,36,0.3)", cursor: "pointer",
+              background: "rgba(251,191,36,0.08)", color: "#fbbf24",
+              fontSize: 11, fontWeight: 700, fontFamily: "Inter, sans-serif",
+              transition: "background 150ms",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(251,191,36,0.14)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(251,191,36,0.08)")}
+          >
+            Repay
+          </button>
+          <button
+            onClick={() => navigate("/trade", { state: { presetMode: "borrow", presetAsset: pos.asset, presetProtocol: pos.protocol } })}
+            style={{
+              flex: 1, padding: "7px 0", borderRadius: 8,
+              border: `1px solid ${c.btnBorder}`, cursor: "pointer",
+              background: c.btnBg, color: c.textSecondary,
+              fontSize: 11, fontWeight: 700, fontFamily: "Inter, sans-serif",
+              transition: "background 150ms",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = c.btnHover)}
+            onMouseLeave={e => (e.currentTarget.style.background = c.btnBg)}
+          >
+            Close
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => navigate("/trade", { state: { presetMode: "borrow", presetAsset: pos.asset, presetProtocol: pos.protocol } })}
+          style={{
+            width: "100%", padding: "7px 0", borderRadius: 8,
+            border: "1px solid rgba(134,239,172,0.3)", cursor: "pointer",
+            background: "rgba(134,239,172,0.07)", color: "#86efac",
+            fontSize: 11, fontWeight: 700, fontFamily: "Inter, sans-serif",
+            transition: "background 150ms",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(134,239,172,0.13)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(134,239,172,0.07)")}
+        >
+          Borrow Against
+        </button>
+      )}
     </div>
   );
 }
@@ -330,7 +365,7 @@ function ConnectedPortfolio() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
             {supplyPositions.map((pos, i) => (
-              <PositionCard key={`supply-${i}`} pos={pos} onManage={() => navigate("/trade")} />
+              <PositionCard key={`supply-${i}`} pos={pos} navigate={navigate} />
             ))}
           </div>
         )}
@@ -349,7 +384,7 @@ function ConnectedPortfolio() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
             {borrowPositions.map((pos, i) => (
-              <PositionCard key={`borrow-${i}`} pos={pos} onManage={() => navigate("/trade")} />
+              <PositionCard key={`borrow-${i}`} pos={pos} navigate={navigate} />
             ))}
           </div>
         )}

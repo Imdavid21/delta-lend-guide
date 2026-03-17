@@ -24,7 +24,6 @@ export default function AppHeader({ mode, onToggle, chatOpen, onToggleChat }: Pr
     { label: "Trade",     path: "/trade"     },
     { label: "Markets",   path: "/markets"   },
     { label: "Portfolio", path: "/portfolio" },
-    { label: "Docs",      path: "/docs"      },
   ];
 
   function isActive(path: string) {
