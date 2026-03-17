@@ -16,14 +16,26 @@ export interface ProtocolPosition {
   healthFactor?: number;
 }
 
+// Only chains where 1delta has active lending protocols
 const CHAIN_NAMES: Record<number, string> = {
-  1: "Ethereum", 10: "Optimism", 25: "Cronos", 40: "Telos", 50: "XDC",
-  56: "BSC", 100: "Gnosis", 130: "Unichain", 137: "Polygon", 146: "Sonic",
-  169: "Manta", 250: "Fantom", 999: "HyperEVM", 1088: "Metis", 1116: "Core",
-  1284: "Moonbeam", 1329: "Sei", 1868: "Soneium", 2818: "Morph", 5000: "Mantle",
-  8217: "Kaia", 8453: "Base", 9745: "Plasma", 34443: "Mode", 42161: "Arbitrum",
-  43111: "Hemi", 43114: "Avalanche", 59144: "Linea", 80094: "Berachain",
-  81457: "Blast", 167000: "Taiko", 534352: "Scroll", 747474: "Katana",
+  1:      "Ethereum",
+  10:     "Optimism",
+  56:     "BSC",
+  100:    "Gnosis",
+  137:    "Polygon",
+  146:    "Sonic",
+  250:    "Fantom",
+  1088:   "Metis",
+  1284:   "Moonbeam",
+  5000:   "Mantle",
+  8453:   "Base",
+  34443:  "Mode",
+  42161:  "Arbitrum",
+  43114:  "Avalanche",
+  59144:  "Linea",
+  80094:  "Berachain",
+  81457:  "Blast",
+  534352: "Scroll",
 };
 
 const LENDER_DISPLAY: Record<string, string> = {

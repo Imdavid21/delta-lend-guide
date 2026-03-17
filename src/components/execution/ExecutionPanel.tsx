@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useAccount, useBalance, useReadContract, useSwitchChain } from "wagmi";
+import { useAccount, useBalance, useReadContract, useSwitchChain, useSendTransaction } from "wagmi";
+import { useLocation } from "react-router-dom";
 import { useAppKit } from "@reown/appkit/react";
 import {
-  ArrowDown, ChevronDown, Clock, Fuel, Info, Lock, Settings,
+  ArrowDown, ChevronDown, Clock, Fuel, Info, Settings,
 } from "lucide-react";
 import { useMarkets, useVaults } from "@/hooks/useMarkets";
 import { usePrices } from "@/hooks/usePrices";
@@ -11,7 +12,6 @@ import { CHAIN_CONFIGS, CHAIN_BY_NAME } from "@/lib/chains";
 import { prepareTx } from "@/lib/prepareTx";
 import type { TxStep } from "@/lib/prepareTx";
 import { AssetIcon, ProtocolIcon, ChainIcon, parseChainFromLabel } from "@/components/icons/MarketIcons";
-import TxExecutor from "@/components/TxExecutor";
 
 const INITIAL_LIMIT = 6;
 
@@ -111,6 +111,8 @@ const MARGIN_SUBMODES: { id: MarginSubMode; label: string; btnLabel: string; des
 const GREEN = "#86efac";
 const AMBER = "#fbbf24";
 const PURPLE = "#a78bfa";
+
+type StepStatus = "idle" | "pending" | "success" | "error";
 
 interface ChainOption { id: string | null; label: string; chainId?: number }
 const CHAINS: ChainOption[] = [
@@ -450,22 +452,32 @@ function FieldRow({ label, value, accent, tooltip }: { label: string; value: str
 
 export default function ExecutionPanel() {
   const { isConnected, address, chainId: connectedChainId } = useAccount();
-  const { switchChain } = useSwitchChain();
+  const { switchChainAsync, switchChain } = useSwitchChain();
+  const { sendTransactionAsync } = useSendTransaction();
   const { open: openWallet } = useAppKit();
   const { data: markets } = useMarkets();
   const { data: vaults } = useVaults();
   const prices = usePrices();
+  const location = useLocation();
 
-  const [mode, setMode] = useState<ExecMode>("lend");
+  // Deep-link preset from portfolio CTAs
+  const preset = (location.state ?? {}) as { presetMode?: string; presetAsset?: string; presetProtocol?: string };
+
+  const [mode, setMode] = useState<ExecMode>(() => {
+    if (preset.presetMode === "borrow" || preset.presetMode === "repay") return "borrow";
+    return "lend";
+  });
   const [lendSubMode, setLendSubMode] = useState<LendSubMode>("lending");
-  const [borrowSubMode, setBorrowSubMode] = useState<BorrowSubMode>("borrow");
+  const [borrowSubMode, setBorrowSubMode] = useState<BorrowSubMode>(() =>
+    preset.presetMode === "repay" ? "repay" : "borrow"
+  );
   const [marginSubMode, setMarginSubMode] = useState<MarginSubMode>("leverage");
   const [leverage, setLeverage] = useState("2");
   const [isAll, setIsAll] = useState(false);
   const [secondRouteId, setSecondRouteId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
-  const [fromAsset, setFromAsset] = useState("USDC");
-  const [toAsset, setToAsset] = useState("USDC");
+  const [fromAsset, setFromAsset] = useState(() => preset.presetAsset ?? "USDC");
+
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
@@ -489,11 +501,13 @@ export default function ExecutionPanel() {
   // Pagination
   const [showAll, setShowAll] = useState(false);
 
-  // Transaction preparation
+  // Transaction preparation + inline execution
   const [txLoading, setTxLoading] = useState(false);
   const [txSteps, setTxSteps] = useState<TxStep[] | null>(null);
   const [txQuote, setTxQuote] = useState<any>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  const [txStatuses, setTxStatuses] = useState<StepStatus[]>([]);
+  const [txPhase, setTxPhase] = useState<"idle" | "preparing" | "executing" | "done">("idle");
 
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -514,12 +528,12 @@ export default function ExecutionPanel() {
   const marginCfg = MARGIN_SUBMODES.find(s => s.id === marginSubMode)!;
   const accent = mode === "borrow" ? AMBER : mode === "margin" ? PURPLE : GREEN;
   const fromLabel = mode === "borrow"
-    ? (borrowSubMode === "repay" ? "Repay Asset" : "Collateral")
+    ? (borrowSubMode === "repay" ? "Repay Asset & Amount" : "Borrow Asset & Amount")
     : mode === "margin"
     ? (marginSubMode === "collateral-swap" ? "Current Collateral" : marginSubMode === "debt-swap" ? "Current Debt" : "Debt Market")
     : subCfg.fromLabel;
   const toLabel = mode === "borrow"
-    ? (borrowSubMode === "repay" ? "Market to Repay" : "Borrow Asset")
+    ? (borrowSubMode === "repay" ? "Market to Repay" : "Lending Market")
     : mode === "margin"
     ? (marginSubMode === "collateral-swap" ? "New Collateral" : marginSubMode === "debt-swap" ? "New Debt" : "Collateral Market")
     : subCfg.toLabel;
@@ -538,7 +552,7 @@ export default function ExecutionPanel() {
     setTxQuote(null);
     setTxError(null);
     setIsAll(false);
-  }, [mode, lendSubMode, borrowSubMode, marginSubMode, fromAsset, toAsset, chainId, filterProtocol, filterMinTvl]);
+  }, [mode, lendSubMode, borrowSubMode, marginSubMode, fromAsset, chainId, filterProtocol, filterMinTvl]);
 
   // Close settings popover on outside click
   useEffect(() => {
@@ -563,8 +577,10 @@ export default function ExecutionPanel() {
       if (lendSubMode === "vault") return vaultAssets.length ? vaultAssets : fallback;
       return lendingAssets.length ? lendingAssets : fallback;
     }
+    // Borrow mode: FROM = the asset to borrow/repay
+    if (mode === "borrow") return borrowableAssets.length ? borrowableAssets : fallback;
     return lendingAssets.length ? lendingAssets : fallback;
-  }, [mode, lendSubMode, lendingAssets, vaultAssets]);
+  }, [mode, lendSubMode, lendingAssets, vaultAssets, borrowableAssets]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
@@ -620,8 +636,9 @@ export default function ExecutionPanel() {
     const asset = validFromAsset;
 
     if (mode === "borrow" || mode === "margin") {
-      // For repay/borrow/margin we show markets with borrow capability
-      const filterAsset = mode === "borrow" ? toAsset : asset;
+      // For borrow/repay: filter routes by the FROM asset (what user wants to borrow/repay)
+      // For margin: filter by collateral asset
+      const filterAsset = mode === "borrow" ? asset : asset;
       return (markets ?? [])
         .filter(m => m.asset === filterAsset && m.borrowAPR != null && m.borrowAPR > 0)
         .sort((a, b) => (a.borrowAPR ?? 999) - (b.borrowAPR ?? 999))
@@ -679,7 +696,7 @@ export default function ExecutionPanel() {
           gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
         };
       });
-  }, [mode, lendSubMode, validFromAsset, toAsset, markets, vaults]);
+  }, [mode, lendSubMode, validFromAsset, markets, vaults]);
 
   // ── All lending routes (second market pool for margin ops) ─────────────────
   const allLendingRoutes = useMemo((): ExecRoute[] =>
@@ -744,9 +761,14 @@ export default function ExecutionPanel() {
   // ── Button / Exec state ──────────────────────────────────
   type BtnState = "connect" | "enter" | "exec";
   const btnState: BtnState = !isConnected ? "connect" : !amountNum ? "enter" : "exec";
-  const btnDisabled = btnState === "enter" || txLoading;
-  const btnLabel = txLoading
+  const isTxBusy = txPhase === "preparing" || txPhase === "executing";
+  const btnDisabled = btnState === "enter" || isTxBusy;
+  const btnLabel = txPhase === "preparing"
     ? "Preparing transaction…"
+    : txPhase === "executing"
+    ? "Confirm in wallet…"
+    : txPhase === "done"
+    ? "Done! ✓"
     : btnState === "connect" ? "Connect Wallet"
     : btnState === "enter"   ? "Enter Amount"
     : execBtnLabel;
@@ -755,17 +777,19 @@ export default function ExecutionPanel() {
     if (btnState === "connect") { openWallet(); return; }
     if (btnState !== "exec" || !selectedRoute) return;
 
-    // Address guard — wallet can be connected but address momentarily undefined
     if (!address) {
       setTxError("Wallet address unavailable. Please reconnect your wallet.");
       return;
     }
 
     setTxLoading(true);
+    setTxPhase("preparing");
     setTxSteps(null);
     setTxQuote(null);
     setTxError(null);
+    setTxStatuses([]);
 
+    let steps: TxStep[] = [];
     try {
       let action: string;
       let asset: string;
@@ -774,8 +798,9 @@ export default function ExecutionPanel() {
         action = marginSubMode;
         asset  = validFromAsset;
       } else if (mode === "borrow") {
+        // FROM asset = what to borrow/repay; amount = how much to borrow/repay
         action = borrowSubMode;
-        asset  = toAsset;
+        asset  = validFromAsset;
       } else {
         action = lendSubMode === "withdraw" ? "withdraw" : "deposit";
         asset  = validFromAsset;
@@ -804,21 +829,81 @@ export default function ExecutionPanel() {
         isAll:        isAll || undefined,
       });
 
-      if (result.transactions.length) {
-        setTxSteps(result.transactions);
-        setTxQuote(result.quote ?? null);
-      } else {
+      if (!result.transactions.length) {
         setTxError("No transaction steps were returned. The market may be paused or unavailable.");
+        setTxPhase("idle");
+        return;
       }
+
+      steps = result.transactions;
+      setTxSteps(steps);
+      setTxQuote(result.quote ?? null);
+      setTxStatuses(steps.map(() => "idle" as StepStatus));
+      setTxLoading(false);
+      setTxPhase("executing");
     } catch (err: unknown) {
       const e = err as { name?: string; message?: string };
       const isTimeout = e.name === "AbortError" || e.name === "TimeoutError";
       setTxError(isTimeout
         ? "Request timed out — please try again."
         : (e.message ?? "Failed to prepare transaction"));
-    } finally {
+      setTxPhase("idle");
       setTxLoading(false);
+      return;
     }
+
+    // ── Auto-execute each step immediately ─────────────────
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      setTxStatuses(p => p.map((s, j) => j === i ? "pending" : s));
+      try {
+        const targetChainId = step.chainId ?? connectedChainId;
+        if (targetChainId && targetChainId !== connectedChainId) {
+          await switchChainAsync({ chainId: targetChainId });
+        }
+        await sendTransactionAsync({
+          to:    step.to   as `0x${string}`,
+          data:  step.data as `0x${string}`,
+          value: BigInt(step.value || 0),
+        });
+        setTxStatuses(p => p.map((s, j) => j === i ? "success" : s));
+      } catch (err: any) {
+        setTxStatuses(p => p.map((s, j) => j === i ? "error" : s));
+        setTxError(err?.shortMessage ?? err?.message ?? "Transaction rejected or failed");
+        setTxPhase("idle");
+        return;
+      }
+    }
+    setTxPhase("done");
+  };
+
+  const retryExecution = async () => {
+    if (!txSteps || !address) return;
+    setTxError(null);
+    setTxPhase("executing");
+    for (let i = 0; i < txSteps.length; i++) {
+      if (txStatuses[i] === "success") continue;
+      const step = txSteps[i];
+      setTxStatuses(p => p.map((s, j) => j === i ? "pending" : s));
+      try {
+        const targetChainId = step.chainId ?? connectedChainId;
+        if (targetChainId && targetChainId !== connectedChainId) {
+          await switchChainAsync({ chainId: targetChainId });
+        }
+        await sendTransactionAsync({
+          to:    step.to   as `0x${string}`,
+          data:  step.data as `0x${string}`,
+          value: BigInt(step.value || 0),
+        });
+        setTxStatuses(p => p.map((s, j) => j === i ? "success" : s));
+      } catch (err: any) {
+        setTxStatuses(p => p.map((s, j) => j === i ? "error" : s));
+        setTxError(err?.shortMessage ?? err?.message ?? "Transaction rejected or failed");
+        setTxPhase("idle");
+        return;
+      }
+    }
+    setTxPhase("done");
   };
 
   const inputBg = "#0d1520";
@@ -1006,11 +1091,6 @@ export default function ExecutionPanel() {
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
               <span>{fromLabel}</span>
-              {mode === "borrow" && borrowSubMode === "borrow" && (
-                <span style={{ display: "flex", alignItems: "center", gap: 3, color: AMBER, fontSize: 9 }}>
-                  <Lock size={9} /> Locked as collateral
-                </span>
-              )}
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -1100,9 +1180,9 @@ export default function ExecutionPanel() {
               width: 28, height: 28, borderRadius: "50%",
               background: "#0a0f14", border: "1px solid rgba(67,72,78,0.3)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: mode === "borrow" && borrowSubMode === "borrow" ? AMBER : mode === "margin" ? PURPLE : "#a7abb2",
+              color: mode === "margin" ? PURPLE : "#a7abb2",
             }}>
-              {mode === "borrow" && borrowSubMode === "borrow" ? <Lock size={11} /> : <ArrowDown size={12} />}
+              <ArrowDown size={12} />
             </div>
           </div>
 
@@ -1113,13 +1193,7 @@ export default function ExecutionPanel() {
             </div>
 
             {mode === "borrow" ? (
-              borrowSubMode === "borrow" ? (
-                <AssetDropdown
-                  asset={toAsset}
-                  onChange={a => setToAsset(a)}
-                  assets={borrowableAssets.length ? borrowableAssets : ["USDC", "USDT", "DAI", "ETH"]}
-                />
-              ) : selectedRoute ? (
+              selectedRoute ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{
                     width: 30, height: 30, borderRadius: "50%", background: "#0a0f14",
@@ -1334,10 +1408,50 @@ export default function ExecutionPanel() {
             </div>
           )}
 
-          {/* TxExecutor */}
+          {/* Inline transaction progress */}
           {txSteps && txSteps.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <TxExecutor transactions={txSteps} quote={txQuote} />
+            <div style={{ marginTop: 10, padding: "10px 12px", background: "#0a0f14", borderRadius: 10, border: "1px solid rgba(67,72,78,0.25)" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#a7abb2", marginBottom: 8, fontFamily: "Inter, sans-serif", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Transaction Steps
+              </div>
+              {txSteps.map((step, i) => {
+                const status = txStatuses[i] ?? "idle";
+                const statusColor = status === "success" ? GREEN : status === "error" ? "#ef4444" : status === "pending" ? AMBER : "#a7abb2";
+                const statusIcon = status === "success" ? "✓" : status === "error" ? "✕" : status === "pending" ? "…" : `${i + 1}`;
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: i < txSteps!.length - 1 ? "1px solid rgba(67,72,78,0.12)" : "none" }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: `${statusColor}18`, border: `1px solid ${statusColor}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 800, color: statusColor, fontFamily: "Inter, sans-serif" }}>
+                      {statusIcon}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "#eaeef5", fontFamily: "Inter, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {step.description ?? `Step ${i + 1}`}
+                      </div>
+                      {step.to && (
+                        <div style={{ fontSize: 9, color: "#a7abb2", fontFamily: "Inter, monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {step.to.slice(0, 10)}…{step.to.slice(-8)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: statusColor, fontFamily: "Inter, sans-serif", flexShrink: 0 }}>
+                      {status === "pending" ? "Pending" : status === "success" ? "Done" : status === "error" ? "Failed" : "Queued"}
+                    </div>
+                  </div>
+                );
+              })}
+              {txPhase === "done" && (
+                <div style={{ marginTop: 8, padding: "5px 8px", background: `${GREEN}10`, borderRadius: 6, border: `1px solid ${GREEN}30` }}>
+                  <span style={{ fontSize: 10, color: GREEN, fontFamily: "Inter, sans-serif" }}>All transactions completed successfully</span>
+                </div>
+              )}
+              {txError && txPhase === "idle" && txStatuses.some(s => s === "error") && (
+                <button
+                  onClick={retryExecution}
+                  style={{ marginTop: 8, width: "100%", padding: "6px 0", borderRadius: 8, border: `1px solid ${AMBER}44`, background: `${AMBER}10`, color: AMBER, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                >
+                  Retry Failed Step
+                </button>
+              )}
             </div>
           )}
 
