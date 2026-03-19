@@ -488,13 +488,7 @@ export default function ExecutionPanel() {
   const [filterProtocol, setFilterProtocol] = useState<string | null>(null);
   const [filterMinTvl, setFilterMinTvl] = useState(0);
 
-  // Keep chain filter in sync when wallet switches chain externally
-  useEffect(() => {
-    if (connectedChainId) {
-      const name = CHAIN_ID_TO_NAME[connectedChainId];
-      if (name) setChainId(name);
-    }
-  }, [connectedChainId]);
+  // No auto-sync: chain filter stays on "Any Chain" unless user explicitly changes it
 
   // Pagination
   const [showAll, setShowAll] = useState(false);
