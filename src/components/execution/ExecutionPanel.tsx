@@ -922,7 +922,7 @@ export default function ExecutionPanel() {
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* ── Mode tabs ── */}
       <div style={{ display: "flex", gap: 4 }}>
-        {(["lend", "borrow", "margin"] as ExecMode[]).map(m => {
+        {(["lend", "borrow"] as ExecMode[]).map(m => {
           const active = mode === m;
           const modeAccent = m === "borrow" ? AMBER : m === "margin" ? PURPLE : GREEN;
           return (
