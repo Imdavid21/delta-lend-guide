@@ -484,9 +484,7 @@ export default function ExecutionPanel() {
   const [mevProtection, setMevProtection] = useState(false);
 
   // Chain filter — seeded from the connected wallet's chain
-  const [chainId, setChainId] = useState<string | null>(() =>
-    connectedChainId ? (CHAIN_ID_TO_NAME[connectedChainId] ?? null) : null
-  );
+  const [chainId, setChainId] = useState<string | null>(null);
   const [filterProtocol, setFilterProtocol] = useState<string | null>(null);
   const [filterMinTvl, setFilterMinTvl] = useState(0);
 
