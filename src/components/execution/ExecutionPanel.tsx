@@ -476,7 +476,15 @@ export default function ExecutionPanel() {
   const [isAll, setIsAll] = useState(false);
   const [secondRouteId, setSecondRouteId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
-  const [fromAsset, setFromAsset] = useState(() => preset.presetAsset ?? "USDC");
+  const [fromAsset, setFromAsset] = useState(() => {
+    // In borrow mode, FROM = collateral asset; default to ETH
+    if (preset.presetMode === "borrow") return preset.presetAsset ?? "ETH";
+    if (preset.presetMode === "repay") return preset.presetAsset ?? "USDC";
+    return preset.presetAsset ?? "USDC";
+  });
+  const [borrowAsset, setBorrowAsset] = useState("USDC");
+  const [borrowPct, setBorrowPct] = useState(75); // % of max borrow to draw
+  const [customBorrowAmt, setCustomBorrowAmt] = useState(""); // manual override when no collateral
 
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -528,12 +536,12 @@ export default function ExecutionPanel() {
   const marginCfg = MARGIN_SUBMODES.find(s => s.id === marginSubMode)!;
   const accent = mode === "borrow" ? AMBER : mode === "margin" ? PURPLE : GREEN;
   const fromLabel = mode === "borrow"
-    ? (borrowSubMode === "repay" ? "Repay Asset & Amount" : "Borrow Asset & Amount")
+    ? (borrowSubMode === "repay" ? "Repay Asset & Amount" : "Collateral to Supply")
     : mode === "margin"
     ? (marginSubMode === "collateral-swap" ? "Current Collateral" : marginSubMode === "debt-swap" ? "Current Debt" : "Debt Market")
     : subCfg.fromLabel;
   const toLabel = mode === "borrow"
-    ? (borrowSubMode === "repay" ? "Market to Repay" : "Lending Market")
+    ? (borrowSubMode === "repay" ? "Market to Repay" : "You Borrow")
     : mode === "margin"
     ? (marginSubMode === "collateral-swap" ? "New Collateral" : marginSubMode === "debt-swap" ? "New Debt" : "Collateral Market")
     : subCfg.toLabel;
@@ -552,7 +560,9 @@ export default function ExecutionPanel() {
     setTxQuote(null);
     setTxError(null);
     setIsAll(false);
-  }, [mode, lendSubMode, borrowSubMode, marginSubMode, fromAsset, chainId, filterProtocol, filterMinTvl]);
+    setBorrowPct(75);
+    setCustomBorrowAmt("");
+  }, [mode, lendSubMode, borrowSubMode, marginSubMode, fromAsset, borrowAsset, chainId, filterProtocol, filterMinTvl]);
 
   // Close settings popover on outside click
   useEffect(() => {
@@ -577,10 +587,14 @@ export default function ExecutionPanel() {
       if (lendSubMode === "vault") return vaultAssets.length ? vaultAssets : fallback;
       return lendingAssets.length ? lendingAssets : fallback;
     }
-    // Borrow mode: FROM = the asset to borrow/repay
-    if (mode === "borrow") return borrowableAssets.length ? borrowableAssets : fallback;
+    if (mode === "borrow") {
+      // Borrow submode: FROM = collateral asset (what you supply to the protocol)
+      if (borrowSubMode === "borrow") return lendingAssets.length ? lendingAssets : ["ETH", "WBTC", "USDC", "USDT"];
+      // Repay submode: FROM = the debt asset you want to repay
+      return borrowableAssets.length ? borrowableAssets : fallback;
+    }
     return lendingAssets.length ? lendingAssets : fallback;
-  }, [mode, lendSubMode, lendingAssets, vaultAssets, borrowableAssets]);
+  }, [mode, lendSubMode, borrowSubMode, lendingAssets, vaultAssets, borrowableAssets]);
 
   const validFromAsset = fromAssets.includes(fromAsset) ? fromAsset : (fromAssets[0] ?? "USDC");
 
@@ -636,9 +650,9 @@ export default function ExecutionPanel() {
     const asset = validFromAsset;
 
     if (mode === "borrow" || mode === "margin") {
-      // For borrow/repay: filter routes by the FROM asset (what user wants to borrow/repay)
-      // For margin: filter by collateral asset
-      const filterAsset = mode === "borrow" ? asset : asset;
+      // Borrow submode: routes = markets where the BORROW ASSET can be borrowed
+      // Repay submode / margin: routes = markets for the FROM asset
+      const filterAsset = (mode === "borrow" && borrowSubMode === "borrow") ? borrowAsset : asset;
       return (markets ?? [])
         .filter(m => m.asset === filterAsset && m.borrowAPR != null && m.borrowAPR > 0)
         .sort((a, b) => (a.borrowAPR ?? 999) - (b.borrowAPR ?? 999))
@@ -696,7 +710,7 @@ export default function ExecutionPanel() {
           gasEst: chainGasEst(chain), timeEst: chainTimeEst(chain),
         };
       });
-  }, [mode, lendSubMode, validFromAsset, markets, vaults]);
+  }, [mode, lendSubMode, borrowSubMode, borrowAsset, validFromAsset, markets, vaults]);
 
   // ── All lending routes (second market pool for margin ops) ─────────────────
   const allLendingRoutes = useMemo((): ExecRoute[] =>
@@ -749,18 +763,33 @@ export default function ExecutionPanel() {
     ETH: 0.80, WETH: 0.80, WBTC: 0.75, USDC: 0.87, USDT: 0.87, DAI: 0.87, wstETH: 0.78, cbBTC: 0.75, cbETH: 0.78,
   };
   const collateralPrice = prices[validFromAsset] ?? 1;
+  const borrowAssetPrice = prices[borrowAsset] ?? 1;
   const ltv = LTV_RATIOS[validFromAsset] ?? 0.75;
-  const maxBorrow = amountNum * collateralPrice * ltv;
-  const healthFactor = amountNum > 0 && selectedRoute
-    ? (amountNum * collateralPrice * ltv) / Math.min(amountNum * collateralPrice * ltv * 0.8, amountNum)
+  // Max USD that can be borrowed against the supplied collateral
+  const maxBorrowUSD = amountNum * collateralPrice * ltv;
+  // Max amount of borrow asset at market price
+  const maxBorrowAmount = borrowAssetPrice > 0 ? maxBorrowUSD / borrowAssetPrice : 0;
+  // Actual borrow amount: if collateral provided use % of max; otherwise use manual input
+  const borrowAmountNum = amountNum > 0
+    ? maxBorrowAmount * borrowPct / 100
+    : parseFloat(customBorrowAmt) || 0;
+  // Health factor: collateral_value * LTV / debt_value
+  const healthFactor = amountNum > 0 && borrowAmountNum > 0 && selectedRoute
+    ? maxBorrowUSD / (borrowAmountNum * borrowAssetPrice)
     : 9.99;
-  const liquidationPrice = amountNum > 0 && selectedRoute
-    ? (amountNum * 0.5) / (amountNum * ltv)
+  // Liquidation price of collateral: when HF drops to 1
+  // HF=1 => collat_amount * price * ltv = borrow_amount * borrowAssetPrice
+  // => price = (borrowAmountNum * borrowAssetPrice) / (amountNum * ltv)
+  const liquidationPrice = amountNum > 0 && borrowAmountNum > 0
+    ? (borrowAmountNum * borrowAssetPrice) / (amountNum * ltv)
     : 0;
 
   // ── Button / Exec state ──────────────────────────────────
   type BtnState = "connect" | "enter" | "exec";
-  const btnState: BtnState = !isConnected ? "connect" : !amountNum ? "enter" : "exec";
+  const needsAmount = mode === "borrow" && borrowSubMode === "borrow"
+    ? borrowAmountNum <= 0   // need a borrow amount (from collateral % or manual input)
+    : !amountNum;
+  const btnState: BtnState = !isConnected ? "connect" : needsAmount ? "enter" : "exec";
   const isTxBusy = txPhase === "preparing" || txPhase === "executing";
   const btnDisabled = btnState === "enter" || isTxBusy;
   const btnLabel = txPhase === "preparing"
@@ -798,9 +827,9 @@ export default function ExecutionPanel() {
         action = marginSubMode;
         asset  = validFromAsset;
       } else if (mode === "borrow") {
-        // FROM asset = what to borrow/repay; amount = how much to borrow/repay
         action = borrowSubMode;
-        asset  = validFromAsset;
+        // Borrow: execute borrowing borrowAsset; Repay: repay validFromAsset debt
+        asset  = borrowSubMode === "borrow" ? borrowAsset : validFromAsset;
       } else {
         action = lendSubMode === "withdraw" ? "withdraw" : "deposit";
         asset  = validFromAsset;
@@ -813,13 +842,18 @@ export default function ExecutionPanel() {
           ? TOKEN_ADDRESSES[asset]?.[connectedChainId]
           : undefined;
 
+      // For borrow mode: the tx amount is how much to borrow, not the collateral amount
+      const txAmount = (mode === "borrow" && borrowSubMode === "borrow")
+        ? String(borrowAmountNum)
+        : String(amountNum);
+
       const result = await prepareTx({
         action,
         marketId:     selectedRoute.id,
         marketUid:    selectedRoute.marketUid,
         marketUidIn:  mode === "margin" ? selectedRoute.marketUid : undefined,
         marketUidOut: mode === "margin" ? secondRoute?.marketUid : undefined,
-        amount:       String(amountNum),
+        amount:       txAmount,
         asset,
         operator:     address,
         chainId:      connectedChainId,
@@ -1192,7 +1226,78 @@ export default function ExecutionPanel() {
               {toLabel}
             </div>
 
-            {mode === "borrow" ? (
+            {mode === "borrow" && borrowSubMode === "borrow" ? (
+              <div>
+                {/* Borrow asset picker */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <AssetDropdown
+                    asset={borrowAsset}
+                    onChange={a => { setBorrowAsset(a); setSelectedRouteId(null); }}
+                    assets={borrowableAssets.length ? borrowableAssets : ["USDC", "USDT", "DAI", "ETH"]}
+                  />
+                  {selectedRoute && (
+                    <span style={{ fontSize: 11, color: AMBER, fontWeight: 700, fontFamily: "Inter, sans-serif" }}>
+                      {selectedRoute.returnLabel}
+                    </span>
+                  )}
+                </div>
+                {amountNum > 0 ? (
+                  /* Collateral entered → show computed borrow amount + % buttons */
+                  <>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: AMBER, fontFamily: "Inter, sans-serif", letterSpacing: "-0.03em", marginBottom: 2 }}>
+                      {borrowAmountNum.toLocaleString("en", { maximumFractionDigits: 6 })}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
+                        ≈ {formatUSD(borrowAmountNum * borrowAssetPrice)}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif" }}>
+                        Max: {maxBorrowAmount.toLocaleString("en", { maximumFractionDigits: 4 })} {borrowAsset}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {[25, 50, 75, 100].map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setBorrowPct(p)}
+                          style={{
+                            flex: 1, padding: "3px 0", fontSize: 10, fontWeight: 700,
+                            background: borrowPct === p ? `${AMBER}14` : "rgba(255,255,255,0.03)",
+                            border: borrowPct === p ? `1px solid ${AMBER}44` : "1px solid rgba(67,72,78,0.25)",
+                            borderRadius: 6, color: borrowPct === p ? AMBER : "#a7abb2",
+                            cursor: "pointer", fontFamily: "Inter, sans-serif",
+                          }}
+                        >{p === 100 ? "MAX" : `${p}%`}</button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  /* No collateral → manual borrow amount (for existing positions) */
+                  <>
+                    <div style={{ position: "relative", marginBottom: 4 }}>
+                      <input
+                        type="number"
+                        value={customBorrowAmt}
+                        onChange={e => setCustomBorrowAmt(e.target.value)}
+                        placeholder="0.00"
+                        style={{
+                          width: "100%", background: "transparent", border: "none",
+                          fontSize: 28, fontWeight: 800, color: AMBER,
+                          fontFamily: "Inter, sans-serif", outline: "none",
+                          letterSpacing: "-0.03em", boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#a7abb2", fontFamily: "Inter, sans-serif", marginBottom: 6 }}>
+                      ≈ {formatUSD((parseFloat(customBorrowAmt) || 0) * borrowAssetPrice)}
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(167,171,178,0.55)", fontFamily: "Inter, sans-serif" }}>
+                      Borrowing against your existing collateral on the selected protocol.
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : mode === "borrow" && borrowSubMode === "repay" ? (
               selectedRoute ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{
@@ -1345,7 +1450,7 @@ export default function ExecutionPanel() {
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
                 <HealthGauge value={Math.min(9.99, healthFactor)} />
               </div>
-              <FieldRow label="Max Borrow" value={formatUSD(maxBorrow)} tooltip="Maximum you can borrow with current collateral" />
+              <FieldRow label="Max Borrow" value={amountNum > 0 ? `${maxBorrowAmount.toLocaleString("en", { maximumFractionDigits: 4 })} ${borrowAsset} (${formatUSD(maxBorrowUSD)})` : "—"} tooltip="Maximum you can borrow with this collateral" />
               <FieldRow label="Borrow APR" value={selectedRoute ? selectedRoute.returnLabel : "Select route"} accent={selectedRoute ? AMBER : undefined} />
               <FieldRow label="LTV Ratio" value={`${(ltv * 100).toFixed(0)}%`} tooltip="Loan-to-value ratio for this collateral" />
               <FieldRow label="Liquidation Price" value={liquidationPrice > 0 ? `$${liquidationPrice.toLocaleString("en", { maximumFractionDigits: 2 })}` : "—"} tooltip="Price at which your position gets liquidated" />
