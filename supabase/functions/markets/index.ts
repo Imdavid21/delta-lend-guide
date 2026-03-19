@@ -19,6 +19,7 @@ const LENDER_NAMES: Record<string, string> = {
   INIT: "Init Capital", MERIDIAN: "Meridian", IRONCLAD: "Ironclad",
   GRANARY: "Granary", YLDR: "Yldr", MOONWELL: "Moonwell",
   MENDI: "Mendi Finance", SILO: "Silo Finance", EULER: "Euler",
+  BENQI: "Benqi",
 };
 
 const CHAIN_NAMES: Record<number, string> = {
@@ -100,8 +101,6 @@ function resolveLenderName(key: string, poolName = "", chainId?: number): string
 function normalizeRatePercent(raw: unknown): number | null {
   const n = typeof raw === "number" ? raw : parseFloat(String(raw));
   if (!Number.isFinite(n)) return null;
-  // 1Delta API returns rates already as percentages (e.g. 2.44 = 2.44%).
-  // Do NOT multiply — just pass through.
   return n;
 }
 
@@ -123,80 +122,65 @@ function extractAsset(pool: any): string {
   return asset;
 }
 
-async function fetchJSON(url: string, headers: Record<string, string> = {}, timeout = 10000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-  try {
-    const res = await fetch(url, { headers, signal: controller.signal });
-    clearTimeout(timer);
-    if (!res.ok) {
-      console.log(`fetchJSON ${res.status} for ${url}`);
+/* ── Fetch with retry ────────────────────────────────────── */
+
+async function fetchJSON(url: string, headers: Record<string, string> = {}, timeout = 12000, retries = 2): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url, { headers, signal: controller.signal });
+      clearTimeout(timer);
+      if (res.status === 502 || res.status === 503 || res.status === 429) {
+        console.log(`fetchJSON ${res.status} for ${url} (attempt ${attempt + 1}/${retries + 1})`);
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // backoff
+          continue;
+        }
+        return null;
+      }
+      if (!res.ok) {
+        console.log(`fetchJSON ${res.status} for ${url}`);
+        return null;
+      }
+      return res.json();
+    } catch (e) {
+      clearTimeout(timer);
+      console.log(`fetchJSON error for ${url}: ${(e as Error).message} (attempt ${attempt + 1}/${retries + 1})`);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
       return null;
     }
-    return res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    console.log(`fetchJSON error for ${url}: ${(e as Error).message}`);
-    return null;
   }
+  return null;
 }
 
-async function fetch1DeltaPools(hdrs: Record<string, string>) {
-  // All chains where 1delta has Composer contracts deployed.
-  // The $10M TVL filter in callers will naturally exclude chains with no active protocols.
-  const chainIds = [
-    "1",      // Ethereum
-    "10",     // Optimism
-    "25",     // Cronos
-    "40",     // Telos
-    "50",     // XDC
-    "56",     // BSC
-    "100",    // Gnosis
-    "130",    // Unichain
-    "137",    // Polygon
-    "143",    // Monad
-    "146",    // Sonic
-    "169",    // Manta Pacific
-    "250",    // Fantom
-    "999",    // HyperEVM
-    "1088",   // Metis
-    "1116",   // Core
-    "1284",   // Moonbeam
-    "1329",   // Sei
-    "1868",   // Soneium
-    "2818",   // Morph
-    "5000",   // Mantle
-    "8217",   // Kaia
-    "8453",   // Base
-    "9745",   // Plasma
-    "34443",  // Mode
-    "42161",  // Arbitrum
-    "43111",  // Hemi
-    "43114",  // Avalanche
-    "59144",  // Linea
-    "80094",  // Berachain
-    "81457",  // Blast
-    "167000", // Taiko
-    "534352", // Scroll
-    "747474", // Katana
-  ];
+/* ── 1delta pool fetcher ─────────────────────────────────── */
 
-  // Fetch all chains in parallel; use a shorter timeout per chain so slow
-  // or unsupported chains don't block the overall response.
+const ALL_CHAIN_IDS = [
+  "1", "10", "25", "40", "50", "56", "100", "130", "137", "143", "146",
+  "169", "250", "999", "1088", "1116", "1284", "1329", "1868", "2818",
+  "5000", "8217", "8453", "9745", "34443", "42161", "43111", "43114",
+  "59144", "80094", "81457", "167000", "534352", "747474",
+];
+
+async function fetch1DeltaPools(hdrs: Record<string, string>) {
   const responses = await Promise.all(
-    chainIds.map((chainId) => {
+    ALL_CHAIN_IDS.map((chainId) => {
       const url = new URL(BASE + "/data/lending/pools");
       url.searchParams.set("chainId", chainId);
-      url.searchParams.set("count", "200");
-      return fetchJSON(url.toString(), hdrs, 12000);
+      url.searchParams.set("count", "500");
+      return fetchJSON(url.toString(), hdrs, 15000, 2);
     }),
   );
 
   const all: any[] = [];
-  for (let i = 0; i < chainIds.length; i++) {
+  for (let i = 0; i < ALL_CHAIN_IDS.length; i++) {
     const raw = responses[i];
     if (!raw) continue;
-    const chainId = chainIds[i];
+    const chainId = ALL_CHAIN_IDS[i];
     const items = raw?.data?.items ?? raw?.data ?? (Array.isArray(raw) ? raw : []);
     all.push(
       ...items.map((item: any) => ({
@@ -206,21 +190,110 @@ async function fetch1DeltaPools(hdrs: Record<string, string>) {
     );
   }
 
+  console.log(`1delta: ${all.length} total pools across ${ALL_CHAIN_IDS.length} chains`);
   return all;
 }
 
+/* ── DeFiLlama fallback for lending ──────────────────────── */
+
+async function fetchDeFiLlamaLending(): Promise<any[]> {
+  try {
+    const raw = await fetchJSON("https://yields.llama.fi/pools", {}, 15000, 1);
+    if (!raw?.data) return [];
+
+    const SUPPORTED_PROTOCOLS = new Set([
+      "aave-v2", "aave-v3", "compound-v2", "compound-v3",
+      "spark", "moonwell", "seamless-protocol", "radiant-v2",
+      "silo-v2", "silo-finance", "granary-finance", "benqi-lending",
+      "venus", "layerbank", "mendi-finance",
+    ]);
+
+    const LLAMA_CHAIN_MAP: Record<string, number> = {
+      "Ethereum": 1, "Optimism": 10, "BSC": 56, "Gnosis": 100,
+      "Polygon": 137, "Fantom": 250, "Moonbeam": 1284, "Mantle": 5000,
+      "Base": 8453, "Arbitrum": 42161, "Avalanche": 43114,
+      "Linea": 59144, "Scroll": 534352, "Blast": 81457, "Mode": 34443,
+      "Sonic": 146, "Metis": 1088, "Sei": 1329, "Berachain": 80094,
+    };
+
+    const pools: any[] = raw.data;
+    const results: any[] = [];
+
+    for (const p of pools) {
+      const proj = (p.project ?? "").toLowerCase();
+      if (!SUPPORTED_PROTOCOLS.has(proj)) continue;
+      const chainId = LLAMA_CHAIN_MAP[p.chain];
+      if (!chainId) continue;
+      const tvl = p.tvlUsd ?? 0;
+      if (tvl < 10_000 || tvl > 100_000_000_000) continue;
+      const apy = p.apy ?? 0;
+      if (apy > 200) continue; // filter unrealistic
+
+      const asset = p.symbol ?? "";
+      const chainLabel = CHAIN_NAMES[chainId] ?? `Chain ${chainId}`;
+
+      // Map DeFiLlama project names to our protocol keys
+      let protocol = proj.toUpperCase().replace(/-/g, "_");
+      let protocolName = "";
+      if (proj === "aave-v3") { protocol = "AAVE_V3"; protocolName = `Aave V3 Core (${chainLabel})`; }
+      else if (proj === "aave-v2") { protocol = "AAVE_V2"; protocolName = `Aave V2 (${chainLabel})`; }
+      else if (proj === "compound-v3") { protocol = "COMPOUND_V3"; protocolName = `Compound Blue (${chainLabel})`; }
+      else if (proj === "compound-v2") { protocol = "COMPOUND_V2"; protocolName = `Compound V2 (${chainLabel})`; }
+      else if (proj === "spark") { protocol = "SPARK"; protocolName = `Spark (${chainLabel})`; }
+      else if (proj === "moonwell") { protocol = "MOONWELL"; protocolName = `Moonwell (${chainLabel})`; }
+      else if (proj === "seamless-protocol") { protocol = "SEAMLESS"; protocolName = `Seamless (${chainLabel})`; }
+      else if (proj === "radiant-v2") { protocol = "RADIANT_V2"; protocolName = `Radiant V2 (${chainLabel})`; }
+      else if (proj.startsWith("silo")) { protocol = "SILO"; protocolName = `Silo Finance (${chainLabel})`; }
+      else if (proj === "granary-finance") { protocol = "GRANARY"; protocolName = `Granary (${chainLabel})`; }
+      else if (proj === "benqi-lending") { protocol = "BENQI"; protocolName = `Benqi (${chainLabel})`; }
+      else if (proj === "venus") { protocol = "VENUS"; protocolName = `Venus (${chainLabel})`; }
+      else if (proj === "layerbank") { protocol = "LAYERBANK"; protocolName = `LayerBank (${chainLabel})`; }
+      else if (proj === "mendi-finance") { protocol = "MENDI"; protocolName = `Mendi Finance (${chainLabel})`; }
+      else { protocolName = `${protocol} (${chainLabel})`; }
+
+      const borrowApr = p.apyBorrow != null ? p.apyBorrow : null;
+
+      results.push({
+        id: p.pool ?? `llama:${protocol}:${chainId}:${asset}`,
+        marketUid: p.pool ?? `llama:${protocol}:${chainId}:${asset}`,
+        protocol,
+        protocolName,
+        poolName: p.poolMeta ?? "",
+        asset,
+        supplyAPY: apy,
+        borrowAPR: borrowApr,
+        totalSupplyUSD: tvl,
+        availableLiquidityUSD: tvl * (1 - (p.utilization ?? 0)),
+        utilizationRate: p.utilization != null ? p.utilization * 100 : null,
+        _source: "defillama",
+      });
+    }
+
+    console.log(`DeFiLlama fallback: ${results.length} lending pools`);
+    return results;
+  } catch (e) {
+    console.log(`DeFiLlama error: ${(e as Error).message}`);
+    return [];
+  }
+}
+
+/* ── Lending: 1delta primary, DeFiLlama fallback ─────────── */
+
 async function fetchLending(hdrs: Record<string, string>) {
-  const items = await fetch1DeltaPools(hdrs);
-  return items
+  const [deltaItems, llamaItems] = await Promise.all([
+    fetch1DeltaPools(hdrs),
+    fetchDeFiLlamaLending(),
+  ]);
+
+  const deltaMarkets = deltaItems
     .map((pool: any) => {
       const lenderKey = pool.lenderKey ?? pool.lender ?? "";
-      if (lenderKey.startsWith("MORPHO_BLUE")) return null;
-      if (lenderKey === "ZEROLEND") return null; // Removed from UI per product decision
+      if (lenderKey === "ZEROLEND") return null;
 
       const chainId = resolveChainId(pool) ?? 1;
       const asset = extractAsset(pool);
       const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-      if (tvl < 10_000_000 || tvl > 100_000_000_000) return null; // filter <$10M and >$100B (data artifacts)
+      if (tvl < 10_000 || tvl > 100_000_000_000) return null; // $10K min, filter data artifacts
       const utilPct = normalizePercent(pool.utilization);
       const util = utilPct != null ? utilPct / 100 : 0;
 
@@ -239,6 +312,21 @@ async function fetchLending(hdrs: Record<string, string>) {
       };
     })
     .filter(Boolean);
+
+  console.log(`1delta lending: ${deltaMarkets.length} markets after filtering`);
+
+  // If 1delta returned data, use it as primary; merge DeFiLlama for chains/protocols 1delta missed
+  if (deltaMarkets.length > 0) {
+    const deltaIds = new Set(deltaMarkets.map((m: any) => m.id));
+    // Add DeFiLlama pools that aren't already covered by 1delta
+    const extraLlama = llamaItems.filter((m: any) => !deltaIds.has(m.id));
+    console.log(`Merging ${extraLlama.length} extra DeFiLlama pools`);
+    return [...deltaMarkets, ...extraLlama];
+  }
+
+  // Full fallback to DeFiLlama if 1delta is completely down
+  console.log("1delta returned 0 markets — using DeFiLlama fallback entirely");
+  return llamaItems;
 }
 
 /* ── Morpho vaults directly from Morpho GraphQL API ── */
@@ -266,7 +354,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -284,12 +372,10 @@ async function fetchMorphoVaults(): Promise<any[]> {
     return items
       .map((v: any) => {
         const asset = v.asset?.symbol ?? "";
-        // Prefer totalAssetsUsd; if it looks like raw token units, normalize it
         const rawTvlUsd: number = v.state?.totalAssetsUsd ?? 0;
         const totalAssets: number = v.state?.totalAssets ?? 0;
         const decimals: number = v.asset?.decimals ?? 6;
         const priceUsd: number = v.asset?.priceUsd ?? 0;
-        // If totalAssetsUsd looks implausible (> $10B per vault), recompute from raw amounts
         const computedTvl = priceUsd > 0 && totalAssets > 0
           ? (totalAssets / Math.pow(10, decimals)) * priceUsd
           : 0;
@@ -302,8 +388,7 @@ async function fetchMorphoVaults(): Promise<any[]> {
       })
       .filter((v: any) => {
         const tvl = v._tvl;
-        if (tvl < 10_000_000) return false;   // $10M minimum
-        // Filter out unrealistic APYs (>100%) — likely reward-gaming or data artifacts
+        if (tvl < 100_000) return false; // $100K minimum for vaults
         const apy = (v.state?.apy ?? 0) * 100;
         if (apy > 100) return false;
         return true;
@@ -348,7 +433,7 @@ async function fetchVaults(hdrs: Record<string, string>) {
     const lk = pool.lenderKey ?? "";
     if (!lk.startsWith("EULER")) continue;
     const tvl = parseFloat(pool.totalDepositsUsd) || 0;
-    if (tvl < 10_000_000 || tvl > 50_000_000_000) continue; // $10M–$50B range for Euler vaults
+    if (tvl < 100_000 || tvl > 50_000_000_000) continue;
     const chainId = resolveChainId(pool) ?? 1;
     const chainLabel = CHAIN_NAMES[chainId] ? ` (${CHAIN_NAMES[chainId]})` : "";
     const asset = extractAsset(pool);
@@ -375,6 +460,7 @@ async function fetchPendleForChain(chainId: number): Promise<any[]> {
     `https://api-v2.pendle.finance/core/v1/markets/all?chainId=${chainId}`,
     {},
     20000,
+    1,
   );
 
   if (!raw) {
@@ -416,7 +502,6 @@ async function fetchPendleForChain(chainId: number): Promise<any[]> {
 }
 
 async function fetchPendle() {
-  // All chains where Pendle has deployed markets
   const pendleChains = [1, 10, 56, 137, 5000, 8453, 42161, 146];
   const results = await Promise.all(pendleChains.map(c => fetchPendleForChain(c)));
   const all = results.flat();
@@ -424,9 +509,9 @@ async function fetchPendle() {
   return all;
 }
 
-/* ── In-memory cache (60s TTL) to avoid hammering upstream APIs ── */
+/* ── In-memory cache (60s TTL) ── */
 const cache = new Map<string, { data: any[]; ts: number }>();
-const CACHE_TTL = 60_000; // 60 seconds
+const CACHE_TTL = 60_000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -439,7 +524,6 @@ Deno.serve(async (req) => {
     const hdrs: Record<string, string> = {};
     if (API_KEY) hdrs["x-api-key"] = API_KEY;
 
-    // Check cache
     const cached = cache.get(type);
     const now = Date.now();
     if (cached && now - cached.ts < CACHE_TTL) {
@@ -467,7 +551,6 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    // Update cache
     cache.set(type, { data: unique, ts: now });
 
     return new Response(JSON.stringify(unique), {
