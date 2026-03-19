@@ -484,19 +484,11 @@ export default function ExecutionPanel() {
   const [mevProtection, setMevProtection] = useState(false);
 
   // Chain filter — seeded from the connected wallet's chain
-  const [chainId, setChainId] = useState<string | null>(() =>
-    connectedChainId ? (CHAIN_ID_TO_NAME[connectedChainId] ?? null) : null
-  );
+  const [chainId, setChainId] = useState<string | null>(null);
   const [filterProtocol, setFilterProtocol] = useState<string | null>(null);
   const [filterMinTvl, setFilterMinTvl] = useState(0);
 
-  // Keep chain filter in sync when wallet switches chain externally
-  useEffect(() => {
-    if (connectedChainId) {
-      const name = CHAIN_ID_TO_NAME[connectedChainId];
-      if (name) setChainId(name);
-    }
-  }, [connectedChainId]);
+  // No auto-sync: chain filter stays on "Any Chain" unless user explicitly changes it
 
   // Pagination
   const [showAll, setShowAll] = useState(false);
