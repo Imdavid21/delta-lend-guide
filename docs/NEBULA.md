@@ -1,4 +1,4 @@
-# 📘 Nebula — Technical Documentation
+# Nebula Technical Documentation
 
 > **DeFi Yield Intelligence Platform**
 > A real-time aggregator and AI-powered assistant for DeFi lending, vaults, and fixed-yield markets.
